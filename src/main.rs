@@ -64,43 +64,19 @@ fn main() -> eframe::Result<()> {
 }
 
 fn load_icon() -> egui::IconData {
-    // Generate a simple programmatic icon if file doesn't exist
-    let size = 64u32;
-    let mut rgba = vec![0u8; (size * size * 4) as usize];
+    // Load icon from assets/icon.png
+    let icon_bytes = include_bytes!("../assets/icon.png");
 
-    // Create a tomato-colored circle
-    let center = size as f32 / 2.0;
-    let radius = center - 4.0;
+    let image = image::load_from_memory(icon_bytes)
+        .expect("Failed to load icon")
+        .into_rgba8();
 
-    for y in 0..size {
-        for x in 0..size {
-            let dx = x as f32 - center;
-            let dy = y as f32 - center;
-            let dist = (dx * dx + dy * dy).sqrt();
-
-            let idx = ((y * size + x) * 4) as usize;
-
-            if dist <= radius {
-                // Gradient from rose-500 (#F43F5E) to rose-600 (#E11D48)
-                let t = dist / radius;
-                rgba[idx] = (244.0 - t * 19.0) as u8; // R
-                rgba[idx + 1] = (63.0 - t * 34.0) as u8; // G
-                rgba[idx + 2] = (94.0 - t * 22.0) as u8; // B
-                rgba[idx + 3] = 255; // A
-            } else if dist <= radius + 2.0 {
-                // Anti-aliased edge
-                let alpha = ((radius + 2.0 - dist) / 2.0 * 255.0) as u8;
-                rgba[idx] = 244;
-                rgba[idx + 1] = 63;
-                rgba[idx + 2] = 94;
-                rgba[idx + 3] = alpha;
-            }
-        }
-    }
+    let (width, height) = image.dimensions();
+    let rgba = image.into_raw();
 
     egui::IconData {
         rgba,
-        width: size,
-        height: size,
+        width,
+        height,
     }
 }
