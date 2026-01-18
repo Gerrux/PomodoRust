@@ -189,9 +189,15 @@ pub struct InteractionState {
 impl InteractionState {
     pub fn new() -> Self {
         Self {
-            hover: AnimatedValue::new(0.0).with_duration(0.12).with_easing(Easing::Ease),
-            press: AnimatedValue::new(0.0).with_duration(0.08).with_easing(Easing::EaseOut),
-            focus: AnimatedValue::new(0.0).with_duration(0.2).with_easing(Easing::EaseOut),
+            hover: AnimatedValue::new(0.0)
+                .with_duration(0.12)
+                .with_easing(Easing::Ease),
+            press: AnimatedValue::new(0.0)
+                .with_duration(0.08)
+                .with_easing(Easing::EaseOut),
+            focus: AnimatedValue::new(0.0)
+                .with_duration(0.2)
+                .with_easing(Easing::EaseOut),
         }
     }
 
@@ -259,8 +265,12 @@ impl AnimationState {
             timer_pulse: 0.0,
             glow_phase: 0.0,
             breathe_phase: 0.0,
-            progress_anim: AnimatedValue::new(0.0).with_duration(0.6).with_easing(Easing::Decelerate),
-            view_transition: AnimatedValue::new(0.0).with_duration(0.25).with_easing(Easing::Ease),
+            progress_anim: AnimatedValue::new(0.0)
+                .with_duration(0.6)
+                .with_easing(Easing::Decelerate),
+            view_transition: AnimatedValue::new(0.0)
+                .with_duration(0.25)
+                .with_easing(Easing::Ease),
             last_update: Instant::now(),
             timer_running: false,
         }
@@ -343,7 +353,8 @@ impl AnimationState {
 
     pub fn transition_view(&mut self, forward: bool) {
         self.view_transition.set(if forward { 0.0 } else { 1.0 });
-        self.view_transition.animate_to(if forward { 1.0 } else { 0.0 });
+        self.view_transition
+            .animate_to(if forward { 1.0 } else { 0.0 });
     }
 
     pub fn view_transition_t(&mut self) -> f32 {
@@ -418,7 +429,11 @@ impl StaggeredAnimation {
     pub fn new(count: usize, stagger_delay: f32) -> Self {
         Self {
             items: (0..count)
-                .map(|_| AnimatedValue::new(0.0).with_duration(0.3).with_easing(Easing::Decelerate))
+                .map(|_| {
+                    AnimatedValue::new(0.0)
+                        .with_duration(0.3)
+                        .with_easing(Easing::Decelerate)
+                })
                 .collect(),
             stagger_delay,
         }

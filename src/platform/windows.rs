@@ -36,7 +36,7 @@ pub fn apply_window_effects(hwnd: isize) {
         );
 
         // Enable rounded corners (Windows 11)
-        let corner_preference = DWMWCP_ROUND.0 as i32;
+        let corner_preference = DWMWCP_ROUND.0;
         let _ = DwmSetWindowAttribute(
             hwnd,
             DWMWA_WINDOW_CORNER_PREFERENCE,
@@ -109,8 +109,8 @@ pub fn stop_flash_window(hwnd: isize) {
 /// Flash the PomodoRust window by finding it by title
 /// Returns true if window was found and flashed
 pub fn flash_pomodorust_window(count: u32) -> bool {
-    use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
     use windows::core::PCWSTR;
+    use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
 
     unsafe {
         let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();
@@ -127,10 +127,10 @@ pub fn flash_pomodorust_window(count: u32) -> bool {
 /// Show and bring the PomodoRust window to foreground
 /// Returns true if window was found and shown
 pub fn show_pomodorust_window() -> bool {
-    use windows::Win32::UI::WindowsAndMessaging::{
-        FindWindowW, ShowWindow, SetForegroundWindow, SW_RESTORE,
-    };
     use windows::core::PCWSTR;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE,
+    };
 
     unsafe {
         let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();

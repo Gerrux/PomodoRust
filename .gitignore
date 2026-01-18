@@ -21,6 +21,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Generated files
+assets/icon.ico
+
 # Local data (user-specific)
 *.db
 *.sqlite

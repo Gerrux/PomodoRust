@@ -7,8 +7,8 @@ use crate::data::{Config, Database, ExportFormat, Exporter, Statistics};
 use crate::platform::{AudioPlayer, SoundType};
 use crate::ui::{
     animations::AnimationState,
-    stats::{StatsAction, StatsView},
     settings::{SettingsAction, SettingsView},
+    stats::{StatsAction, StatsView},
     theme::Theme,
     timer_view::{TimerAction, TimerView},
     titlebar::{TitleBar, TitleBarButton},
@@ -187,11 +187,16 @@ impl PomodoRustApp {
                 self.settings_view = Some(SettingsView::new(&self.config));
                 self.current_view = View::Settings;
             }
-            StatsAction::QuickStart { session_type, minutes } => {
+            StatsAction::QuickStart {
+                session_type,
+                minutes,
+            } => {
                 // Switch to the requested session type
                 self.session.switch_to(session_type);
                 // Reset timer with custom duration
-                self.session.timer_mut().reset_with_duration(minutes as u64 * 60);
+                self.session
+                    .timer_mut()
+                    .reset_with_duration(minutes as u64 * 60);
                 // Start the timer
                 self.session.start();
                 self.session_start_time = Some(Utc::now());
@@ -234,10 +239,7 @@ impl PomodoRustApp {
                 }
                 Err(e) => {
                     tracing::error!("Failed to export statistics: {}", e);
-                    crate::platform::show_notification(
-                        "Export Failed",
-                        &format!("Error: {}", e),
-                    );
+                    crate::platform::show_notification("Export Failed", &format!("Error: {}", e));
                 }
             }
         }
@@ -273,20 +275,20 @@ impl PomodoRustApp {
                 self.theme = Theme::new(self.config.appearance.accent_color);
 
                 // Reset always on top to default (false)
-                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::Normal));
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                    egui::WindowLevel::Normal,
+                ));
 
                 if let Some(ref mut sv) = self.settings_view {
                     sv.reset_from_config(&self.config);
                 }
             }
             SettingsAction::SetAlwaysOnTop(enabled) => {
-                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
-                    if enabled {
-                        egui::WindowLevel::AlwaysOnTop
-                    } else {
-                        egui::WindowLevel::Normal
-                    }
-                ));
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(if enabled {
+                    egui::WindowLevel::AlwaysOnTop
+                } else {
+                    egui::WindowLevel::Normal
+                }));
             }
         }
     }
@@ -330,7 +332,7 @@ impl PomodoRustApp {
                     egui::WindowLevel::AlwaysOnTop
                 } else {
                     egui::WindowLevel::Normal
-                }
+                },
             ));
         }
 
@@ -350,9 +352,8 @@ impl PomodoRustApp {
         let screen_rect = ctx.screen_rect();
 
         // Read input data first (can't call send_viewport_cmd inside input closure)
-        let (hover_pos, primary_pressed) = ctx.input(|input| {
-            (input.pointer.hover_pos(), input.pointer.primary_pressed())
-        });
+        let (hover_pos, primary_pressed) =
+            ctx.input(|input| (input.pointer.hover_pos(), input.pointer.primary_pressed()));
 
         let Some(pos) = hover_pos else { return };
 
@@ -438,7 +439,11 @@ impl eframe::App for PomodoRustApp {
             .frame(
                 egui::Frame::none()
                     .fill(self.theme.bg_primary)
-                    .rounding(if is_maximized { egui::Rounding::ZERO } else { self.theme.window_rounding() })
+                    .rounding(if is_maximized {
+                        egui::Rounding::ZERO
+                    } else {
+                        self.theme.window_rounding()
+                    }),
             )
             .show(ctx, |ui| {
                 // Title bar
@@ -462,7 +467,7 @@ impl eframe::App for PomodoRustApp {
                                     egui::WindowLevel::AlwaysOnTop
                                 } else {
                                     egui::WindowLevel::Normal
-                                }
+                                },
                             ));
                             let _ = self.config.save();
                         }
@@ -480,10 +485,12 @@ impl eframe::App for PomodoRustApp {
                     }
                 }
 
-
                 // Content area with padding
                 egui::Frame::none()
-                    .inner_margin(egui::Margin::symmetric(self.theme.spacing_md, self.theme.spacing_sm))
+                    .inner_margin(egui::Margin::symmetric(
+                        self.theme.spacing_md,
+                        self.theme.spacing_sm,
+                    ))
                     .show(ui, |ui| {
                         // Show current view
                         match self.current_view {

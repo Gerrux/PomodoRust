@@ -83,11 +83,7 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
     match icon {
         Icon::Play => {
             // Triangle pointing right
-            let points = [
-                scale(8.0, 5.0),
-                scale(19.0, 12.0),
-                scale(8.0, 19.0),
-            ];
+            let points = [scale(8.0, 5.0), scale(19.0, 12.0), scale(8.0, 19.0)];
             painter.add(egui::Shape::convex_polygon(
                 points.to_vec(),
                 color,
@@ -97,8 +93,14 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
 
         Icon::Pause => {
             // Two vertical bars
-            painter.line_segment([scale(8.0, 6.0), scale(8.0, 18.0)], Stroke::new(stroke_width + 1.5, color));
-            painter.line_segment([scale(16.0, 6.0), scale(16.0, 18.0)], Stroke::new(stroke_width + 1.5, color));
+            painter.line_segment(
+                [scale(8.0, 6.0), scale(8.0, 18.0)],
+                Stroke::new(stroke_width + 1.5, color),
+            );
+            painter.line_segment(
+                [scale(16.0, 6.0), scale(16.0, 18.0)],
+                Stroke::new(stroke_width + 1.5, color),
+            );
         }
 
         Icon::Stop => {
@@ -110,21 +112,13 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
 
         Icon::SkipForward => {
             // Two triangles + line
-            let points1 = [
-                scale(5.0, 6.0),
-                scale(12.0, 12.0),
-                scale(5.0, 18.0),
-            ];
+            let points1 = [scale(5.0, 6.0), scale(12.0, 12.0), scale(5.0, 18.0)];
             painter.add(egui::Shape::convex_polygon(
                 points1.to_vec(),
                 color,
                 Stroke::NONE,
             ));
-            let points2 = [
-                scale(12.0, 6.0),
-                scale(19.0, 12.0),
-                scale(12.0, 18.0),
-            ];
+            let points2 = [scale(12.0, 6.0), scale(19.0, 12.0), scale(12.0, 18.0)];
             painter.add(egui::Shape::convex_polygon(
                 points2.to_vec(),
                 color,
@@ -134,21 +128,13 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
 
         Icon::SkipBack => {
             // Two triangles pointing left
-            let points1 = [
-                scale(19.0, 6.0),
-                scale(12.0, 12.0),
-                scale(19.0, 18.0),
-            ];
+            let points1 = [scale(19.0, 6.0), scale(12.0, 12.0), scale(19.0, 18.0)];
             painter.add(egui::Shape::convex_polygon(
                 points1.to_vec(),
                 color,
                 Stroke::NONE,
             ));
-            let points2 = [
-                scale(12.0, 6.0),
-                scale(5.0, 12.0),
-                scale(12.0, 18.0),
-            ];
+            let points2 = [scale(12.0, 6.0), scale(5.0, 12.0), scale(12.0, 18.0)];
             painter.add(egui::Shape::convex_polygon(
                 points2.to_vec(),
                 color,
@@ -260,10 +246,8 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
             let offset = size * 0.1;
 
             // Back square
-            let back_rect = Rect::from_center_size(
-                center + vec2(offset, -offset),
-                vec2(r * 2.0, r * 2.0),
-            );
+            let back_rect =
+                Rect::from_center_size(center + vec2(offset, -offset), vec2(r * 2.0, r * 2.0));
             painter.rect_stroke(back_rect, 0.0, stroke);
 
             // Front square (with filled background to cover back)
@@ -320,7 +304,8 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
             let padding = size * 0.15;
             let gap = size * 0.08;
 
-            let rect = Rect::from_center_size(center, vec2(size - padding * 2.0, size - padding * 2.0));
+            let rect =
+                Rect::from_center_size(center, vec2(size - padding * 2.0, size - padding * 2.0));
 
             // Top-left (larger)
             let tl = Rect::from_min_max(
@@ -549,7 +534,8 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
         Icon::Calendar => {
             // Calendar
             let r = size * 0.35;
-            let cal_rect = Rect::from_center_size(center + vec2(0.0, size * 0.03), vec2(r * 2.0, r * 2.0));
+            let cal_rect =
+                Rect::from_center_size(center + vec2(0.0, size * 0.03), vec2(r * 2.0, r * 2.0));
 
             painter.rect_stroke(cal_rect, size * 0.06, stroke);
 
@@ -569,10 +555,22 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
 
         Icon::BarChart3 => {
             // Bar chart
-            painter.line_segment([scale(6.0, 19.0), scale(6.0, 13.0)], Stroke::new(stroke_width + 1.0, color));
-            painter.line_segment([scale(10.0, 19.0), scale(10.0, 9.0)], Stroke::new(stroke_width + 1.0, color));
-            painter.line_segment([scale(14.0, 19.0), scale(14.0, 5.0)], Stroke::new(stroke_width + 1.0, color));
-            painter.line_segment([scale(18.0, 19.0), scale(18.0, 11.0)], Stroke::new(stroke_width + 1.0, color));
+            painter.line_segment(
+                [scale(6.0, 19.0), scale(6.0, 13.0)],
+                Stroke::new(stroke_width + 1.0, color),
+            );
+            painter.line_segment(
+                [scale(10.0, 19.0), scale(10.0, 9.0)],
+                Stroke::new(stroke_width + 1.0, color),
+            );
+            painter.line_segment(
+                [scale(14.0, 19.0), scale(14.0, 5.0)],
+                Stroke::new(stroke_width + 1.0, color),
+            );
+            painter.line_segment(
+                [scale(18.0, 19.0), scale(18.0, 11.0)],
+                Stroke::new(stroke_width + 1.0, color),
+            );
         }
 
         Icon::TrendingUp => {
@@ -650,18 +648,10 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
 
             // Color dots
             let dot_r = size * 0.06;
-            let dot_positions = [
-                (-0.5, -0.5),
-                (0.3, -0.5),
-                (-0.6, 0.1),
-                (0.0, 0.3),
-            ];
+            let dot_positions = [(-0.5, -0.5), (0.3, -0.5), (-0.6, 0.1), (0.0, 0.3)];
 
             for (dx, dy) in dot_positions.iter() {
-                let pos = Pos2::new(
-                    center.x + dx * r,
-                    center.y + dy * r,
-                );
+                let pos = Pos2::new(center.x + dx * r, center.y + dy * r);
                 painter.circle_filled(pos, dot_r, color);
             }
 

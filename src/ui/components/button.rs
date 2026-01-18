@@ -173,10 +173,18 @@ impl IconButton {
 
         // Background and icon color
         let icon_color = if self.filled {
-            let (start, end) = self.custom_gradient.unwrap_or_else(|| theme.accent_gradient());
+            let (start, end) = self
+                .custom_gradient
+                .unwrap_or_else(|| theme.accent_gradient());
             let start = brighten_color(start, hover_t * 0.15);
             let end = brighten_color(end, hover_t * 0.15);
-            draw_gradient_rect(ui, scaled_rect, start, end, Rounding::same(scaled_size / 2.0));
+            draw_gradient_rect(
+                ui,
+                scaled_rect,
+                start,
+                end,
+                Rounding::same(scaled_size / 2.0),
+            );
             Color32::WHITE
         } else if let Some((start, _end)) = self.custom_gradient {
             // Outline style with accent color - subtle bg, colored border and icon
@@ -186,8 +194,11 @@ impl IconButton {
 
             // Colored border (muted)
             let border_color = Theme::with_alpha(start, (120.0 + hover_t * 60.0) as u8);
-            ui.painter()
-                .rect_stroke(scaled_rect, scaled_size / 2.0, Stroke::new(1.5, border_color));
+            ui.painter().rect_stroke(
+                scaled_rect,
+                scaled_size / 2.0,
+                Stroke::new(1.5, border_color),
+            );
 
             // Icon uses accent color (muted when not hovered)
             let alpha = (140.0 + hover_t * 115.0) as u8;
@@ -199,9 +210,13 @@ impl IconButton {
                 .rect_filled(scaled_rect, scaled_size / 2.0, bg_color);
 
             // Border
-            let border_color = Theme::lerp_color(theme.border_subtle, theme.border_default, hover_t);
-            ui.painter()
-                .rect_stroke(scaled_rect, scaled_size / 2.0, Stroke::new(1.0, border_color));
+            let border_color =
+                Theme::lerp_color(theme.border_subtle, theme.border_default, hover_t);
+            ui.painter().rect_stroke(
+                scaled_rect,
+                scaled_size / 2.0,
+                Stroke::new(1.0, border_color),
+            );
 
             Theme::lerp_color(theme.text_secondary, theme.text_primary, hover_t)
         };
@@ -234,7 +249,8 @@ fn draw_gradient_rect(ui: &mut Ui, rect: Rect, start: Color32, end: Color32, rou
         let color = Theme::lerp_color(start, end, t);
         let x = rect.left() + step_width * i as f32;
 
-        let step_rect = Rect::from_min_size(egui::pos2(x, rect.top()), vec2(step_width, rect.height()));
+        let step_rect =
+            Rect::from_min_size(egui::pos2(x, rect.top()), vec2(step_width, rect.height()));
 
         // Apply rounding only to first and last segments
         let step_rounding = if i == 0 {

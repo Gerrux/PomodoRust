@@ -197,7 +197,10 @@ impl Session {
                 self.completed_work_sessions += 1;
 
                 // Determine next break type
-                if self.completed_work_sessions % self.preset.sessions_before_long_break == 0 {
+                if self
+                    .completed_work_sessions
+                    .is_multiple_of(self.preset.sessions_before_long_break)
+                {
                     self.transition_to(SessionType::LongBreak);
                 } else {
                     self.transition_to(SessionType::ShortBreak);

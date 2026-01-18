@@ -145,7 +145,11 @@ impl fmt::Display for DatabaseError {
                 write!(f, "could not determine database path")
             }
             DatabaseError::DirectoryCreation { path, source } => {
-                write!(f, "failed to create database directory {:?}: {}", path, source)
+                write!(
+                    f,
+                    "failed to create database directory {:?}: {}",
+                    path, source
+                )
             }
             DatabaseError::Sqlite(e) => write!(f, "SQLite error: {}", e),
             DatabaseError::NotFound { table } => {
@@ -178,9 +182,15 @@ impl From<rusqlite::Error> for DatabaseError {
 #[derive(Debug)]
 pub enum PlatformError {
     /// Windows registry error
-    Registry { operation: &'static str, message: String },
+    Registry {
+        operation: &'static str,
+        message: String,
+    },
     /// DWM (Desktop Window Manager) error
-    Dwm { operation: &'static str, message: String },
+    Dwm {
+        operation: &'static str,
+        message: String,
+    },
     /// Notification error
     Notification { message: String },
     /// Executable path not found
@@ -226,7 +236,10 @@ pub enum AudioError {
     /// Failed to create audio output stream
     StreamCreation { message: String },
     /// Failed to play sound
-    Playback { sound: &'static str, message: String },
+    Playback {
+        sound: &'static str,
+        message: String,
+    },
     /// Audio device not available
     DeviceNotAvailable,
 }
@@ -268,7 +281,9 @@ mod tests {
 
     #[test]
     fn test_platform_error_display() {
-        let err = PlatformError::Unsupported { feature: "autostart" };
+        let err = PlatformError::Unsupported {
+            feature: "autostart",
+        };
         assert!(err.to_string().contains("not supported"));
     }
 }

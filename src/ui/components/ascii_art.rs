@@ -6,95 +6,29 @@ use egui::{Color32, FontId, Ui};
 /// Using ░ for empty space to ensure consistent width
 const PIXEL_DIGITS: [&[&str]; 10] = [
     // 0
-    &[
-        "████",
-        "█░░█",
-        "█░░█",
-        "█░░█",
-        "████",
-    ],
+    &["████", "█░░█", "█░░█", "█░░█", "████"],
     // 1
-    &[
-        "░░█░",
-        "░██░",
-        "░░█░",
-        "░░█░",
-        "░███",
-    ],
+    &["░░█░", "░██░", "░░█░", "░░█░", "░███"],
     // 2
-    &[
-        "████",
-        "░░░█",
-        "████",
-        "█░░░",
-        "████",
-    ],
+    &["████", "░░░█", "████", "█░░░", "████"],
     // 3
-    &[
-        "████",
-        "░░░█",
-        "████",
-        "░░░█",
-        "████",
-    ],
+    &["████", "░░░█", "████", "░░░█", "████"],
     // 4
-    &[
-        "█░░█",
-        "█░░█",
-        "████",
-        "░░░█",
-        "░░░█",
-    ],
+    &["█░░█", "█░░█", "████", "░░░█", "░░░█"],
     // 5
-    &[
-        "████",
-        "█░░░",
-        "████",
-        "░░░█",
-        "████",
-    ],
+    &["████", "█░░░", "████", "░░░█", "████"],
     // 6
-    &[
-        "████",
-        "█░░░",
-        "████",
-        "█░░█",
-        "████",
-    ],
+    &["████", "█░░░", "████", "█░░█", "████"],
     // 7
-    &[
-        "████",
-        "░░░█",
-        "░░█░",
-        "░░█░",
-        "░░█░",
-    ],
+    &["████", "░░░█", "░░█░", "░░█░", "░░█░"],
     // 8
-    &[
-        "████",
-        "█░░█",
-        "████",
-        "█░░█",
-        "████",
-    ],
+    &["████", "█░░█", "████", "█░░█", "████"],
     // 9
-    &[
-        "████",
-        "█░░█",
-        "████",
-        "░░░█",
-        "████",
-    ],
+    &["████", "█░░█", "████", "░░░█", "████"],
 ];
 
 /// Pixel colon separator for time
-const PIXEL_COLON: &[&str] = &[
-    "░░░",
-    "░█░",
-    "░░░",
-    "░█░",
-    "░░░",
-];
+const PIXEL_COLON: &[&str] = &["░░░", "░█░", "░░░", "░█░", "░░░"];
 
 /// ASCII progress bar characters
 pub struct AsciiProgressBar;
@@ -300,7 +234,9 @@ impl AsciiBox {
             Self::TOP_LEFT,
             Self::HORIZONTAL,
             title,
-            Self::HORIZONTAL.to_string().repeat(width.saturating_sub(title.len() + 1))
+            Self::HORIZONTAL
+                .to_string()
+                .repeat(width.saturating_sub(title.len() + 1))
         ) + &Self::TOP_RIGHT.to_string();
 
         ui.label(
@@ -316,7 +252,8 @@ pub struct AsciiSpinner;
 
 impl AsciiSpinner {
     const FRAMES: &'static [&'static str] = &["◐", "◓", "◑", "◒"];
-    const BRAILLE_FRAMES: &'static [&'static str] = &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+    const BRAILLE_FRAMES: &'static [&'static str] =
+        &["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
     /// Get spinner frame based on time
     pub fn frame(t: f32) -> &'static str {
@@ -342,12 +279,7 @@ pub const ASCII_TOMATO: &[&str] = &[
 ];
 
 /// Small ASCII tomato
-pub const ASCII_TOMATO_SMALL: &[&str] = &[
-    "  ~  ",
-    " /-\\ ",
-    "|   |",
-    " \\_/ ",
-];
+pub const ASCII_TOMATO_SMALL: &[&str] = &["  ~  ", " /-\\ ", "|   |", " \\_/ "];
 
 /// Session indicator dots
 pub struct AsciiSessionDots;

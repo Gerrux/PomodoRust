@@ -6,9 +6,9 @@ use pomodorust::PomodoRustApp;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[cfg(windows)]
-use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
-#[cfg(windows)]
 use windows::core::PCWSTR;
+#[cfg(windows)]
+use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
 
 fn main() -> eframe::Result<()> {
     // Initialize logging

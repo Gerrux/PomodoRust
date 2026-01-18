@@ -15,7 +15,10 @@ mod windows;
 pub use audio::{AudioPlayer, SoundType};
 
 #[cfg(windows)]
-pub use windows::{apply_window_effects, flash_pomodorust_window, flash_window, remove_autostart, set_autostart, show_notification, show_pomodorust_window, stop_flash_window};
+pub use windows::{
+    apply_window_effects, flash_pomodorust_window, flash_window, remove_autostart, set_autostart,
+    show_notification, show_pomodorust_window, stop_flash_window,
+};
 
 #[cfg(not(windows))]
 use crate::error::PlatformError;

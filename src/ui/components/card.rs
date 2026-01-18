@@ -19,12 +19,7 @@ impl Card {
         self
     }
 
-    pub fn show(
-        self,
-        ui: &mut Ui,
-        theme: &Theme,
-        content: impl FnOnce(&mut Ui),
-    ) -> Response {
+    pub fn show(self, ui: &mut Ui, theme: &Theme, content: impl FnOnce(&mut Ui)) -> Response {
         egui::Frame::none()
             .fill(theme.bg_secondary)
             .rounding(theme.card_rounding())

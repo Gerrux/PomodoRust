@@ -3,8 +3,8 @@
 use egui::{vec2, Align, FontId, Layout, Ui};
 
 use super::components::{
-    AsciiProgressBar, AsciiSessionDots, AsciiSpinner, AsciiTime,
-    CircularProgress, GradientButton, Icon, IconButton,
+    AsciiProgressBar, AsciiSessionDots, AsciiSpinner, AsciiTime, CircularProgress, GradientButton,
+    Icon, IconButton,
 };
 use super::theme::Theme;
 use crate::core::{Session, SessionType};
@@ -87,7 +87,11 @@ impl TimerView {
                 .with_thickness(timer_thickness)
                 .with_colors(start_color, end_color)
                 .with_bg_color(theme.bg_tertiary)
-                .with_pulse(if session.timer().is_running() { pulse } else { 0.0 })
+                .with_pulse(if session.timer().is_running() {
+                    pulse
+                } else {
+                    0.0
+                })
                 .show(ui, |ui| {
                     ui.vertical_centered(|ui| {
                         // Push content down slightly within the circle
@@ -331,9 +335,20 @@ impl TimerView {
                 if play_btn.hovered() || play_btn.has_focus() {
                     let color = if is_running { theme.warning } else { accent };
                     let rect = play_btn.rect;
-                    ui.painter().rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
-                    ui.painter().rect_stroke(rect, egui::Rounding::same(2.0), egui::Stroke::new(1.0, color));
-                    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, play_text, FontId::monospace(btn_font_size), color);
+                    ui.painter()
+                        .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
+                    ui.painter().rect_stroke(
+                        rect,
+                        egui::Rounding::same(2.0),
+                        egui::Stroke::new(1.0, color),
+                    );
+                    ui.painter().text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        play_text,
+                        FontId::monospace(btn_font_size),
+                        color,
+                    );
                 }
 
                 if play_btn.clicked() {
@@ -354,9 +369,20 @@ impl TimerView {
 
                 if skip_btn.hovered() || skip_btn.has_focus() {
                     let rect = skip_btn.rect;
-                    ui.painter().rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
-                    ui.painter().rect_stroke(rect, egui::Rounding::same(2.0), egui::Stroke::new(1.0, accent));
-                    ui.painter().text(rect.center(), egui::Align2::CENTER_CENTER, "[ » SKIP ]", FontId::monospace(btn_font_size), accent);
+                    ui.painter()
+                        .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
+                    ui.painter().rect_stroke(
+                        rect,
+                        egui::Rounding::same(2.0),
+                        egui::Stroke::new(1.0, accent),
+                    );
+                    ui.painter().text(
+                        rect.center(),
+                        egui::Align2::CENTER_CENTER,
+                        "[ » SKIP ]",
+                        FontId::monospace(btn_font_size),
+                        accent,
+                    );
                 }
 
                 if skip_btn.clicked() {

@@ -33,8 +33,7 @@ impl<'a> CustomSlider<'a> {
     pub fn show(mut self, ui: &mut Ui, theme: &Theme) -> Response {
         let (rect, response) = ui.allocate_exact_size(vec2(self.width, self.height), Sense::drag());
 
-        self.state
-            .update(response.hovered(), response.dragged());
+        self.state.update(response.hovered(), response.dragged());
 
         let hover_t = self.state.hover_t();
 
@@ -63,26 +62,19 @@ impl<'a> CustomSlider<'a> {
 
         // Draw track
         let track_height = 6.0;
-        let track_rect = Rect::from_center_size(
-            rect.center(),
-            vec2(self.width - self.height, track_height),
-        );
+        let track_rect =
+            Rect::from_center_size(rect.center(), vec2(self.width - self.height, track_height));
 
         // Background track
-        ui.painter().rect_filled(
-            track_rect,
-            track_height / 2.0,
-            theme.bg_tertiary,
-        );
+        ui.painter()
+            .rect_filled(track_rect, track_height / 2.0, theme.bg_tertiary);
 
         // Filled portion with gradient
         let (start_color, end_color) = theme.accent_gradient();
         let filled_width = track_rect.width() * t;
         if filled_width > 0.0 {
-            let filled_rect = Rect::from_min_size(
-                track_rect.left_top(),
-                vec2(filled_width, track_height),
-            );
+            let filled_rect =
+                Rect::from_min_size(track_rect.left_top(), vec2(filled_width, track_height));
             ui.painter().rect_filled(
                 filled_rect,
                 track_height / 2.0,
@@ -104,7 +96,8 @@ impl<'a> CustomSlider<'a> {
 
         // Handle
         let handle_color = Theme::lerp_color(start_color, end_color, t);
-        ui.painter().circle_filled(handle_center, handle_radius, handle_color);
+        ui.painter()
+            .circle_filled(handle_center, handle_radius, handle_color);
 
         // Handle border
         ui.painter().circle_stroke(

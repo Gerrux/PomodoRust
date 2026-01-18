@@ -141,9 +141,18 @@ impl Exporter {
         content.push_str("# Summary\n");
         content.push_str("Metric,Value\n");
         content.push_str(&format!("Export Date,{}\n", data.summary.export_date));
-        content.push_str(&format!("Total Work Hours,{:.2}\n", data.summary.total_work_hours));
-        content.push_str(&format!("Total Pomodoros,{}\n", data.summary.total_pomodoros));
-        content.push_str(&format!("Days Tracked,{}\n", data.summary.total_days_tracked));
+        content.push_str(&format!(
+            "Total Work Hours,{:.2}\n",
+            data.summary.total_work_hours
+        ));
+        content.push_str(&format!(
+            "Total Pomodoros,{}\n",
+            data.summary.total_pomodoros
+        ));
+        content.push_str(&format!(
+            "Days Tracked,{}\n",
+            data.summary.total_days_tracked
+        ));
         content.push_str(&format!("Current Streak,{}\n", data.summary.current_streak));
         content.push_str(&format!("Longest Streak,{}\n", data.summary.longest_streak));
         content.push_str(&format!(
@@ -176,7 +185,8 @@ impl Exporter {
 
         // Sessions section
         content.push_str("# Sessions\n");
-        content.push_str("ID,Type,Duration (s),Planned Duration (s),Completed,Started At,Ended At\n");
+        content
+            .push_str("ID,Type,Duration (s),Planned Duration (s),Completed,Started At,Ended At\n");
         for session in &data.sessions {
             content.push_str(&format!(
                 "{},{},{},{},{},{},{}\n",

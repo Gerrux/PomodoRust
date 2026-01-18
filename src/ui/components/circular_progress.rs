@@ -29,9 +29,9 @@ impl CircularProgress {
             progress: progress.clamp(0.0, 1.0),
             radius: 100.0,
             thickness: 8.0,
-            start_color: Color32::from_rgb(59, 130, 246),  // blue-500
-            end_color: Color32::from_rgb(139, 92, 246),    // violet-500
-            bg_color: Color32::from_rgb(39, 39, 42),       // zinc-800
+            start_color: Color32::from_rgb(59, 130, 246), // blue-500
+            end_color: Color32::from_rgb(139, 92, 246),   // violet-500
+            bg_color: Color32::from_rgb(39, 39, 42),      // zinc-800
             pulse: 0.0,
         }
     }
@@ -63,7 +63,10 @@ impl CircularProgress {
     }
 
     pub fn show(&self, ui: &mut Ui, center_content: impl FnOnce(&mut Ui)) {
-        let size = vec2(self.radius * 2.0 + self.thickness, self.radius * 2.0 + self.thickness);
+        let size = vec2(
+            self.radius * 2.0 + self.thickness,
+            self.radius * 2.0 + self.thickness,
+        );
         let (rect, _response) = ui.allocate_exact_size(size, egui::Sense::hover());
 
         let center = rect.center();
@@ -71,7 +74,15 @@ impl CircularProgress {
         let inner_radius = self.radius - self.thickness;
 
         // Draw background ring
-        self.draw_ring(ui, center, outer_radius, inner_radius, 1.0, self.bg_color, self.bg_color);
+        self.draw_ring(
+            ui,
+            center,
+            outer_radius,
+            inner_radius,
+            1.0,
+            self.bg_color,
+            self.bg_color,
+        );
 
         // Draw progress ring with gradient
         if self.progress > 0.0 {
@@ -84,22 +95,24 @@ impl CircularProgress {
             let glow_color = Theme::with_alpha(self.start_color, glow_alpha);
             let glow_radius = outer_radius + 4.0 + self.pulse * 8.0;
 
-            ui.painter().circle_stroke(
-                center,
-                glow_radius,
-                Stroke::new(2.0, glow_color),
-            );
+            ui.painter()
+                .circle_stroke(center, glow_radius, Stroke::new(2.0, glow_color));
         }
 
         // Center content area
-        let content_rect = Rect::from_center_size(center, vec2(inner_radius * 1.6, inner_radius * 1.6));
+        let content_rect =
+            Rect::from_center_size(center, vec2(inner_radius * 1.6, inner_radius * 1.6));
         ui.allocate_new_ui(egui::UiBuilder::new().max_rect(content_rect), |ui| {
-            ui.with_layout(egui::Layout::centered_and_justified(egui::Direction::TopDown), |ui| {
-                center_content(ui);
-            });
+            ui.with_layout(
+                egui::Layout::centered_and_justified(egui::Direction::TopDown),
+                |ui| {
+                    center_content(ui);
+                },
+            );
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_ring(
         &self,
         ui: &mut Ui,
@@ -143,14 +156,34 @@ impl CircularProgress {
 
             let idx_base = mesh.vertices.len() as u32;
             mesh.vertices.extend_from_slice(&[
-                egui::epaint::Vertex { pos: outer1, uv: egui::epaint::WHITE_UV, color },
-                egui::epaint::Vertex { pos: outer2, uv: egui::epaint::WHITE_UV, color },
-                egui::epaint::Vertex { pos: inner2, uv: egui::epaint::WHITE_UV, color },
-                egui::epaint::Vertex { pos: inner1, uv: egui::epaint::WHITE_UV, color },
+                egui::epaint::Vertex {
+                    pos: outer1,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
+                egui::epaint::Vertex {
+                    pos: outer2,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
+                egui::epaint::Vertex {
+                    pos: inner2,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
+                egui::epaint::Vertex {
+                    pos: inner1,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
             ]);
             mesh.indices.extend_from_slice(&[
-                idx_base, idx_base + 1, idx_base + 2,
-                idx_base, idx_base + 2, idx_base + 3,
+                idx_base,
+                idx_base + 1,
+                idx_base + 2,
+                idx_base,
+                idx_base + 2,
+                idx_base + 3,
             ]);
         }
 
@@ -193,10 +226,26 @@ impl CircularProgress {
             let idx_base = mesh.vertices.len() as u32;
 
             mesh.vertices.extend_from_slice(&[
-                egui::epaint::Vertex { pos: outer1, uv: egui::epaint::WHITE_UV, color },
-                egui::epaint::Vertex { pos: outer2, uv: egui::epaint::WHITE_UV, color },
-                egui::epaint::Vertex { pos: inner2, uv: egui::epaint::WHITE_UV, color },
-                egui::epaint::Vertex { pos: inner1, uv: egui::epaint::WHITE_UV, color },
+                egui::epaint::Vertex {
+                    pos: outer1,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
+                egui::epaint::Vertex {
+                    pos: outer2,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
+                egui::epaint::Vertex {
+                    pos: inner2,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
+                egui::epaint::Vertex {
+                    pos: inner1,
+                    uv: egui::epaint::WHITE_UV,
+                    color,
+                },
             ]);
 
             mesh.indices.extend_from_slice(&[
@@ -217,7 +266,8 @@ impl CircularProgress {
             let mid_r = (outer_r + inner_r) / 2.0;
             let (sin_e, cos_e) = end_angle.sin_cos();
             let cap_center = Pos2::new(center.x + mid_r * cos_e, center.y + mid_r * sin_e);
-            ui.painter().circle_filled(cap_center, self.thickness / 2.0, self.end_color);
+            ui.painter()
+                .circle_filled(cap_center, self.thickness / 2.0, self.end_color);
         }
 
         // Draw start cap
@@ -225,7 +275,8 @@ impl CircularProgress {
             let mid_r = (outer_r + inner_r) / 2.0;
             let (sin_s, cos_s) = start_angle.sin_cos();
             let cap_center = Pos2::new(center.x + mid_r * cos_s, center.y + mid_r * sin_s);
-            ui.painter().circle_filled(cap_center, self.thickness / 2.0, self.start_color);
+            ui.painter()
+                .circle_filled(cap_center, self.thickness / 2.0, self.start_color);
         }
     }
 }

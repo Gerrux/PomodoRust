@@ -255,7 +255,7 @@ impl Database {
         let new_streak = match last_date.as_deref() {
             Some(last) if last == today => current_streak, // Already counted today
             Some(last) if last == yesterday => current_streak + 1, // Continuing streak
-            _ => 1,                                         // New streak
+            _ => 1,                                        // New streak
         };
 
         self.conn.execute(
@@ -318,13 +318,11 @@ impl Database {
             },
         )?;
 
-        for row_result in rows {
-            if let Ok((date_str, seconds)) = row_result {
-                if let Ok(date) = NaiveDate::parse_from_str(&date_str, DATE_FORMAT) {
-                    let day_index = (date - start_of_week).num_days() as usize;
-                    if day_index < DAYS_IN_WEEK {
-                        result[day_index] = seconds as f32 / SECONDS_PER_HOUR;
-                    }
+        for (date_str, seconds) in rows.flatten() {
+            if let Ok(date) = NaiveDate::parse_from_str(&date_str, DATE_FORMAT) {
+                let day_index = (date - start_of_week).num_days() as usize;
+                if day_index < DAYS_IN_WEEK {
+                    result[day_index] = seconds as f32 / SECONDS_PER_HOUR;
                 }
             }
         }

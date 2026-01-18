@@ -97,7 +97,11 @@ impl TitleBar {
             title_bar_rect.max - vec2(buttons_width, 0.0),
         );
 
-        let drag_response = ui.interact(drag_rect, egui::Id::new("titlebar_drag_area"), Sense::drag());
+        let drag_response = ui.interact(
+            drag_rect,
+            egui::Id::new("titlebar_drag_area"),
+            Sense::drag(),
+        );
 
         if drag_response.dragged() {
             should_drag = true;
@@ -113,7 +117,8 @@ impl TitleBar {
             let mut button_x = buttons_rect.left();
 
             // Always on top (pin) button
-            let pin_rect = Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
+            let pin_rect =
+                Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
             if let Some(btn) = self.draw_pin_button(
                 ui,
                 pin_rect,
@@ -127,7 +132,8 @@ impl TitleBar {
             button_x += button_size.x;
 
             // Minimize button
-            let min_rect = Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
+            let min_rect =
+                Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
             if let Some(btn) = self.draw_button(
                 ui,
                 min_rect,
@@ -142,7 +148,8 @@ impl TitleBar {
             button_x += button_size.x;
 
             // Maximize button
-            let max_rect = Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
+            let max_rect =
+                Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
             if let Some(btn) = self.draw_button(
                 ui,
                 max_rect,
@@ -157,7 +164,8 @@ impl TitleBar {
             button_x += button_size.x;
 
             // Close button
-            let close_rect = Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
+            let close_rect =
+                Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
             if let Some(btn) = self.draw_button(
                 ui,
                 close_rect,
@@ -184,6 +192,7 @@ impl TitleBar {
         (should_drag, clicked_button)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn draw_button(
         &mut self,
         ui: &mut Ui,
@@ -316,7 +325,12 @@ impl TitleBar {
 
         // Icon color with opacity - brighter when pinned
         let icon_color = if is_pinned {
-            Color32::from_rgba_unmultiplied(accent_color.r(), accent_color.g(), accent_color.b(), base_alpha)
+            Color32::from_rgba_unmultiplied(
+                accent_color.r(),
+                accent_color.g(),
+                accent_color.b(),
+                base_alpha,
+            )
         } else {
             let base = Theme::lerp_color(theme.text_muted, theme.text_primary, hover_t);
             Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), base_alpha)
@@ -338,9 +352,17 @@ impl TitleBar {
             } else {
                 "Pin window (always on top)"
             };
-            egui::show_tooltip_at_pointer(ui.ctx(), egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("titlebar_tooltip_layer")), egui::Id::new("titlebar_pin_tooltip"), |ui| {
-                ui.label(tooltip_text);
-            });
+            egui::show_tooltip_at_pointer(
+                ui.ctx(),
+                egui::LayerId::new(
+                    egui::Order::Tooltip,
+                    egui::Id::new("titlebar_tooltip_layer"),
+                ),
+                egui::Id::new("titlebar_pin_tooltip"),
+                |ui| {
+                    ui.label(tooltip_text);
+                },
+            );
         }
 
         if response.clicked() {

@@ -1,9 +1,9 @@
 fn main() {
     #[cfg(target_os = "windows")]
     {
-        use std::path::Path;
         use std::fs::File;
         use std::io::{BufWriter, Write};
+        use std::path::Path;
 
         let ico_path = "assets/icon.ico";
         let png_path = "assets/icon.png";
@@ -55,7 +55,10 @@ fn main() {
 
         // Version info
         res.set("ProductName", "PomodoRust");
-        res.set("FileDescription", "Modern Pomodoro Timer - Focus better with the Pomodoro Technique");
+        res.set(
+            "FileDescription",
+            "Modern Pomodoro Timer - Focus better with the Pomodoro Technique",
+        );
         res.set("LegalCopyright", "Copyright 2025 gerrux. MIT License.");
         res.set("CompanyName", "gerrux");
         res.set("OriginalFilename", "pomodorust.exe");

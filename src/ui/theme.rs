@@ -14,9 +14,9 @@ pub enum AccentColor {
     Amber,
     Cyan,
     // Retro terminal colors
-    Matrix,      // Green phosphor
-    RetroAmber,  // Amber CRT
-    Synthwave,   // Pink/cyan retro
+    Matrix,     // Green phosphor
+    RetroAmber, // Amber CRT
+    Synthwave,  // Pink/cyan retro
 }
 
 impl AccentColor {
@@ -51,41 +51,41 @@ impl AccentColor {
     pub fn gradient(&self) -> (Color32, Color32) {
         match self {
             AccentColor::Blue => (
-                Color32::from_rgb(59, 130, 246),  // blue-500
-                Color32::from_rgb(139, 92, 246),  // violet-500
+                Color32::from_rgb(59, 130, 246), // blue-500
+                Color32::from_rgb(139, 92, 246), // violet-500
             ),
             AccentColor::Purple => (
-                Color32::from_rgb(139, 92, 246),  // violet-500
-                Color32::from_rgb(236, 72, 153),  // pink-500
+                Color32::from_rgb(139, 92, 246), // violet-500
+                Color32::from_rgb(236, 72, 153), // pink-500
             ),
             AccentColor::Rose => (
                 Color32::from_rgb(244, 63, 94),   // rose-500
                 Color32::from_rgb(251, 113, 133), // rose-400
             ),
             AccentColor::Emerald => (
-                Color32::from_rgb(16, 185, 129),  // emerald-500
-                Color32::from_rgb(52, 211, 153),  // emerald-400
+                Color32::from_rgb(16, 185, 129), // emerald-500
+                Color32::from_rgb(52, 211, 153), // emerald-400
             ),
             AccentColor::Amber => (
-                Color32::from_rgb(245, 158, 11),  // amber-500
-                Color32::from_rgb(251, 191, 36),  // amber-400
+                Color32::from_rgb(245, 158, 11), // amber-500
+                Color32::from_rgb(251, 191, 36), // amber-400
             ),
             AccentColor::Cyan => (
-                Color32::from_rgb(6, 182, 212),   // cyan-500
-                Color32::from_rgb(34, 211, 238),  // cyan-400
+                Color32::from_rgb(6, 182, 212),  // cyan-500
+                Color32::from_rgb(34, 211, 238), // cyan-400
             ),
             // Retro terminal colors
             AccentColor::Matrix => (
-                Color32::from_rgb(0, 255, 65),    // Matrix green
-                Color32::from_rgb(0, 200, 50),   // Darker green
+                Color32::from_rgb(0, 255, 65), // Matrix green
+                Color32::from_rgb(0, 200, 50), // Darker green
             ),
             AccentColor::RetroAmber => (
-                Color32::from_rgb(255, 176, 0),   // Amber
-                Color32::from_rgb(255, 204, 0),   // Lighter amber
+                Color32::from_rgb(255, 176, 0), // Amber
+                Color32::from_rgb(255, 204, 0), // Lighter amber
             ),
             AccentColor::Synthwave => (
-                Color32::from_rgb(255, 0, 128),   // Hot pink
-                Color32::from_rgb(0, 255, 255),   // Cyan
+                Color32::from_rgb(255, 0, 128), // Hot pink
+                Color32::from_rgb(0, 255, 255), // Cyan
             ),
         }
     }
@@ -96,7 +96,10 @@ impl AccentColor {
 
     /// Check if this is a retro/TUI style
     pub fn is_retro(&self) -> bool {
-        matches!(self, AccentColor::Matrix | AccentColor::RetroAmber | AccentColor::Synthwave)
+        matches!(
+            self,
+            AccentColor::Matrix | AccentColor::RetroAmber | AccentColor::Synthwave
+        )
     }
 
     /// Get glow color for retro styles
@@ -183,43 +186,43 @@ impl Theme {
     pub fn new(accent: AccentColor) -> Self {
         Self {
             // Backgrounds - Vercel-inspired deep blacks
-            bg_base: Color32::from_rgb(0, 0, 0),       // Pure black for window bg
-            bg_primary: Color32::from_rgb(10, 10, 11),  // #0A0A0B
+            bg_base: Color32::from_rgb(0, 0, 0), // Pure black for window bg
+            bg_primary: Color32::from_rgb(10, 10, 11), // #0A0A0B
             bg_secondary: Color32::from_rgb(17, 17, 19), // #111113
-            bg_tertiary: Color32::from_rgb(24, 24, 27),  // #18181B
-            bg_elevated: Color32::from_rgb(28, 28, 31),  // #1C1C1F
-            bg_hover: Color32::from_rgb(39, 39, 42),     // #27272A
-            bg_active: Color32::from_rgb(48, 48, 54),    // #30303A
+            bg_tertiary: Color32::from_rgb(24, 24, 27), // #18181B
+            bg_elevated: Color32::from_rgb(28, 28, 31), // #1C1C1F
+            bg_hover: Color32::from_rgb(39, 39, 42), // #27272A
+            bg_active: Color32::from_rgb(48, 48, 54), // #30303A
 
             // Borders
-            border_subtle: Color32::from_rgb(39, 39, 42),  // #27272A
+            border_subtle: Color32::from_rgb(39, 39, 42), // #27272A
             border_default: Color32::from_rgb(63, 63, 70), // #3F3F46
-            border_strong: Color32::from_rgb(82, 82, 91),  // #52525B
+            border_strong: Color32::from_rgb(82, 82, 91), // #52525B
 
             // Text
-            text_primary: Color32::from_rgb(250, 250, 250),   // #FAFAFA
+            text_primary: Color32::from_rgb(250, 250, 250), // #FAFAFA
             text_secondary: Color32::from_rgb(161, 161, 170), // #A1A1AA
-            text_muted: Color32::from_rgb(113, 113, 122),     // #71717A
-            text_disabled: Color32::from_rgb(82, 82, 91),     // #52525B
+            text_muted: Color32::from_rgb(113, 113, 122),   // #71717A
+            text_disabled: Color32::from_rgb(82, 82, 91),   // #52525B
 
             // Accent
             accent,
 
             // Semantic
-            success: Color32::from_rgb(34, 197, 94),        // green-500
-            success_muted: Color32::from_rgb(22, 78, 39),   // green-900/50
-            warning: Color32::from_rgb(245, 158, 11),       // amber-500
-            warning_muted: Color32::from_rgb(78, 53, 5),    // amber-900/50
-            error: Color32::from_rgb(239, 68, 68),          // red-500
-            error_muted: Color32::from_rgb(69, 26, 26),     // red-900/50
+            success: Color32::from_rgb(34, 197, 94), // green-500
+            success_muted: Color32::from_rgb(22, 78, 39), // green-900/50
+            warning: Color32::from_rgb(245, 158, 11), // amber-500
+            warning_muted: Color32::from_rgb(78, 53, 5), // amber-900/50
+            error: Color32::from_rgb(239, 68, 68),   // red-500
+            error_muted: Color32::from_rgb(69, 26, 26), // red-900/50
 
             // Session colors
-            work_start: Color32::from_rgb(244, 63, 94),     // rose-500
-            work_end: Color32::from_rgb(251, 113, 133),     // rose-400
-            break_start: Color32::from_rgb(16, 185, 129),   // emerald-500
-            break_end: Color32::from_rgb(52, 211, 153),     // emerald-400
+            work_start: Color32::from_rgb(244, 63, 94), // rose-500
+            work_end: Color32::from_rgb(251, 113, 133), // rose-400
+            break_start: Color32::from_rgb(16, 185, 129), // emerald-500
+            break_end: Color32::from_rgb(52, 211, 153), // emerald-400
             long_break_start: Color32::from_rgb(99, 102, 241), // indigo-500
-            long_break_end: Color32::from_rgb(129, 140, 248),  // indigo-400
+            long_break_end: Color32::from_rgb(129, 140, 248), // indigo-400
 
             // Spacing (in pixels)
             spacing_xs: 4.0,
@@ -271,10 +274,9 @@ impl Theme {
             AccentColor::Matrix => {
                 match session_type {
                     // Work: Bright green
-                    crate::core::SessionType::Work => (
-                        Color32::from_rgb(0, 255, 65),
-                        Color32::from_rgb(0, 200, 50),
-                    ),
+                    crate::core::SessionType::Work => {
+                        (Color32::from_rgb(0, 255, 65), Color32::from_rgb(0, 200, 50))
+                    }
                     // Short break: Cyan/teal
                     crate::core::SessionType::ShortBreak => (
                         Color32::from_rgb(0, 200, 200),

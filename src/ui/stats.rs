@@ -1,6 +1,6 @@
 //! Stats view with statistics - Responsive layout
 
-use egui::{vec2, Align, Layout, Rect, Ui, ScrollArea};
+use egui::{vec2, Align, Layout, Rect, ScrollArea, Ui};
 
 use super::components::{draw_icon, Card, CircularProgress, Icon, IconButton};
 use super::theme::Theme;
@@ -13,9 +13,14 @@ pub enum StatsAction {
     Back,
     OpenSettings,
     /// Quick start a session with given type and duration in minutes
-    QuickStart { session_type: crate::core::SessionType, minutes: u32 },
+    QuickStart {
+        session_type: crate::core::SessionType,
+        minutes: u32,
+    },
     /// Export statistics to file
-    Export { format: ExportFormat },
+    Export {
+        format: ExportFormat,
+    },
 }
 
 /// Stats view showing statistics
@@ -95,9 +100,26 @@ impl StatsView {
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     if is_wide {
-                        self.show_wide_layout(ui, session, stats, theme, pulse, spacing, is_very_wide, &mut action);
+                        self.show_wide_layout(
+                            ui,
+                            session,
+                            stats,
+                            theme,
+                            pulse,
+                            spacing,
+                            is_very_wide,
+                            &mut action,
+                        );
                     } else {
-                        self.show_narrow_layout(ui, session, stats, theme, pulse, spacing, &mut action);
+                        self.show_narrow_layout(
+                            ui,
+                            session,
+                            stats,
+                            theme,
+                            pulse,
+                            spacing,
+                            &mut action,
+                        );
                     }
                 });
         });
@@ -105,6 +127,7 @@ impl StatsView {
         action
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn show_wide_layout(
         &self,
         ui: &mut Ui,
@@ -167,6 +190,7 @@ impl StatsView {
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn show_narrow_layout(
         &self,
         ui: &mut Ui,
@@ -200,13 +224,7 @@ impl StatsView {
         self.show_compact_presets_card(ui, theme, action);
     }
 
-    fn show_compact_timer_card(
-        &self,
-        ui: &mut Ui,
-        session: &Session,
-        theme: &Theme,
-        pulse: f32,
-    ) {
+    fn show_compact_timer_card(&self, ui: &mut Ui, session: &Session, theme: &Theme, pulse: f32) {
         let (start_color, end_color) = theme.session_gradient(session.session_type());
         let badge_color = Theme::lerp_color(start_color, end_color, 0.5);
 
@@ -221,7 +239,11 @@ impl StatsView {
                     .with_thickness(4.0)
                     .with_colors(start_color, end_color)
                     .with_bg_color(theme.bg_tertiary)
-                    .with_pulse(if session.timer().is_running() { pulse } else { 0.0 })
+                    .with_pulse(if session.timer().is_running() {
+                        pulse
+                    } else {
+                        0.0
+                    })
                     .show(ui, |ui| {
                         ui.vertical_centered(|ui| {
                             ui.label(
@@ -265,22 +287,50 @@ impl StatsView {
             ui.set_min_width(ui.available_width());
 
             // Today row
-            stat_row(ui, theme, Icon::Calendar, "Today", &format!("{:.1}h", stats.today_hours()));
+            stat_row(
+                ui,
+                theme,
+                Icon::Calendar,
+                "Today",
+                &format!("{:.1}h", stats.today_hours()),
+            );
 
             ui.add_space(theme.spacing_xs);
 
             // Week row
-            stat_row(ui, theme, Icon::BarChart3, "This Week", &format!("{:.1}h", stats.week_hours()));
+            stat_row(
+                ui,
+                theme,
+                Icon::BarChart3,
+                "This Week",
+                &format!("{:.1}h", stats.week_hours()),
+            );
 
             ui.add_space(theme.spacing_xs);
 
             // Streak row
-            stat_row(ui, theme, Icon::Flame, "Current Streak", &format!("{} days", stats.current_streak));
+            stat_row(
+                ui,
+                theme,
+                Icon::Flame,
+                "Current Streak",
+                &format!("{} days", stats.current_streak),
+            );
 
             ui.add_space(theme.spacing_xs);
 
             // Total row
-            stat_row(ui, theme, Icon::Timer, "Total", &format!("{}h ({} sessions)", stats.total_hours(), stats.total_pomodoros));
+            stat_row(
+                ui,
+                theme,
+                Icon::Timer,
+                "Total",
+                &format!(
+                    "{}h ({} sessions)",
+                    stats.total_hours(),
+                    stats.total_pomodoros
+                ),
+            );
         });
     }
 
@@ -302,7 +352,12 @@ impl StatsView {
         });
     }
 
-    fn show_compact_presets_card(&self, ui: &mut Ui, theme: &Theme, action: &mut Option<StatsAction>) {
+    fn show_compact_presets_card(
+        &self,
+        ui: &mut Ui,
+        theme: &Theme,
+        action: &mut Option<StatsAction>,
+    ) {
         use crate::core::SessionType;
 
         Card::new().show(ui, theme, |ui| {
@@ -313,10 +368,8 @@ impl StatsView {
                 (Icon::Target, "25 min focus", 25, SessionType::Work),
                 (Icon::Timer, "50 min deep work", 50, SessionType::Work),
             ] {
-                let btn_response = ui.allocate_response(
-                    vec2(ui.available_width(), 32.0),
-                    egui::Sense::click(),
-                );
+                let btn_response =
+                    ui.allocate_response(vec2(ui.available_width(), 32.0), egui::Sense::click());
                 let btn_rect = btn_response.rect;
 
                 let bg_color = if btn_response.hovered() {
@@ -357,7 +410,10 @@ impl StatsView {
                 }
 
                 if btn_response.clicked() {
-                    *action = Some(StatsAction::QuickStart { session_type, minutes: mins });
+                    *action = Some(StatsAction::QuickStart {
+                        session_type,
+                        minutes: mins,
+                    });
                 }
 
                 ui.add_space(4.0);
@@ -384,7 +440,11 @@ impl StatsView {
                     .with_thickness((radius * 0.12).clamp(3.0, 5.0))
                     .with_colors(start_color, end_color)
                     .with_bg_color(theme.bg_tertiary)
-                    .with_pulse(if session.timer().is_running() { pulse } else { 0.0 })
+                    .with_pulse(if session.timer().is_running() {
+                        pulse
+                    } else {
+                        0.0
+                    })
                     .show(ui, |ui| {
                         ui.vertical_centered(|ui| {
                             let font_size = (radius * 0.45).clamp(14.0, 20.0);
@@ -424,7 +484,13 @@ impl StatsView {
         });
     }
 
-    fn show_quick_presets_card(&self, ui: &mut Ui, theme: &Theme, width: f32, action: &mut Option<StatsAction>) {
+    fn show_quick_presets_card(
+        &self,
+        ui: &mut Ui,
+        theme: &Theme,
+        width: f32,
+        action: &mut Option<StatsAction>,
+    ) {
         use crate::core::SessionType;
 
         let inner_width = width - 32.0;
@@ -433,10 +499,8 @@ impl StatsView {
             ui.set_width(inner_width);
 
             ui.horizontal(|ui| {
-                let icon_rect = Rect::from_center_size(
-                    ui.cursor().min + vec2(8.0, 8.0),
-                    vec2(14.0, 14.0),
-                );
+                let icon_rect =
+                    Rect::from_center_size(ui.cursor().min + vec2(8.0, 8.0), vec2(14.0, 14.0));
                 draw_icon(ui, Icon::Zap, icon_rect, theme.text_secondary);
                 ui.add_space(20.0);
                 ui.label(
@@ -455,7 +519,8 @@ impl StatsView {
                 (Icon::Timer, "50 min deep work", 50, SessionType::Work),
             ] {
                 let btn_width = width - 40.0;
-                let btn_response = ui.allocate_response(vec2(btn_width, 36.0), egui::Sense::click());
+                let btn_response =
+                    ui.allocate_response(vec2(btn_width, 36.0), egui::Sense::click());
                 let btn_rect = btn_response.rect;
 
                 let bg_color = if btn_response.hovered() {
@@ -496,7 +561,10 @@ impl StatsView {
                 }
 
                 if btn_response.clicked() {
-                    *action = Some(StatsAction::QuickStart { session_type, minutes: mins });
+                    *action = Some(StatsAction::QuickStart {
+                        session_type,
+                        minutes: mins,
+                    });
                 }
             }
         });
@@ -543,17 +611,40 @@ impl StatsView {
         });
     }
 
-    fn show_stats_grid_wide(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32, spacing: f32) {
+    fn show_stats_grid_wide(
+        &self,
+        ui: &mut Ui,
+        stats: &Statistics,
+        theme: &Theme,
+        width: f32,
+        spacing: f32,
+    ) {
         let card_width = ((width - spacing) / 2.0).floor();
         let card_height = 90.0;
 
         // Row 1 - use top alignment to prevent vertical offset
         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
             ui.spacing_mut().item_spacing.x = spacing;
-            self.stat_card_large(ui, theme, "Today", &format!("{:.1}h", stats.today_hours()),
-                Some("focus time"), Icon::Calendar, card_width, card_height);
-            self.stat_card_large(ui, theme, "This Week", &format!("{:.1}h", stats.week_hours()),
-                Some("total"), Icon::BarChart3, card_width, card_height);
+            self.stat_card_large(
+                ui,
+                theme,
+                "Today",
+                &format!("{:.1}h", stats.today_hours()),
+                Some("focus time"),
+                Icon::Calendar,
+                card_width,
+                card_height,
+            );
+            self.stat_card_large(
+                ui,
+                theme,
+                "This Week",
+                &format!("{:.1}h", stats.week_hours()),
+                Some("total"),
+                Icon::BarChart3,
+                card_width,
+                card_height,
+            );
         });
 
         ui.add_space(spacing);
@@ -561,13 +652,30 @@ impl StatsView {
         // Row 2 - use top alignment to prevent vertical offset
         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
             ui.spacing_mut().item_spacing.x = spacing;
-            self.stat_card_large(ui, theme, "Current Streak", &format!("{} days", stats.current_streak),
-                Some(&format!("Best: {}", stats.longest_streak)), Icon::Flame, card_width, card_height);
-            self.stat_card_large(ui, theme, "All Time", &format!("{}h", stats.total_hours()),
-                Some(&format!("{} sessions", stats.total_pomodoros)), Icon::Timer, card_width, card_height);
+            self.stat_card_large(
+                ui,
+                theme,
+                "Current Streak",
+                &format!("{} days", stats.current_streak),
+                Some(&format!("Best: {}", stats.longest_streak)),
+                Icon::Flame,
+                card_width,
+                card_height,
+            );
+            self.stat_card_large(
+                ui,
+                theme,
+                "All Time",
+                &format!("{}h", stats.total_hours()),
+                Some(&format!("{} sessions", stats.total_pomodoros)),
+                Icon::Timer,
+                card_width,
+                card_height,
+            );
         });
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn stat_card_large(
         &self,
         ui: &mut Ui,
@@ -579,40 +687,39 @@ impl StatsView {
         width: f32,
         height: f32,
     ) {
-        Card::new().with_size(vec2(width, height)).show(ui, theme, |ui| {
-            ui.horizontal(|ui| {
-                // Icon on left
-                let icon_size = 24.0;
-                let (icon_rect, _) = ui.allocate_exact_size(vec2(icon_size, icon_size), egui::Sense::hover());
-                draw_icon(ui, icon, icon_rect, theme.text_muted);
+        Card::new()
+            .with_size(vec2(width, height))
+            .show(ui, theme, |ui| {
+                ui.horizontal(|ui| {
+                    // Icon on left
+                    let icon_size = 24.0;
+                    let (icon_rect, _) =
+                        ui.allocate_exact_size(vec2(icon_size, icon_size), egui::Sense::hover());
+                    draw_icon(ui, icon, icon_rect, theme.text_muted);
 
-                ui.add_space(12.0);
+                    ui.add_space(12.0);
 
-                // Text on right
-                ui.vertical(|ui| {
-                    ui.label(
-                        egui::RichText::new(title)
-                            .size(11.0)
-                            .color(theme.text_secondary),
-                    );
-
-                    ui.label(
-                        egui::RichText::new(value)
-                            .size(22.0)
-                            .strong()
-                            .color(theme.text_primary),
-                    );
-
-                    if let Some(sub) = subtitle {
+                    // Text on right
+                    ui.vertical(|ui| {
                         ui.label(
-                            egui::RichText::new(sub)
-                                .size(10.0)
-                                .color(theme.text_muted),
+                            egui::RichText::new(title)
+                                .size(11.0)
+                                .color(theme.text_secondary),
                         );
-                    }
+
+                        ui.label(
+                            egui::RichText::new(value)
+                                .size(22.0)
+                                .strong()
+                                .color(theme.text_primary),
+                        );
+
+                        if let Some(sub) = subtitle {
+                            ui.label(egui::RichText::new(sub).size(10.0).color(theme.text_muted));
+                        }
+                    });
                 });
             });
-        });
     }
 
     fn show_week_activity_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
@@ -643,58 +750,69 @@ impl StatsView {
         });
     }
 
-    fn show_additional_stats(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32, spacing: f32) {
+    fn show_additional_stats(
+        &self,
+        ui: &mut Ui,
+        stats: &Statistics,
+        theme: &Theme,
+        width: f32,
+        spacing: f32,
+    ) {
         let card_width = ((width - spacing) / 2.0).floor();
 
         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
             ui.spacing_mut().item_spacing.x = spacing;
             // Best streak card
-            Card::new().with_size(vec2(card_width, 70.0)).show(ui, theme, |ui| {
-                ui.vertical(|ui| {
-                    ui.label(
-                        egui::RichText::new("Best Streak")
-                            .size(11.0)
-                            .color(theme.text_secondary),
-                    );
-                    ui.horizontal(|ui| {
+            Card::new()
+                .with_size(vec2(card_width, 70.0))
+                .show(ui, theme, |ui| {
+                    ui.vertical(|ui| {
                         ui.label(
-                            egui::RichText::new(format!("{}", stats.longest_streak))
-                                .size(24.0)
-                                .strong()
-                                .color(theme.success),
+                            egui::RichText::new("Best Streak")
+                                .size(11.0)
+                                .color(theme.text_secondary),
                         );
-                        ui.label(
-                            egui::RichText::new("days")
-                                .size(12.0)
-                                .color(theme.text_muted),
-                        );
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new(format!("{}", stats.longest_streak))
+                                    .size(24.0)
+                                    .strong()
+                                    .color(theme.success),
+                            );
+                            ui.label(
+                                egui::RichText::new("days")
+                                    .size(12.0)
+                                    .color(theme.text_muted),
+                            );
+                        });
                     });
                 });
-            });
 
             // Total sessions card
-            Card::new().with_size(vec2(card_width, 70.0)).show(ui, theme, |ui| {
-                ui.vertical(|ui| {
-                    ui.label(
-                        egui::RichText::new("Total Sessions")
-                            .size(11.0)
-                            .color(theme.text_secondary),
-                    );
-                    ui.horizontal(|ui| {
+            Card::new()
+                .with_size(vec2(card_width, 70.0))
+                .show(ui, theme, |ui| {
+                    ui.vertical(|ui| {
                         ui.label(
-                            egui::RichText::new(format!("{}", stats.total_pomodoros))
-                                .size(24.0)
-                                .strong()
-                                .color(theme.accent.solid()),
+                            egui::RichText::new("Total Sessions")
+                                .size(11.0)
+                                .color(theme.text_secondary),
                         );
-                        ui.label(
-                            egui::RichText::new("completed")
-                                .size(12.0)
-                                .color(theme.text_muted),
-                        );
+                        ui.horizontal(|ui| {
+                            ui.label(
+                                egui::RichText::new(format!("{}", stats.total_pomodoros))
+                                    .size(24.0)
+                                    .strong()
+                                    .color(theme.accent.solid()),
+                            );
+                            ui.label(
+                                egui::RichText::new("completed")
+                                    .size(12.0)
+                                    .color(theme.text_muted),
+                            );
+                        });
                     });
                 });
-            });
         });
     }
 
@@ -708,7 +826,8 @@ impl StatsView {
         let gap = ((width - bar_width * 7.0) / 6.0).clamp(4.0, 12.0);
         let total_width = 7.0 * bar_width + 6.0 * gap;
 
-        let (rect, _) = ui.allocate_exact_size(vec2(total_width, chart_height + 20.0), egui::Sense::hover());
+        let (rect, _) =
+            ui.allocate_exact_size(vec2(total_width, chart_height + 20.0), egui::Sense::hover());
         let (accent_start, accent_end) = theme.accent_gradient();
 
         for (i, (day, &value)) in days.iter().zip(values.iter()).enumerate() {
@@ -716,10 +835,8 @@ impl StatsView {
             let bar_height = (value / max_value) * chart_height;
 
             // Bar background
-            let bg_rect = Rect::from_min_size(
-                egui::pos2(x, rect.top()),
-                vec2(bar_width, chart_height),
-            );
+            let bg_rect =
+                Rect::from_min_size(egui::pos2(x, rect.top()), vec2(bar_width, chart_height));
             ui.painter().rect_filled(bg_rect, 4.0, theme.bg_tertiary);
 
             // Bar fill
@@ -745,7 +862,10 @@ impl StatsView {
             // Value on hover (optional: show hours)
             if value > 0.0 {
                 ui.painter().text(
-                    egui::pos2(x + bar_width / 2.0, rect.top() + chart_height - bar_height - 4.0),
+                    egui::pos2(
+                        x + bar_width / 2.0,
+                        rect.top() + chart_height - bar_height - 4.0,
+                    ),
                     egui::Align2::CENTER_BOTTOM,
                     format!("{:.1}", value),
                     egui::FontId::proportional(9.0),
@@ -906,7 +1026,8 @@ fn section_header(ui: &mut Ui, theme: &Theme, title: &str) {
 fn stat_row(ui: &mut Ui, theme: &Theme, icon: Icon, label: &str, value: &str) {
     ui.horizontal(|ui| {
         let icon_size = 16.0;
-        let (icon_rect, _) = ui.allocate_exact_size(vec2(icon_size, icon_size), egui::Sense::hover());
+        let (icon_rect, _) =
+            ui.allocate_exact_size(vec2(icon_size, icon_size), egui::Sense::hover());
         draw_icon(ui, icon, icon_rect, theme.text_secondary);
 
         ui.add_space(8.0);

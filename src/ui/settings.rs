@@ -107,12 +107,7 @@ impl SettingsView {
         }
     }
 
-    pub fn show(
-        &mut self,
-        ui: &mut Ui,
-        config: &Config,
-        theme: &Theme,
-    ) -> Option<SettingsAction> {
+    pub fn show(&mut self, ui: &mut Ui, config: &Config, theme: &Theme) -> Option<SettingsAction> {
         let mut action = None;
 
         // Sync always_on_top from config (may be changed externally via titlebar)
@@ -148,15 +143,54 @@ impl SettingsView {
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
-                duration_row(ui, theme, "Focus Duration", &mut self.state.work_duration, 1.0, 90.0);
-                duration_row(ui, theme, "Short Break", &mut self.state.short_break, 1.0, 30.0);
-                duration_row(ui, theme, "Long Break", &mut self.state.long_break, 5.0, 60.0);
-                duration_row_with_unit(ui, theme, "Sessions before long break", &mut self.state.sessions_before_long, 2.0, 8.0, "");
+                duration_row(
+                    ui,
+                    theme,
+                    "Focus Duration",
+                    &mut self.state.work_duration,
+                    1.0,
+                    90.0,
+                );
+                duration_row(
+                    ui,
+                    theme,
+                    "Short Break",
+                    &mut self.state.short_break,
+                    1.0,
+                    30.0,
+                );
+                duration_row(
+                    ui,
+                    theme,
+                    "Long Break",
+                    &mut self.state.long_break,
+                    5.0,
+                    60.0,
+                );
+                duration_row_with_unit(
+                    ui,
+                    theme,
+                    "Sessions before long break",
+                    &mut self.state.sessions_before_long,
+                    2.0,
+                    8.0,
+                    "",
+                );
 
                 ui.add_space(theme.spacing_sm);
 
-                toggle_row(ui, theme, "Auto-start breaks", &mut self.state.auto_start_breaks);
-                toggle_row(ui, theme, "Auto-start pomodoros", &mut self.state.auto_start_work);
+                toggle_row(
+                    ui,
+                    theme,
+                    "Auto-start breaks",
+                    &mut self.state.auto_start_breaks,
+                );
+                toggle_row(
+                    ui,
+                    theme,
+                    "Auto-start pomodoros",
+                    &mut self.state.auto_start_work,
+                );
             });
 
             ui.add_space(theme.spacing_md);
@@ -167,10 +201,7 @@ impl SettingsView {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 ui.horizontal(|ui| {
-                    ui.label(
-                        egui::RichText::new("Volume")
-                            .color(theme.text_secondary),
-                    );
+                    ui.label(egui::RichText::new("Volume").color(theme.text_secondary));
 
                     // Use right-to-left layout for proper alignment
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
@@ -183,7 +214,7 @@ impl SettingsView {
                             vec2(120.0, 20.0),
                             egui::Slider::new(&mut self.state.volume, 0.0..=100.0)
                                 .step_by(1.0)
-                                .show_value(false)
+                                .show_value(false),
                         );
                     });
                 });
@@ -197,14 +228,30 @@ impl SettingsView {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 // Standard colors
-                let standard_colors: Vec<_> = AccentColor::all().iter().filter(|c| !c.is_retro()).collect();
-                let retro_colors: Vec<_> = AccentColor::all().iter().filter(|c| c.is_retro()).collect();
+                let standard_colors: Vec<_> = AccentColor::all()
+                    .iter()
+                    .filter(|c| !c.is_retro())
+                    .collect();
+                let retro_colors: Vec<_> =
+                    AccentColor::all().iter().filter(|c| c.is_retro()).collect();
 
-                color_picker_row(ui, theme, "Accent Color", &standard_colors, &mut self.state.selected_accent);
+                color_picker_row(
+                    ui,
+                    theme,
+                    "Accent Color",
+                    &standard_colors,
+                    &mut self.state.selected_accent,
+                );
 
                 ui.add_space(theme.spacing_sm);
 
-                color_picker_row(ui, theme, "Retro Themes", &retro_colors, &mut self.state.selected_accent);
+                color_picker_row(
+                    ui,
+                    theme,
+                    "Retro Themes",
+                    &retro_colors,
+                    &mut self.state.selected_accent,
+                );
             });
 
             ui.add_space(theme.spacing_md);
@@ -214,7 +261,12 @@ impl SettingsView {
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
-                toggle_row(ui, theme, "Start with Windows", &mut self.state.start_with_windows);
+                toggle_row(
+                    ui,
+                    theme,
+                    "Start with Windows",
+                    &mut self.state.start_with_windows,
+                );
                 toggle_row(ui, theme, "Always on top", &mut self.state.always_on_top);
             });
 
@@ -241,7 +293,7 @@ impl SettingsView {
                         if ui
                             .add_sized(
                                 vec2(button_width, 48.0),
-                                egui::Button::new(format!("{}\n{}", preset.0, preset.1))
+                                egui::Button::new(format!("{}\n{}", preset.0, preset.1)),
                             )
                             .clicked()
                         {
@@ -261,10 +313,7 @@ impl SettingsView {
                 ui.add_space((ui.available_width() - 150.0) / 2.0);
 
                 if ui
-                    .add(
-                        egui::Button::new("Reset to Defaults")
-                            .fill(theme.bg_tertiary),
-                    )
+                    .add(egui::Button::new("Reset to Defaults").fill(theme.bg_tertiary))
                     .clicked()
                 {
                     action = Some(SettingsAction::ResetDefaults);
@@ -303,18 +352,27 @@ fn duration_row(ui: &mut Ui, theme: &Theme, label: &str, value: &mut f32, min: f
 }
 
 /// Draw a duration row with +/- buttons, custom unit
-fn duration_row_with_unit(ui: &mut Ui, theme: &Theme, label: &str, value: &mut f32, min: f32, max: f32, unit: &str) {
+fn duration_row_with_unit(
+    ui: &mut Ui,
+    theme: &Theme,
+    label: &str,
+    value: &mut f32,
+    min: f32,
+    max: f32,
+    unit: &str,
+) {
     ui.horizontal(|ui| {
-        ui.label(
-            egui::RichText::new(label)
-                .color(theme.text_secondary),
-        );
+        ui.label(egui::RichText::new(label).color(theme.text_secondary));
 
         // Use right-to-left layout for controls alignment
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
             // Plus button (appears last visually, first in RTL)
             let plus_response = ui.allocate_response(vec2(32.0, 32.0), egui::Sense::click());
-            let plus_bg = if plus_response.hovered() { theme.bg_hover } else { theme.bg_tertiary };
+            let plus_bg = if plus_response.hovered() {
+                theme.bg_hover
+            } else {
+                theme.bg_tertiary
+            };
             ui.painter().rect_filled(plus_response.rect, 6.0, plus_bg);
             if plus_response.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
@@ -347,7 +405,11 @@ fn duration_row_with_unit(ui: &mut Ui, theme: &Theme, label: &str, value: &mut f
 
             // Minus button
             let minus_response = ui.allocate_response(vec2(32.0, 32.0), egui::Sense::click());
-            let minus_bg = if minus_response.hovered() { theme.bg_hover } else { theme.bg_tertiary };
+            let minus_bg = if minus_response.hovered() {
+                theme.bg_hover
+            } else {
+                theme.bg_tertiary
+            };
             ui.painter().rect_filled(minus_response.rect, 6.0, minus_bg);
             if minus_response.hovered() {
                 ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
@@ -369,12 +431,15 @@ fn duration_row_with_unit(ui: &mut Ui, theme: &Theme, label: &str, value: &mut f
 }
 
 /// Draw a color picker row
-fn color_picker_row(ui: &mut Ui, theme: &Theme, label: &str, colors: &[&AccentColor], selected: &mut AccentColor) {
+fn color_picker_row(
+    ui: &mut Ui,
+    theme: &Theme,
+    label: &str,
+    colors: &[&AccentColor],
+    selected: &mut AccentColor,
+) {
     ui.horizontal(|ui| {
-        ui.label(
-            egui::RichText::new(label)
-                .color(theme.text_secondary),
-        );
+        ui.label(egui::RichText::new(label).color(theme.text_secondary));
 
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
             ui.spacing_mut().item_spacing.x = 6.0;
@@ -383,16 +448,15 @@ fn color_picker_row(ui: &mut Ui, theme: &Theme, label: &str, colors: &[&AccentCo
                 let (color, _) = accent.gradient();
 
                 let size = if is_selected { 26.0 } else { 22.0 };
-                let (rect, response) = ui.allocate_exact_size(
-                    vec2(size, size),
-                    egui::Sense::click(),
-                );
+                let (rect, response) =
+                    ui.allocate_exact_size(vec2(size, size), egui::Sense::click());
 
                 if response.clicked() {
                     *selected = **accent;
                 }
 
-                ui.painter().circle_filled(rect.center(), size / 2.0 - 2.0, color);
+                ui.painter()
+                    .circle_filled(rect.center(), size / 2.0 - 2.0, color);
 
                 if is_selected {
                     ui.painter().circle_stroke(
@@ -404,9 +468,14 @@ fn color_picker_row(ui: &mut Ui, theme: &Theme, label: &str, colors: &[&AccentCo
 
                 if response.hovered() {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
-                    egui::show_tooltip(ui.ctx(), ui.layer_id(), egui::Id::new(accent.name()), |ui| {
-                        ui.label(accent.name());
-                    });
+                    egui::show_tooltip(
+                        ui.ctx(),
+                        ui.layer_id(),
+                        egui::Id::new(accent.name()),
+                        |ui| {
+                            ui.label(accent.name());
+                        },
+                    );
                 }
             }
         });
@@ -416,10 +485,7 @@ fn color_picker_row(ui: &mut Ui, theme: &Theme, label: &str, colors: &[&AccentCo
 /// Draw a toggle row with checkbox
 fn toggle_row(ui: &mut Ui, theme: &Theme, label: &str, value: &mut bool) {
     ui.horizontal(|ui| {
-        ui.label(
-            egui::RichText::new(label)
-                .color(theme.text_secondary),
-        );
+        ui.label(egui::RichText::new(label).color(theme.text_secondary));
 
         // Use right-to-left layout for checkbox alignment
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
