@@ -57,6 +57,9 @@ pub enum Icon {
     Moon,
     Palette,
     Zap,
+    Download,
+    Pin,
+    PinOff,
 }
 
 /// Draw an icon at the specified rectangle
@@ -680,6 +683,53 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
 
             painter.add(egui::Shape::line(points.to_vec(), stroke));
             painter.line_segment([points[5], points[0]], stroke);
+        }
+
+        Icon::Download => {
+            // Download arrow with line
+            // Vertical line
+            painter.line_segment([scale(12.0, 4.0), scale(12.0, 14.0)], stroke);
+            // Arrow head
+            painter.line_segment([scale(12.0, 14.0), scale(7.0, 9.0)], stroke);
+            painter.line_segment([scale(12.0, 14.0), scale(17.0, 9.0)], stroke);
+            // Bottom line (tray)
+            painter.line_segment([scale(5.0, 18.0), scale(19.0, 18.0)], stroke);
+            // Side lines
+            painter.line_segment([scale(5.0, 18.0), scale(5.0, 14.0)], stroke);
+            painter.line_segment([scale(19.0, 18.0), scale(19.0, 14.0)], stroke);
+        }
+
+        Icon::Pin => {
+            // Pin/thumbtack icon (always on top - active)
+            // Pin body (diagonal)
+            painter.line_segment([scale(15.0, 4.0), scale(9.0, 10.0)], stroke);
+            // Pin head circle
+            painter.circle_stroke(scale(16.5, 5.5), size * 0.12, stroke);
+            // Pin body rectangle
+            painter.line_segment([scale(9.0, 10.0), scale(7.0, 12.0)], stroke);
+            painter.line_segment([scale(7.0, 12.0), scale(11.0, 16.0)], stroke);
+            painter.line_segment([scale(11.0, 16.0), scale(13.0, 14.0)], stroke);
+            painter.line_segment([scale(13.0, 14.0), scale(9.0, 10.0)], stroke);
+            // Pin needle
+            painter.line_segment([scale(9.0, 14.0), scale(5.0, 20.0)], stroke);
+        }
+
+        Icon::PinOff => {
+            // Pin icon with slash (not pinned)
+            // Pin body (diagonal)
+            painter.line_segment([scale(15.0, 4.0), scale(9.0, 10.0)], stroke);
+            // Pin head circle
+            painter.circle_stroke(scale(16.5, 5.5), size * 0.12, stroke);
+            // Pin body rectangle
+            painter.line_segment([scale(9.0, 10.0), scale(7.0, 12.0)], stroke);
+            painter.line_segment([scale(7.0, 12.0), scale(11.0, 16.0)], stroke);
+            painter.line_segment([scale(11.0, 16.0), scale(13.0, 14.0)], stroke);
+            painter.line_segment([scale(13.0, 14.0), scale(9.0, 10.0)], stroke);
+            // Pin needle
+            painter.line_segment([scale(9.0, 14.0), scale(5.0, 20.0)], stroke);
+            // Diagonal slash
+            let slash_stroke = Stroke::new(stroke_width * 1.5, color);
+            painter.line_segment([scale(4.0, 4.0), scale(20.0, 20.0)], slash_stroke);
         }
     }
 }

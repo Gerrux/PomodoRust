@@ -12,6 +12,16 @@ pub enum SessionType {
 }
 
 impl SessionType {
+    /// Get the database storage string for this session type
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            SessionType::Work => "work",
+            SessionType::ShortBreak => "short_break",
+            SessionType::LongBreak => "long_break",
+        }
+    }
+
+    /// Get the display label for UI
     pub fn label(&self) -> &'static str {
         match self {
             SessionType::Work => "FOCUS",
@@ -20,6 +30,7 @@ impl SessionType {
         }
     }
 
+    /// Get the icon emoji for this session type
     pub fn icon(&self) -> &'static str {
         match self {
             SessionType::Work => "🍅",

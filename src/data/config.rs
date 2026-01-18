@@ -1,10 +1,14 @@
 //! Configuration management using TOML
+//!
+//! Handles loading, saving, and validating application configuration
+//! stored in TOML format at the platform-specific config directory.
 
 use directories::ProjectDirs;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
 
+use crate::error::ConfigError;
 use crate::ui::theme::AccentColor;
 
 /// Timer configuration
@@ -170,21 +174,24 @@ impl Config {
     }
 
     /// Save configuration to file
-    pub fn save(&self) -> Result<(), String> {
-        let Some(dir) = Self::config_dir() else {
-            return Err("Could not determine config directory".into());
-        };
+    pub fn save(&self) -> Result<(), ConfigError> {
+        let dir = Self::config_dir().ok_or(ConfigError::DirectoryNotFound)?;
 
         // Create directory if it doesn't exist
-        if let Err(e) = fs::create_dir_all(&dir) {
-            return Err(format!("Failed to create config directory: {}", e));
-        }
+        fs::create_dir_all(&dir).map_err(|e| ConfigError::DirectoryCreation {
+            path: dir.clone(),
+            source: e,
+        })?;
 
         let path = dir.join("config.toml");
-        let content = toml::to_string_pretty(self)
-            .map_err(|e| format!("Failed to serialize config: {}", e))?;
+        let content = toml::to_string_pretty(self).map_err(|e| ConfigError::Serialize {
+            message: e.to_string(),
+        })?;
 
-        fs::write(&path, content).map_err(|e| format!("Failed to write config file: {}", e))?;
+        fs::write(&path, &content).map_err(|e| ConfigError::WriteFile {
+            path: path.clone(),
+            source: e,
+        })?;
 
         tracing::info!("Saved config to {:?}", path);
         Ok(())

@@ -1,4 +1,10 @@
 //! Windows-specific functionality
+//!
+//! Provides Windows-specific features including:
+//! - DWM (Desktop Window Manager) effects for dark mode and rounded corners
+//! - Native toast notifications
+//! - Autostart via registry
+//! - Window flash for timer completion
 
 use std::env;
 use windows::Win32::Foundation::HWND;
@@ -7,8 +13,13 @@ use windows::Win32::Graphics::Dwm::{
     DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
 };
 use windows::Win32::UI::Controls::MARGINS;
+use windows::Win32::UI::WindowsAndMessaging::{
+    FlashWindowEx, FLASHWINFO, FLASHW_ALL, FLASHW_TIMERNOFG,
+};
 use winreg::enums::*;
 use winreg::RegKey;
+
+use crate::error::PlatformError;
 
 /// Apply Windows DWM effects (shadow and rounded corners)
 pub fn apply_window_effects(hwnd: isize) {
@@ -59,23 +70,110 @@ pub fn show_notification(title: &str, body: &str) {
     }
 }
 
+/// Flash the window in taskbar to get user attention
+/// This is called when timer completes to notify the user
+pub fn flash_window(hwnd: isize, count: u32) {
+    unsafe {
+        let hwnd = HWND(hwnd as *mut std::ffi::c_void);
+
+        let flash_info = FLASHWINFO {
+            cbSize: std::mem::size_of::<FLASHWINFO>() as u32,
+            hwnd,
+            dwFlags: FLASHW_ALL | FLASHW_TIMERNOFG,
+            uCount: count,
+            dwTimeout: 0, // Use default cursor blink rate
+        };
+
+        let _ = FlashWindowEx(&flash_info);
+        tracing::info!("Flashing window {} times", count);
+    }
+}
+
+/// Stop flashing the window
+pub fn stop_flash_window(hwnd: isize) {
+    unsafe {
+        let hwnd = HWND(hwnd as *mut std::ffi::c_void);
+
+        let flash_info = FLASHWINFO {
+            cbSize: std::mem::size_of::<FLASHWINFO>() as u32,
+            hwnd,
+            dwFlags: windows::Win32::UI::WindowsAndMessaging::FLASHW_STOP,
+            uCount: 0,
+            dwTimeout: 0,
+        };
+
+        let _ = FlashWindowEx(&flash_info);
+    }
+}
+
+/// Flash the PomodoRust window by finding it by title
+/// Returns true if window was found and flashed
+pub fn flash_pomodorust_window(count: u32) -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
+    use windows::core::PCWSTR;
+
+    unsafe {
+        let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();
+        if let Ok(hwnd) = FindWindowW(PCWSTR::null(), PCWSTR(title.as_ptr())) {
+            if !hwnd.is_invalid() {
+                flash_window(hwnd.0 as isize, count);
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Show and bring the PomodoRust window to foreground
+/// Returns true if window was found and shown
+pub fn show_pomodorust_window() -> bool {
+    use windows::Win32::UI::WindowsAndMessaging::{
+        FindWindowW, ShowWindow, SetForegroundWindow, SW_RESTORE,
+    };
+    use windows::core::PCWSTR;
+
+    unsafe {
+        let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();
+        if let Ok(hwnd) = FindWindowW(PCWSTR::null(), PCWSTR(title.as_ptr())) {
+            if !hwnd.is_invalid() {
+                // Restore window if minimized
+                let _ = ShowWindow(hwnd, SW_RESTORE);
+                // Bring to foreground
+                let _ = SetForegroundWindow(hwnd);
+                tracing::info!("Restored PomodoRust window");
+                return true;
+            }
+        }
+    }
+    tracing::warn!("Could not find PomodoRust window");
+    false
+}
+
+/// Registry key path for Windows autostart
+const AUTOSTART_REGISTRY_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Run";
+/// Application name in registry
+const APP_REGISTRY_NAME: &str = "PomodoRust";
+
 /// Set application to start with Windows
-pub fn set_autostart(enabled: bool) -> Result<(), String> {
+pub fn set_autostart(enabled: bool) -> Result<(), PlatformError> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let run_key = hkcu
-        .open_subkey_with_flags(
-            r"Software\Microsoft\Windows\CurrentVersion\Run",
-            KEY_WRITE,
-        )
-        .map_err(|e| format!("Failed to open registry key: {}", e))?;
+        .open_subkey_with_flags(AUTOSTART_REGISTRY_KEY, KEY_WRITE)
+        .map_err(|e| PlatformError::Registry {
+            operation: "open",
+            message: e.to_string(),
+        })?;
 
     if enabled {
-        let exe_path = env::current_exe()
-            .map_err(|e| format!("Failed to get executable path: {}", e))?;
+        let exe_path =
+            env::current_exe().map_err(|e| PlatformError::ExecutablePath { source: e })?;
 
         run_key
-            .set_value("PomodoRust", &exe_path.to_string_lossy().to_string())
-            .map_err(|e| format!("Failed to set registry value: {}", e))?;
+            .set_value(APP_REGISTRY_NAME, &exe_path.to_string_lossy().to_string())
+            .map_err(|e| PlatformError::Registry {
+                operation: "set_value",
+                message: e.to_string(),
+            })?;
 
         tracing::info!("Enabled autostart");
     } else {
@@ -86,17 +184,17 @@ pub fn set_autostart(enabled: bool) -> Result<(), String> {
 }
 
 /// Remove application from Windows startup
-pub fn remove_autostart() -> Result<(), String> {
+pub fn remove_autostart() -> Result<(), PlatformError> {
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let run_key = hkcu
-        .open_subkey_with_flags(
-            r"Software\Microsoft\Windows\CurrentVersion\Run",
-            KEY_WRITE,
-        )
-        .map_err(|e| format!("Failed to open registry key: {}", e))?;
+        .open_subkey_with_flags(AUTOSTART_REGISTRY_KEY, KEY_WRITE)
+        .map_err(|e| PlatformError::Registry {
+            operation: "open",
+            message: e.to_string(),
+        })?;
 
     // Ignore error if value doesn't exist
-    let _ = run_key.delete_value("PomodoRust");
+    let _ = run_key.delete_value(APP_REGISTRY_NAME);
 
     tracing::info!("Disabled autostart");
     Ok(())

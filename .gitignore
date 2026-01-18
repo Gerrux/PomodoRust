@@ -1,6 +1,11 @@
-# Rust
+# Build artifacts
 /target/
-Cargo.lock
+/dist/
+
+# Certificates (sensitive!)
+/certs/
+*.pfx
+*.p12
 
 # IDE
 .idea/
@@ -13,15 +18,18 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 
-# Build artifacts
-*.exe
-*.dll
-*.so
-*.dylib
+# Logs
+*.log
 
-# Local data
+# Local data (user-specific)
 *.db
 *.sqlite
 
-# Logs
-*.log
+# Claude Code / AI artifacts
+.claude/
+PROJECT_INDEX.md
+PROJECT_INDEX.json
+INDEX.md
+PROMPT_TEMPLATE.md
+SPECIFICATION.md
+LAYOUT_FIX_DESIGN.md

@@ -3,11 +3,11 @@
 use chrono::Utc;
 
 use crate::core::{Preset, Session, SessionType, TimerEvent};
-use crate::data::{Config, Database, Statistics};
+use crate::data::{Config, Database, ExportFormat, Exporter, Statistics};
 use crate::platform::{AudioPlayer, SoundType};
 use crate::ui::{
     animations::AnimationState,
-    dashboard::{DashboardAction, DashboardView},
+    stats::{StatsAction, StatsView},
     settings::{SettingsAction, SettingsView},
     theme::Theme,
     timer_view::{TimerAction, TimerView},
@@ -18,7 +18,7 @@ use crate::ui::{
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum View {
     Timer,
-    Dashboard,
+    Stats,
     Settings,
 }
 
@@ -36,7 +36,7 @@ pub struct PomodoRustApp {
     // UI components
     titlebar: TitleBar,
     timer_view: TimerView,
-    dashboard_view: DashboardView,
+    stats_view: StatsView,
     settings_view: Option<SettingsView>,
 
     // Animation state
@@ -91,6 +91,7 @@ impl PomodoRustApp {
             player.set_volume(config.sounds.volume as f32 / 100.0);
         }
 
+        // Initialize system tray
         Self {
             session,
             config,
@@ -99,7 +100,7 @@ impl PomodoRustApp {
             statistics,
             titlebar: TitleBar::new(),
             timer_view: TimerView::new(),
-            dashboard_view: DashboardView::new(),
+            stats_view: StatsView::new(),
             settings_view: None,
             animations: AnimationState::new(),
             current_view: View::Timer,
@@ -143,6 +144,9 @@ impl PomodoRustApp {
             crate::platform::show_notification(title, body);
         }
 
+        // Flash window in taskbar to get attention
+        crate::platform::flash_pomodorust_window(5);
+
         self.session_start_time = None;
     }
 
@@ -163,8 +167,8 @@ impl PomodoRustApp {
                 self.session.reset();
                 self.session_start_time = None;
             }
-            TimerAction::OpenDashboard => {
-                self.current_view = View::Dashboard;
+            TimerAction::OpenStats => {
+                self.current_view = View::Stats;
             }
             TimerAction::OpenSettings => {
                 self.settings_view = Some(SettingsView::new(&self.config));
@@ -173,28 +177,81 @@ impl PomodoRustApp {
         }
     }
 
-    /// Handle dashboard action
-    fn handle_dashboard_action(&mut self, action: DashboardAction) {
+    /// Handle stats action
+    fn handle_stats_action(&mut self, action: StatsAction) {
         match action {
-            DashboardAction::Back => {
+            StatsAction::Back => {
                 self.current_view = View::Timer;
             }
-            DashboardAction::OpenSettings => {
+            StatsAction::OpenSettings => {
                 self.settings_view = Some(SettingsView::new(&self.config));
                 self.current_view = View::Settings;
+            }
+            StatsAction::QuickStart { session_type, minutes } => {
+                // Switch to the requested session type
+                self.session.switch_to(session_type);
+                // Reset timer with custom duration
+                self.session.timer_mut().reset_with_duration(minutes as u64 * 60);
+                // Start the timer
+                self.session.start();
+                self.session_start_time = Some(Utc::now());
+                // Go back to timer view
+                self.current_view = View::Timer;
+            }
+            StatsAction::Export { format } => {
+                self.export_statistics(format);
+            }
+        }
+    }
+
+    /// Export statistics to file
+    fn export_statistics(&self, format: ExportFormat) {
+        let Some(db) = &self.database else {
+            tracing::error!("No database available for export");
+            return;
+        };
+
+        // Create file dialog
+        let default_filename = Exporter::default_filename(format);
+        let filter_name = format.label();
+        let filter_ext = format.extension();
+
+        let file_dialog = rfd::FileDialog::new()
+            .set_title("Export Statistics")
+            .set_file_name(&default_filename)
+            .add_filter(filter_name, &[filter_ext]);
+
+        // Show save dialog
+        if let Some(path) = file_dialog.save_file() {
+            match Exporter::export(db, &path, format) {
+                Ok(()) => {
+                    tracing::info!("Statistics exported to {:?}", path);
+                    // Show success notification
+                    crate::platform::show_notification(
+                        "Export Complete",
+                        &format!("Statistics saved to {}", path.display()),
+                    );
+                }
+                Err(e) => {
+                    tracing::error!("Failed to export statistics: {}", e);
+                    crate::platform::show_notification(
+                        "Export Failed",
+                        &format!("Error: {}", e),
+                    );
+                }
             }
         }
     }
 
     /// Handle settings action
-    fn handle_settings_action(&mut self, action: SettingsAction) {
+    fn handle_settings_action(&mut self, action: SettingsAction, ctx: &egui::Context) {
         match action {
             SettingsAction::Back => {
                 self.current_view = View::Timer;
                 self.settings_view = None;
             }
             SettingsAction::UpdateConfig(new_config) => {
-                self.apply_config(new_config);
+                self.apply_config(new_config, ctx);
             }
             SettingsAction::SelectPreset(index) => {
                 let presets = [Preset::classic(), Preset::short(), Preset::long()];
@@ -215,15 +272,27 @@ impl PomodoRustApp {
                 self.session.set_preset(self.config.to_preset());
                 self.theme = Theme::new(self.config.appearance.accent_color);
 
+                // Reset always on top to default (false)
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(egui::WindowLevel::Normal));
+
                 if let Some(ref mut sv) = self.settings_view {
                     sv.reset_from_config(&self.config);
                 }
+            }
+            SettingsAction::SetAlwaysOnTop(enabled) => {
+                ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                    if enabled {
+                        egui::WindowLevel::AlwaysOnTop
+                    } else {
+                        egui::WindowLevel::Normal
+                    }
+                ));
             }
         }
     }
 
     /// Apply new configuration
-    fn apply_config(&mut self, new_config: Config) {
+    fn apply_config(&mut self, new_config: Config, ctx: &egui::Context) {
         // Check if theme changed
         if new_config.appearance.accent_color != self.config.appearance.accent_color {
             self.theme = Theme::new(new_config.appearance.accent_color);
@@ -252,6 +321,17 @@ impl PomodoRustApp {
         // Update autostart
         if new_config.system.start_with_windows != self.config.system.start_with_windows {
             let _ = crate::platform::set_autostart(new_config.system.start_with_windows);
+        }
+
+        // Update always on top
+        if new_config.window.always_on_top != self.config.window.always_on_top {
+            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                if new_config.window.always_on_top {
+                    egui::WindowLevel::AlwaysOnTop
+                } else {
+                    egui::WindowLevel::Normal
+                }
+            ));
         }
 
         self.config = new_config;
@@ -350,6 +430,9 @@ impl eframe::App for PomodoRustApp {
         // Check if maximized for rounding
         let is_maximized = ctx.input(|i| i.viewport().maximized.unwrap_or(false));
 
+        // Collect settings action to handle after UI
+        let mut settings_action: Option<SettingsAction> = None;
+
         // Main panel with custom frame - no rounding or border when maximized
         egui::CentralPanel::default()
             .frame(
@@ -359,7 +442,12 @@ impl eframe::App for PomodoRustApp {
             )
             .show(ctx, |ui| {
                 // Title bar
-                let (should_drag, button) = self.titlebar.show(ui, &self.theme, is_maximized);
+                let (should_drag, button) = self.titlebar.show(
+                    ui,
+                    &self.theme,
+                    is_maximized,
+                    self.config.window.always_on_top,
+                );
 
                 if should_drag {
                     ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
@@ -367,6 +455,17 @@ impl eframe::App for PomodoRustApp {
 
                 if let Some(button) = button {
                     match button {
+                        TitleBarButton::AlwaysOnTop => {
+                            self.config.window.always_on_top = !self.config.window.always_on_top;
+                            ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
+                                if self.config.window.always_on_top {
+                                    egui::WindowLevel::AlwaysOnTop
+                                } else {
+                                    egui::WindowLevel::Normal
+                                }
+                            ));
+                            let _ = self.config.save();
+                        }
                         TitleBarButton::Minimize => {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
                         }
@@ -398,27 +497,30 @@ impl eframe::App for PomodoRustApp {
                                     self.handle_timer_action(action);
                                 }
                             }
-                            View::Dashboard => {
-                                if let Some(action) = self.dashboard_view.show(
+                            View::Stats => {
+                                if let Some(action) = self.stats_view.show(
                                     ui,
                                     &self.session,
                                     &self.statistics,
                                     &self.theme,
                                     self.animations.pulse_value(),
                                 ) {
-                                    self.handle_dashboard_action(action);
+                                    self.handle_stats_action(action);
                                 }
                             }
                             View::Settings => {
                                 if let Some(ref mut sv) = self.settings_view {
-                                    if let Some(action) = sv.show(ui, &self.config, &self.theme) {
-                                        self.handle_settings_action(action);
-                                    }
+                                    settings_action = sv.show(ui, &self.config, &self.theme);
                                 }
                             }
                         }
                     });
             });
+
+        // Handle settings action outside closure (needs ctx for viewport commands)
+        if let Some(action) = settings_action {
+            self.handle_settings_action(action, ctx);
+        }
 
         // Handle keyboard shortcuts
         ctx.input(|i| {
@@ -427,7 +529,7 @@ impl eframe::App for PomodoRustApp {
             }
             if i.key_pressed(egui::Key::Escape) {
                 match self.current_view {
-                    View::Dashboard | View::Settings => {
+                    View::Stats | View::Settings => {
                         self.current_view = View::Timer;
                         self.settings_view = None;
                     }
@@ -439,7 +541,7 @@ impl eframe::App for PomodoRustApp {
                 }
             }
             if i.key_pressed(egui::Key::D) && self.current_view == View::Timer {
-                self.current_view = View::Dashboard;
+                self.current_view = View::Stats;
             }
         });
     }

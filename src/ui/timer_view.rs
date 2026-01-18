@@ -15,7 +15,7 @@ pub enum TimerAction {
     Toggle,
     Skip,
     Reset,
-    OpenDashboard,
+    OpenStats,
     OpenSettings,
 }
 
@@ -65,15 +65,14 @@ impl TimerView {
         // Responsive sizing based on available space
         let timer_radius = (min_dim * 0.28).clamp(60.0, 120.0);
         let timer_thickness = (timer_radius * 0.08).clamp(4.0, 10.0);
-        let play_btn_size = (min_dim * 0.14).clamp(40.0, 64.0);
-        let skip_btn_size = (min_dim * 0.12).clamp(36.0, 56.0);
+        let control_btn_size = (min_dim * 0.11).clamp(36.0, 48.0); // Smaller buttons
         let nav_btn_width = (available.x * 0.35).clamp(100.0, 150.0);
         let nav_btn_height = (min_dim * 0.09).clamp(32.0, 44.0);
         let spacing = (min_dim * 0.04).clamp(8.0, 24.0);
 
-        // Responsive font sizes
-        let timer_font_size = (timer_radius * 0.45).clamp(24.0, 52.0);
-        let label_font_size = (timer_radius * 0.14).clamp(10.0, 16.0);
+        // Responsive font sizes - larger timer text
+        let timer_font_size = (timer_radius * 0.55).clamp(28.0, 64.0);
+        let label_font_size = (timer_radius * 0.16).clamp(11.0, 18.0);
 
         // Use centered vertical layout
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
@@ -91,6 +90,9 @@ impl TimerView {
                 .with_pulse(if session.timer().is_running() { pulse } else { 0.0 })
                 .show(ui, |ui| {
                     ui.vertical_centered(|ui| {
+                        // Push content down slightly within the circle
+                        ui.add_space(timer_radius * 0.15);
+
                         // Timer display
                         ui.label(
                             egui::RichText::new(session.timer().remaining_formatted())
@@ -110,18 +112,19 @@ impl TimerView {
                     });
                 });
 
-            ui.add_space(spacing);
+            ui.add_space(spacing * 0.5);
 
-            // Control buttons
-            let control_width = play_btn_size + skip_btn_size + spacing * 0.5;
-            ui.allocate_ui(vec2(control_width, play_btn_size), |ui| {
+            // Control buttons - symmetric layout
+            let btn_spacing = spacing * 0.75;
+            let control_width = control_btn_size * 2.0 + btn_spacing;
+            ui.allocate_ui(vec2(control_width, control_btn_size), |ui| {
                 ui.horizontal(|ui| {
                     let is_running = session.timer().is_running();
                     let play_icon = if is_running { Icon::Pause } else { Icon::Play };
 
                     // Use session colors for buttons (outline style - less distracting)
                     if IconButton::new(play_icon)
-                        .with_size(play_btn_size)
+                        .with_size(control_btn_size)
                         .with_icon_scale(0.45)
                         .filled(false)
                         .with_gradient(start_color, end_color)
@@ -131,12 +134,13 @@ impl TimerView {
                         action = Some(TimerAction::Toggle);
                     }
 
-                    ui.add_space(spacing * 0.5);
+                    ui.add_space(btn_spacing);
 
                     if IconButton::new(Icon::SkipForward)
-                        .with_size(skip_btn_size)
+                        .with_size(control_btn_size)
                         .with_icon_scale(0.45)
                         .filled(false)
+                        .with_gradient(start_color, end_color)
                         .show(ui, theme)
                         .clicked()
                     {
@@ -156,14 +160,14 @@ impl TimerView {
             let nav_total_width = nav_btn_width * 2.0 + spacing * 0.5;
             ui.allocate_ui(vec2(nav_total_width, nav_btn_height), |ui| {
                 ui.horizontal(|ui| {
-                    if GradientButton::new("Dashboard")
+                    if GradientButton::new("Stats")
                         .with_size(vec2(nav_btn_width, nav_btn_height))
                         .with_gradient(theme.bg_tertiary, theme.bg_hover)
-                        .with_id("dashboard_btn")
+                        .with_id("stats_btn")
                         .show(ui, theme)
                         .clicked()
                     {
-                        action = Some(TimerAction::OpenDashboard);
+                        action = Some(TimerAction::OpenStats);
                     }
 
                     ui.add_space(spacing * 0.5);
@@ -180,7 +184,7 @@ impl TimerView {
                 });
             });
 
-            ui.add_space(spacing * 0.5);
+            ui.add_space(spacing);
         });
 
         action
@@ -384,7 +388,7 @@ impl TimerView {
 
                     let dash_btn = ui.add(
                         egui::Button::new(
-                            egui::RichText::new("[ Dashboard ]")
+                            egui::RichText::new("[ Stats ]")
                                 .font(FontId::monospace(btn_font_size))
                                 .color(theme.text_secondary),
                         )
@@ -393,7 +397,7 @@ impl TimerView {
                     );
 
                     if dash_btn.clicked() {
-                        action = Some(TimerAction::OpenDashboard);
+                        action = Some(TimerAction::OpenStats);
                     }
 
                     ui.add_space(spacing);
@@ -427,47 +431,38 @@ impl TimerView {
 
     fn show_session_dots(&self, ui: &mut Ui, session: &Session, theme: &Theme, scale: f32) {
         let total = session.total_sessions_in_cycle() as usize;
-        let completed = session.completed_work_sessions() as usize % total;
+        // Current session index (0-based)
+        let current_idx = (session.current_session_in_cycle() as usize).saturating_sub(1);
 
         // Responsive dot sizing
         let dot_radius = (scale * 0.015).clamp(4.0, 7.0);
         let dot_spacing = (scale * 0.04).clamp(12.0, 20.0);
         let caption_size = (scale * 0.035).clamp(10.0, 14.0);
 
-        // Use allocate_ui to center dots
-        let dots_width = dot_spacing * total as f32;
-        ui.allocate_ui(vec2(dots_width, dot_radius * 2.5), |ui| {
-            ui.horizontal(|ui| {
-                for i in 0..total {
-                    let is_completed = i < completed;
-                    let is_current = i == completed && session.session_type() == SessionType::Work;
+        // Calculate total width and allocate centered rect
+        let dots_width = dot_spacing * (total - 1) as f32 + dot_radius * 2.0;
+        let height = dot_radius * 3.0;
+        let (rect, _) = ui.allocate_exact_size(vec2(dots_width, height), egui::Sense::hover());
 
-                    let color = if is_completed {
-                        theme.success
-                    } else if is_current {
-                        let (start, end) = theme.session_gradient(SessionType::Work);
-                        Theme::lerp_color(start, end, 0.5)
-                    } else {
-                        theme.bg_hover
-                    };
+        // Draw dots manually for perfect centering
+        let start_x = rect.left() + dot_radius;
+        let center_y = rect.center().y;
+        for i in 0..total {
+            let is_completed = i < current_idx;
+            let is_current = i == current_idx;
 
-                    let radius = if is_current { dot_radius * 1.2 } else { dot_radius };
+            let color = if is_completed {
+                theme.success
+            } else if is_current {
+                let (start, end) = theme.session_gradient(session.session_type());
+                Theme::lerp_color(start, end, 0.5)
+            } else {
+                theme.bg_hover
+            };
 
-                    let (rect, _) = ui.allocate_exact_size(vec2(dot_spacing, dot_radius * 2.5), egui::Sense::hover());
-
-                    // Glow for current
-                    if is_current {
-                        ui.painter().circle_filled(
-                            rect.center(),
-                            radius + 3.0,
-                            Theme::with_alpha(color, 40),
-                        );
-                    }
-
-                    ui.painter().circle_filled(rect.center(), radius, color);
-                }
-            });
-        });
+            let center = egui::pos2(start_x + dot_spacing * i as f32, center_y);
+            ui.painter().circle_filled(center, dot_radius, color);
+        }
 
         ui.add_space(4.0);
 

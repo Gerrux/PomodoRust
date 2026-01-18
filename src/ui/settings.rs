@@ -1,4 +1,10 @@
 //! Settings panel
+//!
+//! Provides the settings UI with local editing state that syncs back to Config.
+//! The editing state is kept separate to allow for:
+//! - Smooth slider/input interaction
+//! - Validation before applying changes
+//! - Consistent state management
 
 use egui::{vec2, Color32, Layout, Rect, Ui};
 
@@ -13,25 +19,36 @@ pub enum SettingsAction {
     UpdateConfig(Config),
     SelectPreset(usize),
     ResetDefaults,
+    SetAlwaysOnTop(bool),
 }
 
-/// Settings view
-pub struct SettingsView {
-    // Local copies for editing
+/// Editable settings state - extracted from Config for UI editing
+///
+/// Uses f32 for numeric fields to support smooth slider interaction.
+/// These get converted back to u32 when building the Config.
+#[derive(Debug, Clone)]
+pub struct SettingsState {
+    // Timer settings
     pub work_duration: f32,
     pub short_break: f32,
     pub long_break: f32,
     pub sessions_before_long: f32,
+    // Sound settings
     pub volume: f32,
+    // Auto-start settings
     pub auto_start_breaks: bool,
     pub auto_start_work: bool,
-    pub minimize_to_tray: bool,
+    // System settings
     pub start_with_windows: bool,
+    // Window settings
+    pub always_on_top: bool,
+    // Appearance
     pub selected_accent: AccentColor,
 }
 
-impl SettingsView {
-    pub fn new(config: &Config) -> Self {
+impl SettingsState {
+    /// Create editing state from Config
+    pub fn from_config(config: &Config) -> Self {
         Self {
             work_duration: config.timer.work_duration as f32,
             short_break: config.timer.short_break as f32,
@@ -40,9 +57,53 @@ impl SettingsView {
             volume: config.sounds.volume as f32,
             auto_start_breaks: config.timer.auto_start_breaks,
             auto_start_work: config.timer.auto_start_work,
-            minimize_to_tray: config.system.minimize_to_tray,
             start_with_windows: config.system.start_with_windows,
+            always_on_top: config.window.always_on_top,
             selected_accent: config.appearance.accent_color,
+        }
+    }
+
+    /// Check if the editing state differs from the given config
+    pub fn differs_from(&self, config: &Config) -> bool {
+        self.work_duration.round() as u32 != config.timer.work_duration
+            || self.short_break.round() as u32 != config.timer.short_break
+            || self.long_break.round() as u32 != config.timer.long_break
+            || self.sessions_before_long.round() as u32 != config.timer.sessions_before_long
+            || self.volume.round() as u32 != config.sounds.volume
+            || self.auto_start_breaks != config.timer.auto_start_breaks
+            || self.auto_start_work != config.timer.auto_start_work
+            || self.start_with_windows != config.system.start_with_windows
+            || self.always_on_top != config.window.always_on_top
+            || self.selected_accent != config.appearance.accent_color
+    }
+
+    /// Apply the editing state to a Config, returning a new Config
+    pub fn apply_to(&self, original: &Config) -> Config {
+        let mut config = original.clone();
+        config.timer.work_duration = self.work_duration.round() as u32;
+        config.timer.short_break = self.short_break.round() as u32;
+        config.timer.long_break = self.long_break.round() as u32;
+        config.timer.sessions_before_long = self.sessions_before_long.round() as u32;
+        config.timer.auto_start_breaks = self.auto_start_breaks;
+        config.timer.auto_start_work = self.auto_start_work;
+        config.sounds.volume = self.volume.round() as u32;
+        config.system.start_with_windows = self.start_with_windows;
+        config.window.always_on_top = self.always_on_top;
+        config.appearance.accent_color = self.selected_accent;
+        config
+    }
+}
+
+/// Settings view
+pub struct SettingsView {
+    /// Local editing state, kept in sync with Config
+    state: SettingsState,
+}
+
+impl SettingsView {
+    pub fn new(config: &Config) -> Self {
+        Self {
+            state: SettingsState::from_config(config),
         }
     }
 
@@ -82,15 +143,15 @@ impl SettingsView {
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
-                duration_row(ui, theme, "Focus Duration", &mut self.work_duration, 1.0, 90.0);
-                duration_row(ui, theme, "Short Break", &mut self.short_break, 1.0, 30.0);
-                duration_row(ui, theme, "Long Break", &mut self.long_break, 5.0, 60.0);
-                duration_row_with_unit(ui, theme, "Sessions before long break", &mut self.sessions_before_long, 2.0, 8.0, "");
+                duration_row(ui, theme, "Focus Duration", &mut self.state.work_duration, 1.0, 90.0);
+                duration_row(ui, theme, "Short Break", &mut self.state.short_break, 1.0, 30.0);
+                duration_row(ui, theme, "Long Break", &mut self.state.long_break, 5.0, 60.0);
+                duration_row_with_unit(ui, theme, "Sessions before long break", &mut self.state.sessions_before_long, 2.0, 8.0, "");
 
                 ui.add_space(theme.spacing_sm);
 
-                toggle_row(ui, theme, "Auto-start breaks", &mut self.auto_start_breaks);
-                toggle_row(ui, theme, "Auto-start pomodoros", &mut self.auto_start_work);
+                toggle_row(ui, theme, "Auto-start breaks", &mut self.state.auto_start_breaks);
+                toggle_row(ui, theme, "Auto-start pomodoros", &mut self.state.auto_start_work);
             });
 
             ui.add_space(theme.spacing_md);
@@ -109,13 +170,15 @@ impl SettingsView {
                     // Use right-to-left layout for proper alignment
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
-                            egui::RichText::new(format!("{}%", self.volume as u32))
+                            egui::RichText::new(format!("{}%", self.state.volume.round() as u32))
                                 .color(theme.text_muted),
                         );
 
                         ui.add_sized(
                             vec2(120.0, 20.0),
-                            egui::Slider::new(&mut self.volume, 0.0..=100.0).show_value(false)
+                            egui::Slider::new(&mut self.state.volume, 0.0..=100.0)
+                                .step_by(1.0)
+                                .show_value(false)
                         );
                     });
                 });
@@ -132,11 +195,11 @@ impl SettingsView {
                 let standard_colors: Vec<_> = AccentColor::all().iter().filter(|c| !c.is_retro()).collect();
                 let retro_colors: Vec<_> = AccentColor::all().iter().filter(|c| c.is_retro()).collect();
 
-                color_picker_row(ui, theme, "Accent Color", &standard_colors, &mut self.selected_accent);
+                color_picker_row(ui, theme, "Accent Color", &standard_colors, &mut self.state.selected_accent);
 
                 ui.add_space(theme.spacing_sm);
 
-                color_picker_row(ui, theme, "Retro Themes", &retro_colors, &mut self.selected_accent);
+                color_picker_row(ui, theme, "Retro Themes", &retro_colors, &mut self.state.selected_accent);
             });
 
             ui.add_space(theme.spacing_md);
@@ -146,14 +209,15 @@ impl SettingsView {
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
-                toggle_row(ui, theme, "Start with Windows", &mut self.start_with_windows);
-                toggle_row(ui, theme, "Minimize to tray", &mut self.minimize_to_tray);
+                toggle_row(ui, theme, "Start with Windows", &mut self.state.start_with_windows);
+                toggle_row(ui, theme, "Always on top", &mut self.state.always_on_top);
             });
 
             ui.add_space(theme.spacing_md);
 
             // Presets section
             section_header(ui, theme, "Presets");
+            let mut preset_clicked: Option<usize> = None;
             Card::new().show(ui, theme, |ui| {
                 let card_width = ui.available_width();
                 ui.set_min_width(card_width - theme.spacing_md * 2.0);
@@ -176,11 +240,14 @@ impl SettingsView {
                             )
                             .clicked()
                         {
-                            action = Some(SettingsAction::SelectPreset(i));
+                            preset_clicked = Some(i);
                         }
                     }
                 });
             });
+            if let Some(index) = preset_clicked {
+                action = Some(SettingsAction::SelectPreset(index));
+            }
 
             ui.add_space(theme.spacing_xl);
 
@@ -200,55 +267,18 @@ impl SettingsView {
             });
         });
 
-        // Check if config changed
-        if action.is_none() && self.has_changes(config) {
-            let new_config = self.build_config(config);
+        // Check if config changed and emit UpdateConfig action
+        if action.is_none() && self.state.differs_from(config) {
+            let new_config = self.state.apply_to(config);
             action = Some(SettingsAction::UpdateConfig(new_config));
         }
 
         action
     }
 
-    fn has_changes(&self, config: &Config) -> bool {
-        self.work_duration as u32 != config.timer.work_duration
-            || self.short_break as u32 != config.timer.short_break
-            || self.long_break as u32 != config.timer.long_break
-            || self.sessions_before_long as u32 != config.timer.sessions_before_long
-            || self.volume as u32 != config.sounds.volume
-            || self.auto_start_breaks != config.timer.auto_start_breaks
-            || self.auto_start_work != config.timer.auto_start_work
-            || self.minimize_to_tray != config.system.minimize_to_tray
-            || self.start_with_windows != config.system.start_with_windows
-            || self.selected_accent != config.appearance.accent_color
-    }
-
-    fn build_config(&self, original: &Config) -> Config {
-        let mut config = original.clone();
-        config.timer.work_duration = self.work_duration as u32;
-        config.timer.short_break = self.short_break as u32;
-        config.timer.long_break = self.long_break as u32;
-        config.timer.sessions_before_long = self.sessions_before_long as u32;
-        config.timer.auto_start_breaks = self.auto_start_breaks;
-        config.timer.auto_start_work = self.auto_start_work;
-        config.sounds.volume = self.volume as u32;
-        config.system.minimize_to_tray = self.minimize_to_tray;
-        config.system.start_with_windows = self.start_with_windows;
-        config.appearance.accent_color = self.selected_accent;
-        config
-    }
-
-    /// Reset to match config
+    /// Reset the editing state to match the given config
     pub fn reset_from_config(&mut self, config: &Config) {
-        self.work_duration = config.timer.work_duration as f32;
-        self.short_break = config.timer.short_break as f32;
-        self.long_break = config.timer.long_break as f32;
-        self.sessions_before_long = config.timer.sessions_before_long as f32;
-        self.volume = config.sounds.volume as f32;
-        self.auto_start_breaks = config.timer.auto_start_breaks;
-        self.auto_start_work = config.timer.auto_start_work;
-        self.minimize_to_tray = config.system.minimize_to_tray;
-        self.start_with_windows = config.system.start_with_windows;
-        self.selected_accent = config.appearance.accent_color;
+        self.state = SettingsState::from_config(config);
     }
 }
 

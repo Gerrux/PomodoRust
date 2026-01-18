@@ -9,6 +9,7 @@ use super::theme::Theme;
 /// Title bar button type
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TitleBarButton {
+    AlwaysOnTop,
     Minimize,
     Maximize,
     Close,
@@ -16,6 +17,7 @@ pub enum TitleBarButton {
 
 /// Minimal title bar component - shows controls on hover
 pub struct TitleBar {
+    pin_state: InteractionState,
     minimize_state: InteractionState,
     maximize_state: InteractionState,
     close_state: InteractionState,
@@ -25,6 +27,7 @@ pub struct TitleBar {
 impl TitleBar {
     pub fn new() -> Self {
         Self {
+            pin_state: InteractionState::new(),
             minimize_state: InteractionState::new(),
             maximize_state: InteractionState::new(),
             close_state: InteractionState::new(),
@@ -42,6 +45,7 @@ impl TitleBar {
         ui: &mut Ui,
         theme: &Theme,
         is_maximized: bool,
+        is_always_on_top: bool,
     ) -> (bool, Option<TitleBarButton>) {
         let mut clicked_button = None;
         let mut should_drag = false;
@@ -80,7 +84,7 @@ impl TitleBar {
 
         // Window control buttons (right side) - only visible on hover
         let button_size = vec2(40.0, Self::HEIGHT);
-        let buttons_width = button_size.x * 3.0;
+        let buttons_width = button_size.x * 4.0; // Pin + Minimize + Maximize + Close
 
         let buttons_rect = Rect::from_min_size(
             title_bar_rect.right_top() - vec2(buttons_width, 0.0),
@@ -107,6 +111,20 @@ impl TitleBar {
         // Draw buttons only if hovering or animating
         if hover_t > 0.01 {
             let mut button_x = buttons_rect.left();
+
+            // Always on top (pin) button
+            let pin_rect = Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
+            if let Some(btn) = self.draw_pin_button(
+                ui,
+                pin_rect,
+                &mut self.pin_state.clone(),
+                theme,
+                is_always_on_top,
+                hover_t,
+            ) {
+                clicked_button = Some(btn);
+            }
+            button_x += button_size.x;
 
             // Minimize button
             let min_rect = Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
@@ -155,6 +173,7 @@ impl TitleBar {
 
         // Request repaint if animating
         if self.bar_hover_state.is_animating()
+            || self.pin_state.is_animating()
             || self.minimize_state.is_animating()
             || self.maximize_state.is_animating()
             || self.close_state.is_animating()
@@ -224,6 +243,7 @@ impl TitleBar {
         let icon_rect = Rect::from_center_size(rect.center(), vec2(icon_size, icon_size));
 
         let icon = match button_type {
+            TitleBarButton::AlwaysOnTop => Icon::Pin, // handled by draw_pin_button
             TitleBarButton::Minimize => Icon::Minimize,
             TitleBarButton::Maximize => {
                 if is_maximized {
@@ -243,6 +263,82 @@ impl TitleBar {
 
         if response.clicked() {
             Some(button_type)
+        } else {
+            None
+        }
+    }
+
+    fn draw_pin_button(
+        &mut self,
+        ui: &mut Ui,
+        rect: Rect,
+        state: &mut InteractionState,
+        theme: &Theme,
+        is_pinned: bool,
+        bar_hover_t: f32,
+    ) -> Option<TitleBarButton> {
+        let response = ui.interact(rect, egui::Id::new("titlebar_pin_button"), Sense::click());
+
+        state.update(response.hovered(), response.is_pointer_button_down_on());
+        let hover_t = state.hover_t();
+        let press_t = state.press_t();
+
+        // Button opacity based on bar hover
+        let base_alpha = (bar_hover_t * 255.0) as u8;
+
+        // Background color - highlight when pinned
+        let accent_color = theme.accent.solid();
+        let bg_color = if is_pinned {
+            Color32::from_rgba_unmultiplied(
+                accent_color.r(),
+                accent_color.g(),
+                accent_color.b(),
+                ((0.3 + hover_t * 0.3) * base_alpha as f32) as u8,
+            )
+        } else {
+            let hover_bg = theme.bg_hover;
+            Color32::from_rgba_unmultiplied(
+                hover_bg.r(),
+                hover_bg.g(),
+                hover_bg.b(),
+                (hover_t * base_alpha as f32) as u8,
+            )
+        };
+
+        // Draw background
+        ui.painter().rect_filled(rect, 0.0, bg_color);
+
+        // Icon color with opacity - brighter when pinned
+        let icon_color = if is_pinned {
+            Color32::from_rgba_unmultiplied(accent_color.r(), accent_color.g(), accent_color.b(), base_alpha)
+        } else {
+            let base = Theme::lerp_color(theme.text_muted, theme.text_primary, hover_t);
+            Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), base_alpha)
+        };
+
+        // Draw icon
+        let icon_size = 12.0 - press_t * 1.0;
+        let icon_rect = Rect::from_center_size(rect.center(), vec2(icon_size, icon_size));
+
+        let icon = if is_pinned { Icon::Pin } else { Icon::PinOff };
+        draw_icon(ui, icon, icon_rect, icon_color);
+
+        if response.hovered() {
+            ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
+
+            // Show tooltip
+            let tooltip_text = if is_pinned {
+                "Unpin window (disable always on top)"
+            } else {
+                "Pin window (always on top)"
+            };
+            egui::show_tooltip_at_pointer(ui.ctx(), egui::LayerId::new(egui::Order::Tooltip, egui::Id::new("titlebar_tooltip_layer")), egui::Id::new("titlebar_pin_tooltip"), |ui| {
+                ui.label(tooltip_text);
+            });
+        }
+
+        if response.clicked() {
+            Some(TitleBarButton::AlwaysOnTop)
         } else {
             None
         }

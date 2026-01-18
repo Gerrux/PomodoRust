@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use eframe::egui;
+use pomodorust::data::Config;
 use pomodorust::PomodoRustApp;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -20,14 +21,23 @@ fn main() -> eframe::Result<()> {
 
     tracing::info!("Starting PomodoRust...");
 
+    // Load config early to apply window settings
+    let config = Config::load();
+
+    let mut viewport = egui::ViewportBuilder::default()
+        .with_inner_size([360.0, 480.0])
+        .with_min_inner_size([320.0, 400.0])
+        .with_decorations(false)
+        .with_transparent(true)
+        .with_resizable(true)
+        .with_icon(load_icon());
+
+    if config.window.always_on_top {
+        viewport = viewport.with_always_on_top();
+    }
+
     let options = eframe::NativeOptions {
-        viewport: egui::ViewportBuilder::default()
-            .with_inner_size([360.0, 480.0])
-            .with_min_inner_size([320.0, 400.0])
-            .with_decorations(false)
-            .with_transparent(true)
-            .with_resizable(true)
-            .with_icon(load_icon()),
+        viewport,
         centered: true,
         ..Default::default()
     };

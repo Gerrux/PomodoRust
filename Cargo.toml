@@ -28,6 +28,7 @@ chrono = { version = "0.4", features = ["serde"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rfd = "0.15"
 
 # Windows-specific
 [target.'cfg(windows)'.dependencies]
@@ -44,7 +45,7 @@ winreg = "0.52"
 notify-rust = "4"
 
 [target.'cfg(windows)'.build-dependencies]
-winres = "0.1"
+winresource = "0.1"
 
 [profile.release]
 opt-level = "z"
@@ -52,6 +53,11 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+
+[profile.release-fast]
+inherits = "release"
+opt-level = 3
+lto = "thin"
 
 [profile.dev]
 opt-level = 1

@@ -1,25 +1,34 @@
-//! Dashboard view with statistics - Responsive layout
+//! Stats view with statistics - Responsive layout
 
 use egui::{vec2, Align, Layout, Rect, Ui, ScrollArea};
 
 use super::components::{draw_icon, Card, CircularProgress, Icon, IconButton};
 use super::theme::Theme;
 use crate::core::Session;
-use crate::data::Statistics;
+use crate::data::{ExportFormat, Statistics};
 
-/// Actions from dashboard
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DashboardAction {
+/// Actions from stats view
+#[derive(Debug, Clone, PartialEq)]
+pub enum StatsAction {
     Back,
     OpenSettings,
+    /// Quick start a session with given type and duration in minutes
+    QuickStart { session_type: crate::core::SessionType, minutes: u32 },
+    /// Export statistics to file
+    Export { format: ExportFormat },
 }
 
-/// Dashboard view showing statistics
-pub struct DashboardView;
+/// Stats view showing statistics
+pub struct StatsView {
+    /// Whether the export dropdown is open
+    export_dropdown_open: bool,
+}
 
-impl DashboardView {
+impl StatsView {
     pub fn new() -> Self {
-        Self
+        Self {
+            export_dropdown_open: false,
+        }
     }
 
     pub fn show(
@@ -29,7 +38,7 @@ impl DashboardView {
         stats: &Statistics,
         theme: &Theme,
         pulse: f32,
-    ) -> Option<DashboardAction> {
+    ) -> Option<StatsAction> {
         let mut action = None;
         let available = ui.available_size();
 
@@ -41,48 +50,54 @@ impl DashboardView {
         let spacing = if is_wide { 16.0 } else { 12.0 };
 
         ui.vertical(|ui| {
-            // Header with back and settings buttons
+            // Header with back and settings buttons - matches settings style
             ui.horizontal(|ui| {
                 if IconButton::new(Icon::ArrowLeft)
-                    .with_size(36.0)
+                    .with_size(32.0)
                     .with_icon_scale(0.5)
                     .show(ui, theme)
                     .clicked()
                 {
-                    action = Some(DashboardAction::Back);
+                    action = Some(StatsAction::Back);
                 }
 
-                ui.add_space(spacing);
+                ui.add_space(12.0);
 
                 ui.label(
-                    egui::RichText::new("Dashboard")
-                        .size(20.0)
-                        .strong()
+                    egui::RichText::new("Stats")
+                        .font(theme.font_h2())
                         .color(theme.text_primary),
                 );
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     if IconButton::new(Icon::Settings)
-                        .with_size(36.0)
+                        .with_size(32.0)
                         .with_icon_scale(0.5)
                         .show(ui, theme)
                         .clicked()
                     {
-                        action = Some(DashboardAction::OpenSettings);
+                        action = Some(StatsAction::OpenSettings);
                     }
+
+                    ui.add_space(8.0);
+
+                    // Export button with dropdown
+                    ui.scope(|ui| {
+                        self.show_export_button(ui, theme, &mut action);
+                    });
                 });
             });
 
-            ui.add_space(spacing);
+            ui.add_space(theme.spacing_lg);
 
             // Main content area with scroll
             ScrollArea::vertical()
                 .auto_shrink([false, false])
                 .show(ui, |ui| {
                     if is_wide {
-                        self.show_wide_layout(ui, session, stats, theme, pulse, spacing, is_very_wide);
+                        self.show_wide_layout(ui, session, stats, theme, pulse, spacing, is_very_wide, &mut action);
                     } else {
-                        self.show_narrow_layout(ui, session, stats, theme, pulse, spacing);
+                        self.show_narrow_layout(ui, session, stats, theme, pulse, spacing, &mut action);
                     }
                 });
         });
@@ -99,6 +114,7 @@ impl DashboardView {
         pulse: f32,
         spacing: f32,
         is_very_wide: bool,
+        action: &mut Option<StatsAction>,
     ) {
         let available_width = ui.available_width();
 
@@ -120,7 +136,7 @@ impl DashboardView {
                     ui.add_space(spacing);
 
                     // Quick presets
-                    self.show_quick_presets_card(ui, theme, left_col_width);
+                    self.show_quick_presets_card(ui, theme, left_col_width, action);
 
                     ui.add_space(spacing);
 
@@ -159,33 +175,193 @@ impl DashboardView {
         theme: &Theme,
         pulse: f32,
         spacing: f32,
+        action: &mut Option<StatsAction>,
     ) {
-        let available_width = ui.available_width();
-        let card_width = (available_width - spacing).max(200.0);
+        // Current Session section
+        section_header(ui, theme, "Current Session");
+        self.show_compact_timer_card(ui, session, theme, pulse);
 
-        ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            // Mini timer
-            self.show_mini_timer_card(ui, session, theme, card_width.min(280.0), pulse);
+        ui.add_space(spacing);
 
-            ui.add_space(spacing);
+        // Statistics section
+        section_header(ui, theme, "Statistics");
+        self.show_compact_stats_card(ui, stats, theme);
 
-            // Stats grid - 2x2
-            self.show_stats_grid_narrow(ui, stats, theme, card_width, spacing);
+        ui.add_space(spacing);
 
-            ui.add_space(spacing);
+        // Week Activity section
+        section_header(ui, theme, "Week Activity");
+        self.show_compact_week_card(ui, stats, theme);
 
-            // Week chart
-            self.show_week_activity_card(ui, stats, theme, card_width);
+        ui.add_space(spacing);
 
-            ui.add_space(spacing);
+        // Quick Start section
+        section_header(ui, theme, "Quick Start");
+        self.show_compact_presets_card(ui, theme, action);
+    }
 
-            // Today's sessions
-            self.show_today_sessions_card(ui, stats, theme, card_width);
+    fn show_compact_timer_card(
+        &self,
+        ui: &mut Ui,
+        session: &Session,
+        theme: &Theme,
+        pulse: f32,
+    ) {
+        let (start_color, end_color) = theme.session_gradient(session.session_type());
+        let badge_color = Theme::lerp_color(start_color, end_color, 0.5);
 
-            ui.add_space(spacing);
+        Card::new().show(ui, theme, |ui| {
+            ui.set_min_width(ui.available_width());
 
-            // Quick presets
-            self.show_quick_presets_card(ui, theme, card_width.min(280.0));
+            ui.horizontal(|ui| {
+                // Compact circular progress
+                let radius = 28.0;
+                CircularProgress::new(session.timer().progress())
+                    .with_radius(radius)
+                    .with_thickness(4.0)
+                    .with_colors(start_color, end_color)
+                    .with_bg_color(theme.bg_tertiary)
+                    .with_pulse(if session.timer().is_running() { pulse } else { 0.0 })
+                    .show(ui, |ui| {
+                        ui.vertical_centered(|ui| {
+                            ui.label(
+                                egui::RichText::new(session.timer().remaining_formatted())
+                                    .size(12.0)
+                                    .strong()
+                                    .color(theme.text_primary),
+                            );
+                        });
+                    });
+
+                ui.add_space(12.0);
+
+                ui.vertical(|ui| {
+                    ui.label(
+                        egui::RichText::new(session.session_type().label())
+                            .size(14.0)
+                            .strong()
+                            .color(badge_color),
+                    );
+
+                    let status = if session.timer().is_running() {
+                        "Running"
+                    } else if session.timer().is_completed() {
+                        "Completed"
+                    } else {
+                        "Paused"
+                    };
+                    ui.label(
+                        egui::RichText::new(status)
+                            .size(12.0)
+                            .color(theme.text_muted),
+                    );
+                });
+            });
+        });
+    }
+
+    fn show_compact_stats_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme) {
+        Card::new().show(ui, theme, |ui| {
+            ui.set_min_width(ui.available_width());
+
+            // Today row
+            stat_row(ui, theme, Icon::Calendar, "Today", &format!("{:.1}h", stats.today_hours()));
+
+            ui.add_space(theme.spacing_xs);
+
+            // Week row
+            stat_row(ui, theme, Icon::BarChart3, "This Week", &format!("{:.1}h", stats.week_hours()));
+
+            ui.add_space(theme.spacing_xs);
+
+            // Streak row
+            stat_row(ui, theme, Icon::Flame, "Current Streak", &format!("{} days", stats.current_streak));
+
+            ui.add_space(theme.spacing_xs);
+
+            // Total row
+            stat_row(ui, theme, Icon::Timer, "Total", &format!("{}h ({} sessions)", stats.total_hours(), stats.total_pomodoros));
+        });
+    }
+
+    fn show_compact_week_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme) {
+        Card::new().show(ui, theme, |ui| {
+            let available = ui.available_width();
+            ui.set_min_width(available);
+
+            ui.horizontal(|ui| {
+                ui.label(
+                    egui::RichText::new(format!("{:.1}h total", stats.week_hours()))
+                        .size(11.0)
+                        .color(theme.text_secondary),
+                );
+            });
+
+            ui.add_space(8.0);
+            self.draw_week_chart(ui, stats, theme, available);
+        });
+    }
+
+    fn show_compact_presets_card(&self, ui: &mut Ui, theme: &Theme, action: &mut Option<StatsAction>) {
+        use crate::core::SessionType;
+
+        Card::new().show(ui, theme, |ui| {
+            ui.set_min_width(ui.available_width());
+
+            for (icon, label, mins, session_type) in [
+                (Icon::Coffee, "5 min break", 5, SessionType::ShortBreak),
+                (Icon::Target, "25 min focus", 25, SessionType::Work),
+                (Icon::Timer, "50 min deep work", 50, SessionType::Work),
+            ] {
+                let btn_response = ui.allocate_response(
+                    vec2(ui.available_width(), 32.0),
+                    egui::Sense::click(),
+                );
+                let btn_rect = btn_response.rect;
+
+                let bg_color = if btn_response.hovered() {
+                    theme.bg_hover
+                } else {
+                    theme.bg_tertiary
+                };
+                ui.painter().rect_filled(btn_rect, 6.0, bg_color);
+
+                // Icon
+                let icon_rect = Rect::from_center_size(
+                    egui::pos2(btn_rect.left() + 20.0, btn_rect.center().y),
+                    vec2(14.0, 14.0),
+                );
+                let icon_color = if btn_response.hovered() {
+                    theme.accent.solid()
+                } else {
+                    theme.text_secondary
+                };
+                draw_icon(ui, icon, icon_rect, icon_color);
+
+                // Label
+                let text_color = if btn_response.hovered() {
+                    theme.text_primary
+                } else {
+                    theme.text_secondary
+                };
+                ui.painter().text(
+                    egui::pos2(btn_rect.left() + 40.0, btn_rect.center().y),
+                    egui::Align2::LEFT_CENTER,
+                    label,
+                    egui::FontId::proportional(12.0),
+                    text_color,
+                );
+
+                if btn_response.hovered() {
+                    ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
+                }
+
+                if btn_response.clicked() {
+                    *action = Some(StatsAction::QuickStart { session_type, minutes: mins });
+                }
+
+                ui.add_space(4.0);
+            }
         });
     }
 
@@ -198,20 +374,20 @@ impl DashboardView {
         pulse: f32,
     ) {
         let (start_color, end_color) = theme.session_gradient(session.session_type());
-        let radius = (width * 0.25).clamp(35.0, 55.0);
+        let radius = (width * 0.2).clamp(30.0, 50.0);
 
         Card::new().show(ui, theme, |ui| {
-            ui.set_min_width(width - 24.0);
+            ui.set_width(width - 32.0);
             ui.vertical_centered(|ui| {
                 CircularProgress::new(session.timer().progress())
                     .with_radius(radius)
-                    .with_thickness((radius * 0.12).clamp(3.0, 6.0))
+                    .with_thickness((radius * 0.12).clamp(3.0, 5.0))
                     .with_colors(start_color, end_color)
                     .with_bg_color(theme.bg_tertiary)
                     .with_pulse(if session.timer().is_running() { pulse } else { 0.0 })
                     .show(ui, |ui| {
                         ui.vertical_centered(|ui| {
-                            let font_size = (radius * 0.45).clamp(14.0, 22.0);
+                            let font_size = (radius * 0.45).clamp(14.0, 20.0);
                             ui.label(
                                 egui::RichText::new(session.timer().remaining_formatted())
                                     .size(font_size)
@@ -221,7 +397,7 @@ impl DashboardView {
                         });
                     });
 
-                ui.add_space(8.0);
+                ui.add_space(4.0);
 
                 // Session type badge
                 let badge_color = Theme::lerp_color(start_color, end_color, 0.5);
@@ -248,9 +424,13 @@ impl DashboardView {
         });
     }
 
-    fn show_quick_presets_card(&self, ui: &mut Ui, theme: &Theme, width: f32) {
+    fn show_quick_presets_card(&self, ui: &mut Ui, theme: &Theme, width: f32, action: &mut Option<StatsAction>) {
+        use crate::core::SessionType;
+
+        let inner_width = width - 32.0;
+
         Card::new().show(ui, theme, |ui| {
-            ui.set_min_width(width - 24.0);
+            ui.set_width(inner_width);
 
             ui.horizontal(|ui| {
                 let icon_rect = Rect::from_center_size(
@@ -269,10 +449,10 @@ impl DashboardView {
 
             ui.add_space(8.0);
 
-            for (icon, label, _mins) in [
-                (Icon::Coffee, "5 min break", 5),
-                (Icon::Target, "25 min focus", 25),
-                (Icon::Timer, "50 min deep work", 50),
+            for (icon, label, mins, session_type) in [
+                (Icon::Coffee, "5 min break", 5, SessionType::ShortBreak),
+                (Icon::Target, "25 min focus", 25, SessionType::Work),
+                (Icon::Timer, "50 min deep work", 50, SessionType::Work),
             ] {
                 let btn_width = width - 40.0;
                 let btn_response = ui.allocate_response(vec2(btn_width, 36.0), egui::Sense::click());
@@ -314,15 +494,20 @@ impl DashboardView {
                 if btn_response.hovered() {
                     ui.ctx().set_cursor_icon(egui::CursorIcon::PointingHand);
                 }
+
+                if btn_response.clicked() {
+                    *action = Some(StatsAction::QuickStart { session_type, minutes: mins });
+                }
             }
         });
     }
 
     fn show_focus_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
         let (accent_start, accent_end) = theme.accent_gradient();
+        let inner_width = width - 32.0;
 
         Card::new().show(ui, theme, |ui| {
-            ui.set_min_width(width - 24.0);
+            ui.set_width(inner_width);
 
             ui.label(
                 egui::RichText::new("Today's Focus")
@@ -359,9 +544,7 @@ impl DashboardView {
     }
 
     fn show_stats_grid_wide(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32, spacing: f32) {
-        // Account for ui.horizontal's default item spacing
-        let item_spacing = ui.spacing().item_spacing.x;
-        let card_width = ((width - spacing - item_spacing) / 2.0).floor();
+        let card_width = ((width - spacing) / 2.0).floor();
         let card_height = 90.0;
 
         // Row 1 - use top alignment to prevent vertical offset
@@ -382,25 +565,6 @@ impl DashboardView {
                 Some(&format!("Best: {}", stats.longest_streak)), Icon::Flame, card_width, card_height);
             self.stat_card_large(ui, theme, "All Time", &format!("{}h", stats.total_hours()),
                 Some(&format!("{} sessions", stats.total_pomodoros)), Icon::Timer, card_width, card_height);
-        });
-    }
-
-    fn show_stats_grid_narrow(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32, spacing: f32) {
-        let item_spacing = ui.spacing().item_spacing.x;
-        let card_size = ((width - spacing - item_spacing) / 2.0).clamp(80.0, 120.0);
-
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = spacing;
-            stat_card_small(ui, theme, "Today", &format!("{:.1}h", stats.today_hours()), Some(Icon::Calendar), card_size);
-            stat_card_small(ui, theme, "Week", &format!("{:.1}h", stats.week_hours()), Some(Icon::BarChart3), card_size);
-        });
-
-        ui.add_space(spacing);
-
-        ui.horizontal(|ui| {
-            ui.spacing_mut().item_spacing.x = spacing;
-            stat_card_small(ui, theme, "Streak", &format!("{}", stats.current_streak), Some(Icon::Flame), card_size);
-            stat_card_small(ui, theme, "Total", &format!("{}h", stats.total_hours()), Some(Icon::Timer), card_size);
         });
     }
 
@@ -452,8 +616,10 @@ impl DashboardView {
     }
 
     fn show_week_activity_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
+        let inner_width = width - 32.0; // Account for Card padding (16 * 2)
+
         Card::new().show(ui, theme, |ui| {
-            ui.set_min_width(width - 24.0);
+            ui.set_width(inner_width);
 
             ui.horizontal(|ui| {
                 ui.label(
@@ -473,49 +639,12 @@ impl DashboardView {
             });
 
             ui.add_space(12.0);
-            self.draw_week_chart(ui, stats, theme, width - 48.0);
-        });
-    }
-
-    fn show_today_sessions_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
-        Card::new().show(ui, theme, |ui| {
-            ui.set_min_width(width - 24.0);
-
-            ui.label(
-                egui::RichText::new("Today's Sessions")
-                    .size(12.0)
-                    .color(theme.text_secondary),
-            );
-
-            ui.add_space(8.0);
-
-            ui.horizontal(|ui| {
-                ui.label(
-                    egui::RichText::new(format!("{}", stats.today_pomodoros))
-                        .size(36.0)
-                        .strong()
-                        .color(theme.text_primary),
-                );
-                ui.add_space(8.0);
-                ui.vertical(|ui| {
-                    ui.label(
-                        egui::RichText::new("pomodoros")
-                            .size(13.0)
-                            .color(theme.text_muted),
-                    );
-                    ui.label(
-                        egui::RichText::new(format!("{:.1} hours", stats.today_hours()))
-                            .size(11.0)
-                            .color(theme.text_muted),
-                    );
-                });
-            });
+            self.draw_week_chart(ui, stats, theme, inner_width - 16.0);
         });
     }
 
     fn show_additional_stats(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32, spacing: f32) {
-        let item_spacing = ui.spacing().item_spacing.x;
-        let card_width = ((width - spacing - item_spacing) / 2.0).floor();
+        let card_width = ((width - spacing) / 2.0).floor();
 
         ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
             ui.spacing_mut().item_spacing.x = spacing;
@@ -625,36 +754,175 @@ impl DashboardView {
             }
         }
     }
+
+    /// Show the export button with dropdown menu
+    fn show_export_button(&mut self, ui: &mut Ui, theme: &Theme, action: &mut Option<StatsAction>) {
+        let button_id = ui.make_persistent_id("export_dropdown");
+
+        // Export button
+        let button_response = IconButton::new(Icon::Download)
+            .with_size(32.0)
+            .with_icon_scale(0.5)
+            .show(ui, theme);
+
+        // Save rect before potentially consuming response
+        let button_rect = button_response.rect;
+        let was_clicked = button_response.clicked();
+        let is_hovered = button_response.hovered();
+
+        if was_clicked {
+            self.export_dropdown_open = !self.export_dropdown_open;
+        }
+
+        // Show tooltip
+        if is_hovered && !self.export_dropdown_open {
+            button_response.on_hover_text("Export statistics");
+        }
+
+        // Dropdown menu
+        if self.export_dropdown_open {
+            let dropdown_pos = button_rect.left_bottom() + vec2(-60.0, 4.0);
+
+            egui::Area::new(button_id)
+                .fixed_pos(dropdown_pos)
+                .order(egui::Order::Foreground)
+                .show(ui.ctx(), |ui| {
+                    egui::Frame::popup(ui.style())
+                        .fill(theme.bg_secondary)
+                        .stroke(egui::Stroke::new(1.0, theme.bg_tertiary))
+                        .rounding(8.0)
+                        .inner_margin(8.0)
+                        .show(ui, |ui| {
+                            ui.set_min_width(120.0);
+
+                            ui.label(
+                                egui::RichText::new("Export as")
+                                    .size(11.0)
+                                    .color(theme.text_muted),
+                            );
+
+                            ui.add_space(4.0);
+
+                            // CSV option
+                            let csv_response = ui.allocate_response(
+                                vec2(ui.available_width(), 32.0),
+                                egui::Sense::click(),
+                            );
+                            let csv_rect = csv_response.rect;
+
+                            let bg_color = if csv_response.hovered() {
+                                theme.bg_hover
+                            } else {
+                                egui::Color32::TRANSPARENT
+                            };
+                            ui.painter().rect_filled(csv_rect, 6.0, bg_color);
+
+                            ui.painter().text(
+                                csv_rect.left_center() + vec2(12.0, 0.0),
+                                egui::Align2::LEFT_CENTER,
+                                "CSV (.csv)",
+                                egui::FontId::proportional(13.0),
+                                if csv_response.hovered() {
+                                    theme.text_primary
+                                } else {
+                                    theme.text_secondary
+                                },
+                            );
+
+                            if csv_response.clicked() {
+                                *action = Some(StatsAction::Export {
+                                    format: ExportFormat::Csv,
+                                });
+                                self.export_dropdown_open = false;
+                            }
+
+                            // JSON option
+                            let json_response = ui.allocate_response(
+                                vec2(ui.available_width(), 32.0),
+                                egui::Sense::click(),
+                            );
+                            let json_rect = json_response.rect;
+
+                            let bg_color = if json_response.hovered() {
+                                theme.bg_hover
+                            } else {
+                                egui::Color32::TRANSPARENT
+                            };
+                            ui.painter().rect_filled(json_rect, 6.0, bg_color);
+
+                            ui.painter().text(
+                                json_rect.left_center() + vec2(12.0, 0.0),
+                                egui::Align2::LEFT_CENTER,
+                                "JSON (.json)",
+                                egui::FontId::proportional(13.0),
+                                if json_response.hovered() {
+                                    theme.text_primary
+                                } else {
+                                    theme.text_secondary
+                                },
+                            );
+
+                            if json_response.clicked() {
+                                *action = Some(StatsAction::Export {
+                                    format: ExportFormat::Json,
+                                });
+                                self.export_dropdown_open = false;
+                            }
+                        });
+                });
+
+            // Close dropdown when clicking outside
+            if ui.input(|i| i.pointer.any_click()) && !is_hovered {
+                // Check if click is outside the dropdown area
+                let click_pos = ui.input(|i| i.pointer.interact_pos());
+                if let Some(pos) = click_pos {
+                    let dropdown_rect = egui::Rect::from_min_size(dropdown_pos, vec2(136.0, 100.0));
+                    if !dropdown_rect.contains(pos) && !button_rect.contains(pos) {
+                        self.export_dropdown_open = false;
+                    }
+                }
+            }
+        }
+    }
 }
 
-impl Default for DashboardView {
+impl Default for StatsView {
     fn default() -> Self {
         Self::new()
     }
 }
 
-/// Small statistics card for narrow layout
-fn stat_card_small(ui: &mut Ui, theme: &Theme, label: &str, value: &str, icon: Option<Icon>, size: f32) {
-    Card::new().with_size(vec2(size, size)).show(ui, theme, |ui| {
-        ui.vertical_centered(|ui| {
-            if let Some(icon) = icon {
-                let icon_size = (size * 0.22).clamp(14.0, 20.0);
-                let (icon_rect, _) = ui.allocate_exact_size(vec2(icon_size, icon_size), egui::Sense::hover());
-                draw_icon(ui, icon, icon_rect, theme.text_secondary);
-                ui.add_space(2.0);
-            }
+/// Section header - matches settings style
+fn section_header(ui: &mut Ui, theme: &Theme, title: &str) {
+    ui.label(
+        egui::RichText::new(title)
+            .font(theme.font_body())
+            .color(theme.text_primary),
+    );
+    ui.add_space(theme.spacing_xs);
+}
 
+/// Statistics row with icon, label and value
+fn stat_row(ui: &mut Ui, theme: &Theme, icon: Icon, label: &str, value: &str) {
+    ui.horizontal(|ui| {
+        let icon_size = 16.0;
+        let (icon_rect, _) = ui.allocate_exact_size(vec2(icon_size, icon_size), egui::Sense::hover());
+        draw_icon(ui, icon, icon_rect, theme.text_secondary);
+
+        ui.add_space(8.0);
+
+        ui.label(
+            egui::RichText::new(label)
+                .size(13.0)
+                .color(theme.text_secondary),
+        );
+
+        ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
             ui.label(
                 egui::RichText::new(value)
-                    .size((size * 0.25).clamp(16.0, 24.0))
+                    .size(13.0)
                     .strong()
                     .color(theme.text_primary),
-            );
-
-            ui.label(
-                egui::RichText::new(label)
-                    .size((size * 0.14).clamp(9.0, 12.0))
-                    .color(theme.text_muted),
             );
         });
     });

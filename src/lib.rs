@@ -5,8 +5,10 @@
 pub mod app;
 pub mod core;
 pub mod data;
+pub mod error;
 pub mod platform;
 pub mod ui;
 pub mod utils;
 
 pub use app::PomodoRustApp;
+pub use error::{Error, Result};

@@ -1,4 +1,9 @@
-//! SQLite database for statistics
+//! SQLite database for session statistics
+//!
+//! Provides persistence for:
+//! - Individual session records
+//! - Daily aggregated statistics
+//! - Streak tracking
 
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use directories::ProjectDirs;
@@ -6,6 +11,15 @@ use rusqlite::{params, Connection, Result as SqliteResult};
 use std::path::PathBuf;
 
 use crate::core::SessionType;
+
+/// Date format used in the database (ISO 8601 date only)
+const DATE_FORMAT: &str = "%Y-%m-%d";
+
+/// Seconds per hour for conversion
+const SECONDS_PER_HOUR: f32 = 3600.0;
+
+/// Number of days in a week
+const DAYS_IN_WEEK: usize = 7;
 
 /// Database connection manager
 pub struct Database {
@@ -105,77 +119,24 @@ impl Database {
         completed: bool,
         started_at: DateTime<Utc>,
     ) -> SqliteResult<()> {
-        let session_type_str = match session_type {
-            SessionType::Work => "work",
-            SessionType::ShortBreak => "short_break",
-            SessionType::LongBreak => "long_break",
-        };
-
         let ended_at = Utc::now();
+        let today = Self::today_string();
 
         // Insert session record
-        self.conn.execute(
-            r#"
-            INSERT INTO sessions (session_type, duration_seconds, planned_duration, completed, started_at, ended_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-            "#,
-            params![
-                session_type_str,
-                duration_secs as i64,
-                planned_duration_secs as i64,
-                completed as i32,
-                started_at.to_rfc3339(),
-                ended_at.to_rfc3339(),
-            ],
+        self.insert_session_record(
+            session_type,
+            duration_secs,
+            planned_duration_secs,
+            completed,
+            &started_at,
+            &ended_at,
         )?;
 
-        // Update daily stats
-        let today = Local::now().format("%Y-%m-%d").to_string();
+        // Ensure daily stats row exists
+        self.ensure_daily_stats(&today)?;
 
-        self.conn.execute(
-            r#"
-            INSERT INTO daily_stats (date, total_work_seconds, total_break_seconds, completed_pomodoros, interrupted_pomodoros)
-            VALUES (?1, 0, 0, 0, 0)
-            ON CONFLICT(date) DO NOTHING
-            "#,
-            params![today],
-        )?;
-
-        match session_type {
-            SessionType::Work => {
-                if completed {
-                    self.conn.execute(
-                        r#"
-                        UPDATE daily_stats
-                        SET total_work_seconds = total_work_seconds + ?1,
-                            completed_pomodoros = completed_pomodoros + 1
-                        WHERE date = ?2
-                        "#,
-                        params![duration_secs as i64, today],
-                    )?;
-                } else {
-                    self.conn.execute(
-                        r#"
-                        UPDATE daily_stats
-                        SET total_work_seconds = total_work_seconds + ?1,
-                            interrupted_pomodoros = interrupted_pomodoros + 1
-                        WHERE date = ?2
-                        "#,
-                        params![duration_secs as i64, today],
-                    )?;
-                }
-            }
-            SessionType::ShortBreak | SessionType::LongBreak => {
-                self.conn.execute(
-                    r#"
-                    UPDATE daily_stats
-                    SET total_break_seconds = total_break_seconds + ?1
-                    WHERE date = ?2
-                    "#,
-                    params![duration_secs as i64, today],
-                )?;
-            }
-        }
+        // Update daily stats based on session type
+        self.update_daily_stats(session_type, duration_secs, completed, &today)?;
 
         // Update streak if completed work session
         if session_type == SessionType::Work && completed {
@@ -185,12 +146,104 @@ impl Database {
         Ok(())
     }
 
+    /// Insert a session record into the sessions table
+    fn insert_session_record(
+        &self,
+        session_type: SessionType,
+        duration_secs: u64,
+        planned_duration_secs: u64,
+        completed: bool,
+        started_at: &DateTime<Utc>,
+        ended_at: &DateTime<Utc>,
+    ) -> SqliteResult<()> {
+        self.conn.execute(
+            r#"
+            INSERT INTO sessions (session_type, duration_seconds, planned_duration, completed, started_at, ended_at)
+            VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+            "#,
+            params![
+                session_type.as_str(),
+                duration_secs as i64,
+                planned_duration_secs as i64,
+                completed as i32,
+                started_at.to_rfc3339(),
+                ended_at.to_rfc3339(),
+            ],
+        )?;
+        Ok(())
+    }
+
+    /// Ensure a daily_stats row exists for the given date
+    fn ensure_daily_stats(&self, date: &str) -> SqliteResult<()> {
+        self.conn.execute(
+            r#"
+            INSERT INTO daily_stats (date, total_work_seconds, total_break_seconds, completed_pomodoros, interrupted_pomodoros)
+            VALUES (?1, 0, 0, 0, 0)
+            ON CONFLICT(date) DO NOTHING
+            "#,
+            params![date],
+        )?;
+        Ok(())
+    }
+
+    /// Update daily statistics for a session
+    fn update_daily_stats(
+        &self,
+        session_type: SessionType,
+        duration_secs: u64,
+        completed: bool,
+        date: &str,
+    ) -> SqliteResult<()> {
+        match session_type {
+            SessionType::Work => {
+                let pomodoro_field = if completed {
+                    "completed_pomodoros"
+                } else {
+                    "interrupted_pomodoros"
+                };
+                self.conn.execute(
+                    &format!(
+                        r#"
+                        UPDATE daily_stats
+                        SET total_work_seconds = total_work_seconds + ?1,
+                            {} = {} + 1
+                        WHERE date = ?2
+                        "#,
+                        pomodoro_field, pomodoro_field
+                    ),
+                    params![duration_secs as i64, date],
+                )?;
+            }
+            SessionType::ShortBreak | SessionType::LongBreak => {
+                self.conn.execute(
+                    r#"
+                    UPDATE daily_stats
+                    SET total_break_seconds = total_break_seconds + ?1
+                    WHERE date = ?2
+                    "#,
+                    params![duration_secs as i64, date],
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Get today's date as a formatted string
+    fn today_string() -> String {
+        Local::now().format(DATE_FORMAT).to_string()
+    }
+
+    /// Get yesterday's date as a formatted string
+    fn yesterday_string() -> String {
+        (Local::now() - chrono::Duration::days(1))
+            .format(DATE_FORMAT)
+            .to_string()
+    }
+
     /// Update streak tracking
     fn update_streak(&self) -> SqliteResult<()> {
-        let today = Local::now().format("%Y-%m-%d").to_string();
-        let yesterday = (Local::now() - chrono::Duration::days(1))
-            .format("%Y-%m-%d")
-            .to_string();
+        let today = Self::today_string();
+        let yesterday = Self::yesterday_string();
 
         // Get current streak info
         let (current_streak, last_date): (i32, Option<String>) = self.conn.query_row(
@@ -220,28 +273,29 @@ impl Database {
         Ok(())
     }
 
-    /// Get today's statistics
+    /// Get today's statistics (total work seconds, completed pomodoros)
     pub fn get_today_stats(&self) -> SqliteResult<(i64, i32)> {
-        let today = Local::now().format("%Y-%m-%d").to_string();
+        let today = Self::today_string();
 
         self.conn
             .query_row(
                 r#"
-            SELECT COALESCE(total_work_seconds, 0), COALESCE(completed_pomodoros, 0)
-            FROM daily_stats WHERE date = ?1
-            "#,
+                SELECT COALESCE(total_work_seconds, 0), COALESCE(completed_pomodoros, 0)
+                FROM daily_stats WHERE date = ?1
+                "#,
                 params![today],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .or(Ok((0, 0)))
     }
 
-    /// Get this week's daily hours
+    /// Get this week's daily hours (Monday = index 0)
     pub fn get_week_stats(&self) -> SqliteResult<Vec<f32>> {
         let today = Local::now().date_naive();
-        let start_of_week = today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
+        let start_of_week =
+            today - chrono::Duration::days(today.weekday().num_days_from_monday() as i64);
 
-        let mut result = vec![0.0f32; 7];
+        let mut result = vec![0.0f32; DAYS_IN_WEEK];
 
         let mut stmt = self.conn.prepare(
             r#"
@@ -254,8 +308,8 @@ impl Database {
 
         let rows = stmt.query_map(
             params![
-                start_of_week.format("%Y-%m-%d").to_string(),
-                today.format("%Y-%m-%d").to_string()
+                start_of_week.format(DATE_FORMAT).to_string(),
+                today.format(DATE_FORMAT).to_string()
             ],
             |row| {
                 let date_str: String = row.get(0)?;
@@ -266,10 +320,10 @@ impl Database {
 
         for row_result in rows {
             if let Ok((date_str, seconds)) = row_result {
-                if let Ok(date) = NaiveDate::parse_from_str(&date_str, "%Y-%m-%d") {
+                if let Ok(date) = NaiveDate::parse_from_str(&date_str, DATE_FORMAT) {
                     let day_index = (date - start_of_week).num_days() as usize;
-                    if day_index < 7 {
-                        result[day_index] = seconds as f32 / 3600.0;
+                    if day_index < DAYS_IN_WEEK {
+                        result[day_index] = seconds as f32 / SECONDS_PER_HOUR;
                     }
                 }
             }
@@ -299,5 +353,55 @@ impl Database {
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .or(Ok((0, 0)))
+    }
+
+    /// Get all session records for export
+    pub fn get_all_sessions(&self) -> SqliteResult<Vec<super::export::SessionRecord>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT id, session_type, duration_seconds, planned_duration, completed, started_at, ended_at
+            FROM sessions
+            ORDER BY started_at DESC
+            "#,
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            Ok(super::export::SessionRecord {
+                id: row.get(0)?,
+                session_type: row.get(1)?,
+                duration_seconds: row.get(2)?,
+                planned_duration: row.get(3)?,
+                completed: row.get::<_, i32>(4)? != 0,
+                started_at: row.get(5)?,
+                ended_at: row.get::<_, Option<String>>(6)?.unwrap_or_default(),
+            })
+        })?;
+
+        rows.collect()
+    }
+
+    /// Get all daily statistics for export
+    pub fn get_all_daily_stats(&self) -> SqliteResult<Vec<super::export::DailyStatsRecord>> {
+        let mut stmt = self.conn.prepare(
+            r#"
+            SELECT date, total_work_seconds, total_break_seconds, completed_pomodoros, interrupted_pomodoros
+            FROM daily_stats
+            ORDER BY date DESC
+            "#,
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let total_work_seconds: i64 = row.get(1)?;
+            Ok(super::export::DailyStatsRecord {
+                date: row.get(0)?,
+                total_work_seconds,
+                total_work_hours: total_work_seconds as f32 / 3600.0,
+                total_break_seconds: row.get(2)?,
+                completed_pomodoros: row.get(3)?,
+                interrupted_pomodoros: row.get(4)?,
+            })
+        })?;
+
+        rows.collect()
     }
 }
