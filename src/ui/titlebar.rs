@@ -97,7 +97,7 @@ impl TitleBar {
             title_bar_rect.max - vec2(buttons_width, 0.0),
         );
 
-        let drag_response = ui.interact(drag_rect, ui.id().with("titlebar_drag"), Sense::drag());
+        let drag_response = ui.interact(drag_rect, egui::Id::new("titlebar_drag_area"), Sense::drag());
 
         if drag_response.dragged() {
             should_drag = true;
@@ -194,7 +194,13 @@ impl TitleBar {
         is_maximized: bool,
         bar_hover_t: f32,
     ) -> Option<TitleBarButton> {
-        let response = ui.interact(rect, ui.id().with(button_type as i32), Sense::click());
+        let button_id = match button_type {
+            TitleBarButton::AlwaysOnTop => "titlebar_btn_pin",
+            TitleBarButton::Minimize => "titlebar_btn_minimize",
+            TitleBarButton::Maximize => "titlebar_btn_maximize",
+            TitleBarButton::Close => "titlebar_btn_close",
+        };
+        let response = ui.interact(rect, egui::Id::new(button_id), Sense::click());
 
         state.update(response.hovered(), response.is_pointer_button_down_on());
         let hover_t = state.hover_t();

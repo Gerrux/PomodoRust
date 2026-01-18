@@ -115,6 +115,11 @@ impl SettingsView {
     ) -> Option<SettingsAction> {
         let mut action = None;
 
+        // Sync always_on_top from config (may be changed externally via titlebar)
+        if self.state.always_on_top != config.window.always_on_top {
+            self.state.always_on_top = config.window.always_on_top;
+        }
+
         egui::ScrollArea::vertical().show(ui, |ui| {
             // Header
             ui.horizontal(|ui| {
