@@ -143,9 +143,27 @@ if "%SIGN%"=="1" (
     powershell -ExecutionPolicy Bypass -File "%PROJECT_ROOT%scripts\sign.ps1" -ExePath "%DEST_PATH%"
 )
 
+:: Create ZIP archive
+set "VERSION="
+for /f "tokens=3" %%v in ('findstr /r "^version" Cargo.toml') do (
+    set "VERSION=%%~v"
+    goto :got_version
+)
+:got_version
+set "ZIP_NAME=pomodorust-v%VERSION%-windows-x64.zip"
+set "ZIP_PATH=%DIST_DIR%\%ZIP_NAME%"
+
+if exist "%ZIP_PATH%" del "%ZIP_PATH%"
+echo Creating ZIP archive...
+powershell -Command "Compress-Archive -Path '%DEST_PATH%' -DestinationPath '%ZIP_PATH%' -Force"
+
 :: Show result
 echo.
 echo Output: %DEST_PATH%
 for %%A in ("%DEST_PATH%") do echo Size: %%~zA bytes
+if exist "%ZIP_PATH%" (
+    echo Archive: %ZIP_PATH%
+    for %%A in ("%ZIP_PATH%") do echo Archive size: %%~zA bytes
+)
 echo.
 echo Done!
