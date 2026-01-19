@@ -10,7 +10,7 @@ use egui::{vec2, Color32, Layout, Rect, Ui};
 
 use super::components::{draw_icon, Card, Icon, IconButton};
 use super::theme::{AccentColor, Theme};
-use crate::data::Config;
+use crate::data::{Config, NotificationSound};
 
 /// Actions from settings
 #[derive(Debug, Clone, PartialEq)]
@@ -20,6 +20,7 @@ pub enum SettingsAction {
     SelectPreset(usize),
     ResetDefaults,
     SetAlwaysOnTop(bool),
+    TestSound(NotificationSound),
 }
 
 /// Editable settings state - extracted from Config for UI editing
@@ -35,6 +36,7 @@ pub struct SettingsState {
     pub sessions_before_long: f32,
     // Sound settings
     pub volume: f32,
+    pub notification_sound: NotificationSound,
     // Auto-start settings
     pub auto_start_breaks: bool,
     pub auto_start_work: bool,
@@ -55,6 +57,7 @@ impl SettingsState {
             long_break: config.timer.long_break as f32,
             sessions_before_long: config.timer.sessions_before_long as f32,
             volume: config.sounds.volume as f32,
+            notification_sound: config.sounds.notification_sound,
             auto_start_breaks: config.timer.auto_start_breaks,
             auto_start_work: config.timer.auto_start_work,
             start_with_windows: config.system.start_with_windows,
@@ -70,6 +73,7 @@ impl SettingsState {
             || self.long_break.round() as u32 != config.timer.long_break
             || self.sessions_before_long.round() as u32 != config.timer.sessions_before_long
             || self.volume.round() as u32 != config.sounds.volume
+            || self.notification_sound != config.sounds.notification_sound
             || self.auto_start_breaks != config.timer.auto_start_breaks
             || self.auto_start_work != config.timer.auto_start_work
             || self.start_with_windows != config.system.start_with_windows
@@ -87,6 +91,7 @@ impl SettingsState {
         config.timer.auto_start_breaks = self.auto_start_breaks;
         config.timer.auto_start_work = self.auto_start_work;
         config.sounds.volume = self.volume.round() as u32;
+        config.sounds.notification_sound = self.notification_sound;
         config.system.start_with_windows = self.start_with_windows;
         config.window.always_on_top = self.always_on_top;
         config.appearance.accent_color = self.selected_accent;
@@ -218,6 +223,43 @@ impl SettingsView {
                         );
                     });
                 });
+
+                ui.add_space(theme.spacing_sm);
+
+                // Sound selection with test button
+                let mut test_sound = false;
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Sound").color(theme.text_secondary));
+
+                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Test button
+                        if ui
+                            .add_sized(vec2(28.0, 22.0), egui::Button::new("\u{25B6}"))
+                            .on_hover_text("Test sound")
+                            .clicked()
+                        {
+                            test_sound = true;
+                        }
+
+                        ui.add_space(4.0);
+
+                        egui::ComboBox::from_id_salt("notification_sound")
+                            .selected_text(self.state.notification_sound.name())
+                            .width(120.0)
+                            .show_ui(ui, |ui| {
+                                for sound in NotificationSound::all() {
+                                    ui.selectable_value(
+                                        &mut self.state.notification_sound,
+                                        *sound,
+                                        sound.name(),
+                                    );
+                                }
+                            });
+                    });
+                });
+                if test_sound {
+                    action = Some(SettingsAction::TestSound(self.state.notification_sound));
+                }
             });
 
             ui.add_space(theme.spacing_md);

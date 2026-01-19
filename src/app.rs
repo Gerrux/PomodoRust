@@ -4,7 +4,7 @@ use chrono::Utc;
 
 use crate::core::{Preset, Session, SessionType, TimerEvent};
 use crate::data::{Config, Database, ExportFormat, Exporter, Statistics};
-use crate::platform::{AudioPlayer, SoundType};
+use crate::platform::AudioPlayer;
 use crate::ui::{
     animations::AnimationState,
     settings::{SettingsAction, SettingsView},
@@ -125,12 +125,7 @@ impl PomodoRustApp {
         // Play sound
         if self.config.sounds.enabled {
             if let Some(ref audio) = self.audio {
-                match session_type {
-                    SessionType::Work => audio.play(SoundType::WorkEnd),
-                    SessionType::ShortBreak | SessionType::LongBreak => {
-                        audio.play(SoundType::BreakEnd)
-                    }
-                }
+                audio.play_notification(self.config.sounds.notification_sound);
             }
         }
 
@@ -289,6 +284,11 @@ impl PomodoRustApp {
                 } else {
                     egui::WindowLevel::Normal
                 }));
+            }
+            SettingsAction::TestSound(sound) => {
+                if let Some(ref audio) = self.audio {
+                    audio.play_notification(sound);
+                }
             }
         }
     }

@@ -11,6 +11,35 @@ use std::path::PathBuf;
 use crate::error::ConfigError;
 use crate::ui::theme::AccentColor;
 
+/// Available notification sounds
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum NotificationSound {
+    #[default]
+    SoftBell,
+    LevelUp,
+    DigitalAlert,
+}
+
+impl NotificationSound {
+    /// Get all available sounds
+    pub fn all() -> &'static [NotificationSound] {
+        &[
+            NotificationSound::SoftBell,
+            NotificationSound::LevelUp,
+            NotificationSound::DigitalAlert,
+        ]
+    }
+
+    /// Get display name
+    pub fn name(&self) -> &'static str {
+        match self {
+            NotificationSound::SoftBell => "Soft Bell",
+            NotificationSound::LevelUp => "Level Up",
+            NotificationSound::DigitalAlert => "Digital Alert",
+        }
+    }
+}
+
 /// Timer configuration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct TimerConfig {
@@ -40,8 +69,7 @@ impl Default for TimerConfig {
 pub struct SoundConfig {
     pub enabled: bool,
     pub volume: u32,
-    pub work_end_sound: String,
-    pub break_end_sound: String,
+    pub notification_sound: NotificationSound,
     pub tick_enabled: bool,
 }
 
@@ -50,8 +78,7 @@ impl Default for SoundConfig {
         Self {
             enabled: true,
             volume: 80,
-            work_end_sound: "bell".into(),
-            break_end_sound: "chime".into(),
+            notification_sound: NotificationSound::SoftBell,
             tick_enabled: false,
         }
     }

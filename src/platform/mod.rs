@@ -12,7 +12,7 @@ mod audio;
 #[cfg(windows)]
 mod windows;
 
-pub use audio::{AudioPlayer, SoundType};
+pub use audio::AudioPlayer;
 
 #[cfg(windows)]
 pub use windows::{

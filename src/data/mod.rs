@@ -27,7 +27,7 @@ mod database;
 pub mod export;
 mod statistics;
 
-pub use config::Config;
+pub use config::{Config, NotificationSound};
 pub use database::Database;
 pub use export::{ExportFormat, Exporter};
 pub use statistics::Statistics;
