@@ -1,10 +1,13 @@
 //! Main application struct and logic
 
+use std::sync::mpsc::Receiver;
+
 use chrono::Utc;
 
 use crate::core::{Preset, Session, SessionType, TimerEvent};
 use crate::data::{Config, Database, ExportFormat, Exporter, Statistics};
-use crate::platform::AudioPlayer;
+use crate::ipc::{IpcCommand, IpcResponse, IpcServer, IpcStats, IpcStatus};
+use crate::platform::{AudioPlayer, HotkeyAction, HotkeyManager};
 use crate::ui::{
     animations::AnimationState,
     settings::{SettingsAction, SettingsView},
@@ -50,6 +53,15 @@ pub struct PomodoRustApp {
 
     // Session tracking
     session_start_time: Option<chrono::DateTime<Utc>>,
+
+    // IPC for CLI integration
+    ipc_server: IpcServer,
+    ipc_receiver: Option<Receiver<IpcCommand>>,
+
+    // Global hotkeys (manager kept alive to maintain registrations)
+    #[allow(dead_code)]
+    hotkey_manager: HotkeyManager,
+    hotkey_receiver: Option<Receiver<HotkeyAction>>,
 }
 
 impl PomodoRustApp {
@@ -91,7 +103,22 @@ impl PomodoRustApp {
             player.set_volume(config.sounds.volume as f32 / 100.0);
         }
 
-        // Initialize system tray
+        // Initialize IPC server for CLI
+        let mut ipc_server = IpcServer::new();
+        let ipc_receiver = ipc_server.take_receiver();
+        ipc_server.start();
+
+        // Initialize global hotkeys
+        let mut hotkey_manager = HotkeyManager::new();
+        let hotkey_receiver = hotkey_manager.take_receiver();
+        if config.hotkeys.enabled {
+            hotkey_manager.start(
+                &config.hotkeys.toggle,
+                &config.hotkeys.skip,
+                &config.hotkeys.reset,
+            );
+        }
+
         Self {
             session,
             config,
@@ -106,12 +133,19 @@ impl PomodoRustApp {
             current_view: View::Timer,
             audio,
             session_start_time: None,
+            ipc_server,
+            ipc_receiver,
+            hotkey_manager,
+            hotkey_receiver,
         }
     }
 
     /// Handle timer completion
     fn on_timer_completed(&mut self) {
         let session_type = self.session.session_type();
+
+        // Track if goal was reached before this session
+        let goal_was_reached_before = self.statistics.is_daily_goal_reached(self.config.goals.daily_target);
 
         // Record to database
         if let (Some(db), Some(start_time)) = (&self.database, self.session_start_time) {
@@ -122,6 +156,11 @@ impl PomodoRustApp {
             self.statistics = Statistics::load(db);
         }
 
+        // Check if goal was just reached
+        let goal_just_reached = !goal_was_reached_before
+            && self.statistics.is_daily_goal_reached(self.config.goals.daily_target)
+            && session_type == SessionType::Work;
+
         // Play sound
         if self.config.sounds.enabled {
             if let Some(ref audio) = self.audio {
@@ -131,12 +170,16 @@ impl PomodoRustApp {
 
         // Show notification
         if self.config.system.notifications_enabled {
-            let (title, body) = match session_type {
-                SessionType::Work => ("Focus Complete!", "Time for a break."),
-                SessionType::ShortBreak => ("Break Over", "Ready to focus again?"),
-                SessionType::LongBreak => ("Long Break Over", "Let's get back to work!"),
+            let (title, body): (&str, String) = if goal_just_reached && self.config.goals.notify_on_goal {
+                ("Daily Goal Reached!", format!("You completed {} pomodoros today!", self.config.goals.daily_target))
+            } else {
+                match session_type {
+                    SessionType::Work => ("Focus Complete!", "Time for a break.".to_string()),
+                    SessionType::ShortBreak => ("Break Over", "Ready to focus again?".to_string()),
+                    SessionType::LongBreak => ("Long Break Over", "Let's get back to work!".to_string()),
+                }
             };
-            crate::platform::show_notification(title, body);
+            crate::platform::show_notification(title, &body);
         }
 
         // Flash window in taskbar to get attention
@@ -340,6 +383,180 @@ impl PomodoRustApp {
         let _ = self.config.save();
     }
 
+    /// Handle IPC commands from CLI
+    fn handle_ipc_commands(&mut self) {
+        // Collect all pending commands first to avoid borrow issues
+        let commands: Vec<IpcCommand> = self
+            .ipc_receiver
+            .as_ref()
+            .map(|rx| rx.try_iter().collect())
+            .unwrap_or_default();
+
+        // Process collected commands
+        for command in commands {
+            let response = self.process_ipc_command(command);
+            self.ipc_server.set_response(response);
+        }
+    }
+
+    /// Process a single IPC command and return the response
+    fn process_ipc_command(&mut self, command: IpcCommand) -> IpcResponse {
+        match command {
+            IpcCommand::Start { session_type } => {
+                // Optionally switch session type
+                if let Some(st) = session_type {
+                    match st.to_lowercase().as_str() {
+                        "work" | "focus" => self.session.switch_to(SessionType::Work),
+                        "short" | "short_break" => self.session.switch_to(SessionType::ShortBreak),
+                        "long" | "long_break" => self.session.switch_to(SessionType::LongBreak),
+                        _ => return IpcResponse::error(format!("Unknown session type: {}", st)),
+                    }
+                }
+
+                if !self.session.timer().is_running() {
+                    self.session.start();
+                    self.session_start_time = Some(Utc::now());
+                    IpcResponse::ok_with_message("Timer started")
+                } else {
+                    IpcResponse::ok_with_message("Timer already running")
+                }
+            }
+
+            IpcCommand::Pause => {
+                if self.session.timer().is_running() {
+                    self.session.pause();
+                    IpcResponse::ok_with_message("Timer paused")
+                } else {
+                    IpcResponse::ok_with_message("Timer not running")
+                }
+            }
+
+            IpcCommand::Resume => {
+                if self.session.timer().is_paused() {
+                    self.session.start(); // start() handles resume from paused state
+                    IpcResponse::ok_with_message("Timer resumed")
+                } else {
+                    IpcResponse::ok_with_message("Timer not paused")
+                }
+            }
+
+            IpcCommand::Toggle => {
+                let event = self.session.toggle();
+                match event {
+                    crate::core::TimerEvent::Started => {
+                        self.session_start_time = Some(Utc::now());
+                        IpcResponse::ok_with_message("Timer started")
+                    }
+                    crate::core::TimerEvent::Resumed => {
+                        IpcResponse::ok_with_message("Timer resumed")
+                    }
+                    crate::core::TimerEvent::Paused => {
+                        IpcResponse::ok_with_message("Timer paused")
+                    }
+                    _ => IpcResponse::ok()
+                }
+            }
+
+            IpcCommand::Stop => {
+                self.session.reset();
+                self.session_start_time = None;
+                IpcResponse::ok_with_message("Timer stopped and reset")
+            }
+
+            IpcCommand::Skip => {
+                self.session.skip();
+                self.session_start_time = None;
+                IpcResponse::ok_with_message(format!("Skipped to {}", self.session.session_type().label()))
+            }
+
+            IpcCommand::Status => {
+                let timer = self.session.timer();
+                let state = if timer.is_running() {
+                    "running"
+                } else if timer.is_paused() {
+                    "paused"
+                } else if timer.is_completed() {
+                    "completed"
+                } else {
+                    "idle"
+                };
+
+                let session_type = match self.session.session_type() {
+                    SessionType::Work => "work",
+                    SessionType::ShortBreak => "short_break",
+                    SessionType::LongBreak => "long_break",
+                };
+
+                IpcResponse::Status(IpcStatus {
+                    state: state.to_string(),
+                    session_type: session_type.to_string(),
+                    remaining_secs: timer.remaining().as_secs(),
+                    remaining_formatted: timer.remaining_formatted(),
+                    progress: timer.progress(),
+                    current_session: self.session.current_session_in_cycle(),
+                    total_sessions: self.session.total_sessions_in_cycle(),
+                    total_duration_secs: timer.total_duration().as_secs(),
+                })
+            }
+
+            IpcCommand::Stats { period } => {
+                let period = if period.is_empty() { "today" } else { &period };
+
+                let (hours, pomodoros) = match period {
+                    "today" => (self.statistics.today_hours(), self.statistics.today_pomodoros),
+                    "week" => (self.statistics.week_hours(), self.statistics.today_pomodoros), // week doesn't have pomodoro count
+                    "all" => (self.statistics.total_hours() as f32, self.statistics.total_pomodoros),
+                    _ => return IpcResponse::error(format!("Unknown period: {}", period)),
+                };
+
+                IpcResponse::Stats(IpcStats {
+                    period: period.to_string(),
+                    hours,
+                    pomodoros,
+                    current_streak: self.statistics.current_streak,
+                    longest_streak: self.statistics.longest_streak,
+                    daily_goal: self.config.goals.daily_target,
+                    today_pomodoros: self.statistics.today_pomodoros,
+                })
+            }
+
+            IpcCommand::Ping => IpcResponse::Pong,
+        }
+    }
+
+    /// Handle global hotkey events
+    fn handle_hotkey_events(&mut self) {
+        // Collect all pending hotkey events
+        let events: Vec<HotkeyAction> = self
+            .hotkey_receiver
+            .as_ref()
+            .map(|rx| rx.try_iter().collect())
+            .unwrap_or_default();
+
+        // Process collected events
+        for action in events {
+            match action {
+                HotkeyAction::Toggle => {
+                    let event = self.session.toggle();
+                    if event == TimerEvent::Started {
+                        self.session_start_time = Some(Utc::now());
+                    }
+                    tracing::info!("Hotkey: Toggle timer");
+                }
+                HotkeyAction::Skip => {
+                    self.session.skip();
+                    self.session_start_time = None;
+                    tracing::info!("Hotkey: Skip session");
+                }
+                HotkeyAction::Reset => {
+                    self.session.reset();
+                    self.session_start_time = None;
+                    tracing::info!("Hotkey: Reset timer");
+                }
+            }
+        }
+    }
+
     /// Handle window resize zones for custom decorated window
     fn handle_resize_zones(&self, ctx: &egui::Context) {
         // Skip resize handling if maximized
@@ -404,6 +621,12 @@ impl eframe::App for PomodoRustApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Handle IPC commands from CLI
+        self.handle_ipc_commands();
+
+        // Handle global hotkey events
+        self.handle_hotkey_events();
+
         // Apply theme
         self.theme.apply(ctx);
 
@@ -434,11 +657,20 @@ impl eframe::App for PomodoRustApp {
         // Collect settings action to handle after UI
         let mut settings_action: Option<SettingsAction> = None;
 
+        // Calculate background color with opacity
+        let bg_alpha = (self.config.appearance.window_opacity as f32 / 100.0 * 255.0) as u8;
+        let bg_color = egui::Color32::from_rgba_unmultiplied(
+            self.theme.bg_primary.r(),
+            self.theme.bg_primary.g(),
+            self.theme.bg_primary.b(),
+            bg_alpha,
+        );
+
         // Main panel with custom frame - no rounding or border when maximized
         egui::CentralPanel::default()
             .frame(
                 egui::Frame::none()
-                    .fill(self.theme.bg_primary)
+                    .fill(bg_color)
                     .rounding(if is_maximized {
                         egui::Rounding::ZERO
                     } else {
@@ -511,6 +743,7 @@ impl eframe::App for PomodoRustApp {
                                     &self.statistics,
                                     &self.theme,
                                     self.animations.pulse_value(),
+                                    self.config.goals.daily_target,
                                 ) {
                                     self.handle_stats_action(action);
                                 }

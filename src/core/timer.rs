@@ -145,6 +145,11 @@ impl Timer {
         self.state == TimerState::Running
     }
 
+    /// Check if timer is paused
+    pub fn is_paused(&self) -> bool {
+        self.state == TimerState::Paused
+    }
+
     /// Check if timer is completed
     pub fn is_completed(&self) -> bool {
         self.state == TimerState::Completed

@@ -43,6 +43,7 @@ impl StatsView {
         stats: &Statistics,
         theme: &Theme,
         pulse: f32,
+        daily_goal: u32,
     ) -> Option<StatsAction> {
         let mut action = None;
         let available = ui.available_size();
@@ -108,6 +109,7 @@ impl StatsView {
                             pulse,
                             spacing,
                             is_very_wide,
+                            daily_goal,
                             &mut action,
                         );
                     } else {
@@ -118,6 +120,7 @@ impl StatsView {
                             theme,
                             pulse,
                             spacing,
+                            daily_goal,
                             &mut action,
                         );
                     }
@@ -137,6 +140,7 @@ impl StatsView {
         pulse: f32,
         spacing: f32,
         is_very_wide: bool,
+        daily_goal: u32,
         action: &mut Option<StatsAction>,
     ) {
         let available_width = ui.available_width();
@@ -164,7 +168,7 @@ impl StatsView {
                     ui.add_space(spacing);
 
                     // Today's focus time
-                    self.show_focus_card(ui, stats, theme, left_col_width);
+                    self.show_focus_card(ui, stats, theme, left_col_width, daily_goal);
                 });
             });
 
@@ -199,6 +203,7 @@ impl StatsView {
         theme: &Theme,
         pulse: f32,
         spacing: f32,
+        daily_goal: u32,
         action: &mut Option<StatsAction>,
     ) {
         // Current Session section
@@ -209,7 +214,7 @@ impl StatsView {
 
         // Statistics section
         section_header(ui, theme, "Statistics");
-        self.show_compact_stats_card(ui, stats, theme);
+        self.show_compact_stats_card(ui, stats, theme, daily_goal);
 
         ui.add_space(spacing);
 
@@ -282,9 +287,27 @@ impl StatsView {
         });
     }
 
-    fn show_compact_stats_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme) {
+    fn show_compact_stats_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, daily_goal: u32) {
+        let goal_reached = stats.is_daily_goal_reached(daily_goal);
+
         Card::new().show(ui, theme, |ui| {
             ui.set_min_width(ui.available_width());
+
+            // Daily goal row
+            let goal_value = if goal_reached {
+                format!("{}/{} Done!", stats.today_pomodoros, daily_goal)
+            } else {
+                format!("{}/{}", stats.today_pomodoros, daily_goal)
+            };
+            stat_row(
+                ui,
+                theme,
+                Icon::Target,
+                "Daily Goal",
+                &goal_value,
+            );
+
+            ui.add_space(theme.spacing_xs);
 
             // Today row
             stat_row(
@@ -570,9 +593,11 @@ impl StatsView {
         });
     }
 
-    fn show_focus_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
+    fn show_focus_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32, daily_goal: u32) {
         let (accent_start, accent_end) = theme.accent_gradient();
         let inner_width = width - 32.0;
+        let goal_progress = stats.daily_goal_progress(daily_goal);
+        let goal_reached = stats.is_daily_goal_reached(daily_goal);
 
         Card::new().show(ui, theme, |ui| {
             ui.set_width(inner_width);
@@ -601,13 +626,42 @@ impl StatsView {
 
             ui.add_space(4.0);
 
+            // Daily goal progress
             ui.horizontal(|ui| {
+                let goal_text = if goal_reached {
+                    format!("{}/{} Goal reached!", stats.today_pomodoros, daily_goal)
+                } else {
+                    format!("{}/{} pomodoros", stats.today_pomodoros, daily_goal)
+                };
+                let text_color = if goal_reached { theme.success } else { theme.text_muted };
                 ui.label(
-                    egui::RichText::new(format!("{} pomodoros completed", stats.today_pomodoros))
+                    egui::RichText::new(goal_text)
                         .size(11.0)
-                        .color(theme.text_muted),
+                        .color(text_color),
                 );
             });
+
+            ui.add_space(8.0);
+
+            // Progress bar
+            let bar_width = inner_width - 8.0;
+            let bar_height = 6.0;
+            let (rect, _) = ui.allocate_exact_size(vec2(bar_width, bar_height), egui::Sense::hover());
+
+            // Background
+            ui.painter().rect_filled(rect, 3.0, theme.bg_tertiary);
+
+            // Fill
+            let fill_width = (goal_progress.min(1.0) * bar_width).max(0.0);
+            if fill_width > 0.0 {
+                let fill_rect = Rect::from_min_size(rect.min, vec2(fill_width, bar_height));
+                let fill_color = if goal_reached {
+                    theme.success
+                } else {
+                    Theme::lerp_color(accent_start, accent_end, 0.5)
+                };
+                ui.painter().rect_filled(fill_rect, 3.0, fill_color);
+            }
         });
     }
 

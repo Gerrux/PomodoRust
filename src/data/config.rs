@@ -146,6 +146,47 @@ impl Default for WindowConfig {
     }
 }
 
+/// Goals configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct GoalsConfig {
+    pub daily_target: u32,
+    pub weekly_target: u32,
+    pub notify_on_goal: bool,
+}
+
+impl Default for GoalsConfig {
+    fn default() -> Self {
+        Self {
+            daily_target: 8,
+            weekly_target: 40,
+            notify_on_goal: true,
+        }
+    }
+}
+
+/// Hotkey configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct HotkeysConfig {
+    pub enabled: bool,
+    /// Toggle timer (start/pause) - default: Ctrl+Alt+Space
+    pub toggle: String,
+    /// Skip to next session - default: Ctrl+Alt+S
+    pub skip: String,
+    /// Reset timer - default: Ctrl+Alt+R
+    pub reset: String,
+}
+
+impl Default for HotkeysConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            toggle: "Ctrl+Alt+Space".to_string(),
+            skip: "Ctrl+Alt+S".to_string(),
+            reset: "Ctrl+Alt+R".to_string(),
+        }
+    }
+}
+
 /// Main configuration struct
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Config {
@@ -154,6 +195,10 @@ pub struct Config {
     pub appearance: AppearanceConfig,
     pub system: SystemConfig,
     pub window: WindowConfig,
+    #[serde(default)]
+    pub goals: GoalsConfig,
+    #[serde(default)]
+    pub hotkeys: HotkeysConfig,
 }
 
 impl Config {

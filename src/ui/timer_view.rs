@@ -118,39 +118,50 @@ impl TimerView {
 
             ui.add_space(spacing * 0.5);
 
-            // Control buttons - symmetric layout
+            // Control buttons - centered with spacing in the middle
             let btn_spacing = spacing * 0.75;
-            let control_width = control_btn_size * 2.0 + btn_spacing;
-            ui.allocate_ui(vec2(control_width, control_btn_size), |ui| {
-                ui.horizontal(|ui| {
-                    let is_running = session.timer().is_running();
-                    let play_icon = if is_running { Icon::Pause } else { Icon::Play };
+            let half_width = ui.available_width() / 2.0;
+            let btn_gap = btn_spacing / 2.0;
 
-                    // Use session colors for buttons (outline style - less distracting)
-                    if IconButton::new(play_icon)
-                        .with_size(control_btn_size)
-                        .with_icon_scale(0.45)
-                        .filled(false)
-                        .with_gradient(start_color, end_color)
-                        .show(ui, theme)
-                        .clicked()
-                    {
-                        action = Some(TimerAction::Toggle);
-                    }
+            ui.horizontal(|ui| {
+                // Left half - play/pause aligned to right
+                ui.allocate_ui_with_layout(
+                    vec2(half_width - btn_gap, control_btn_size),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        let is_running = session.timer().is_running();
+                        let play_icon = if is_running { Icon::Pause } else { Icon::Play };
 
-                    ui.add_space(btn_spacing);
+                        if IconButton::new(play_icon)
+                            .with_size(control_btn_size)
+                            .with_icon_scale(0.45)
+                            .filled(false)
+                            .with_gradient(start_color, end_color)
+                            .show(ui, theme)
+                            .clicked()
+                        {
+                            action = Some(TimerAction::Toggle);
+                        }
+                    },
+                );
 
-                    if IconButton::new(Icon::SkipForward)
-                        .with_size(control_btn_size)
-                        .with_icon_scale(0.45)
-                        .filled(false)
-                        .with_gradient(start_color, end_color)
-                        .show(ui, theme)
-                        .clicked()
-                    {
-                        action = Some(TimerAction::Skip);
-                    }
-                });
+                // Right half - skip aligned to left
+                ui.allocate_ui_with_layout(
+                    vec2(half_width - btn_gap, control_btn_size),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        if IconButton::new(Icon::SkipForward)
+                            .with_size(control_btn_size)
+                            .with_icon_scale(0.45)
+                            .filled(false)
+                            .with_gradient(start_color, end_color)
+                            .show(ui, theme)
+                            .clicked()
+                        {
+                            action = Some(TimerAction::Skip);
+                        }
+                    },
+                );
             });
 
             ui.add_space(spacing * 1.5);
@@ -160,32 +171,44 @@ impl TimerView {
 
             ui.add_space(spacing * 0.75);
 
-            // Bottom navigation buttons
-            let nav_total_width = nav_btn_width * 2.0 + spacing * 0.5;
-            ui.allocate_ui(vec2(nav_total_width, nav_btn_height), |ui| {
-                ui.horizontal(|ui| {
-                    if GradientButton::new("Stats")
-                        .with_size(vec2(nav_btn_width, nav_btn_height))
-                        .with_gradient(theme.bg_tertiary, theme.bg_hover)
-                        .with_id("stats_btn")
-                        .show(ui, theme)
-                        .clicked()
-                    {
-                        action = Some(TimerAction::OpenStats);
-                    }
+            // Bottom navigation buttons - centered with spacing in the middle
+            let nav_gap = spacing * 0.25;
+            let nav_half_width = ui.available_width() / 2.0;
 
-                    ui.add_space(spacing * 0.5);
+            ui.horizontal(|ui| {
+                // Left half - Stats aligned to right
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - nav_gap, nav_btn_height),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        if GradientButton::new("Stats")
+                            .with_size(vec2(nav_btn_width, nav_btn_height))
+                            .with_gradient(theme.bg_tertiary, theme.bg_hover)
+                            .with_id("stats_btn")
+                            .show(ui, theme)
+                            .clicked()
+                        {
+                            action = Some(TimerAction::OpenStats);
+                        }
+                    },
+                );
 
-                    if GradientButton::new("Settings")
-                        .with_size(vec2(nav_btn_width, nav_btn_height))
-                        .with_gradient(theme.bg_tertiary, theme.bg_hover)
-                        .with_id("settings_btn")
-                        .show(ui, theme)
-                        .clicked()
-                    {
-                        action = Some(TimerAction::OpenSettings);
-                    }
-                });
+                // Right half - Settings aligned to left
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - nav_gap, nav_btn_height),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        if GradientButton::new("Settings")
+                            .with_size(vec2(nav_btn_width, nav_btn_height))
+                            .with_gradient(theme.bg_tertiary, theme.bg_hover)
+                            .with_id("settings_btn")
+                            .show(ui, theme)
+                            .clicked()
+                        {
+                            action = Some(TimerAction::OpenSettings);
+                        }
+                    },
+                );
             });
 
             ui.add_space(spacing);
@@ -305,89 +328,97 @@ impl TimerView {
 
             ui.add_space(spacing * 0.5);
 
-            // ASCII control buttons - gray by default, colored on hover/press
-            let total_width = ui.available_width();
-            let btn_width = 260.0;
+            // ASCII control buttons - centered with spacing in the middle
+            let btn_height = btn_font_size + 16.0;
+            let gray = theme.text_muted;
+            let half_width = ui.available_width() / 2.0;
+            let btn_gap = spacing * 0.5;
+
             ui.horizontal(|ui| {
-                let offset = (total_width - btn_width) / 2.0;
-                if offset > 0.0 {
-                    ui.add_space(offset);
-                }
+                // Left half - button aligned to right edge
+                ui.allocate_ui_with_layout(
+                    vec2(half_width - btn_gap, btn_height),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        let play_text = if is_running {
+                            "[ ■ PAUSE ]"
+                        } else {
+                            "[ ► START ]"
+                        };
 
-                let play_text = if is_running {
-                    "[ ■ PAUSE ]"
-                } else {
-                    "[ ► START ]"
-                };
+                        let play_btn = ui.add(
+                            egui::Button::new(
+                                egui::RichText::new(play_text)
+                                    .font(FontId::monospace(btn_font_size))
+                                    .color(gray),
+                            )
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::new(1.0, gray)),
+                        );
 
-                let gray = theme.text_muted;
+                        if play_btn.hovered() || play_btn.has_focus() {
+                            let color = if is_running { theme.warning } else { accent };
+                            let rect = play_btn.rect;
+                            ui.painter()
+                                .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
+                            ui.painter().rect_stroke(
+                                rect,
+                                egui::Rounding::same(2.0),
+                                egui::Stroke::new(1.0, color),
+                            );
+                            ui.painter().text(
+                                rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                play_text,
+                                FontId::monospace(btn_font_size),
+                                color,
+                            );
+                        }
 
-                let play_btn = ui.add(
-                    egui::Button::new(
-                        egui::RichText::new(play_text)
-                            .font(FontId::monospace(btn_font_size))
-                            .color(gray),
-                    )
-                    .fill(egui::Color32::TRANSPARENT)
-                    .stroke(egui::Stroke::new(1.0, gray)),
+                        if play_btn.clicked() {
+                            action = Some(TimerAction::Toggle);
+                        }
+                    },
                 );
 
-                if play_btn.hovered() || play_btn.has_focus() {
-                    let color = if is_running { theme.warning } else { accent };
-                    let rect = play_btn.rect;
-                    ui.painter()
-                        .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
-                    ui.painter().rect_stroke(
-                        rect,
-                        egui::Rounding::same(2.0),
-                        egui::Stroke::new(1.0, color),
-                    );
-                    ui.painter().text(
-                        rect.center(),
-                        egui::Align2::CENTER_CENTER,
-                        play_text,
-                        FontId::monospace(btn_font_size),
-                        color,
-                    );
-                }
+                // Right half - button aligned to left edge
+                ui.allocate_ui_with_layout(
+                    vec2(half_width - btn_gap, btn_height),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        let skip_btn = ui.add(
+                            egui::Button::new(
+                                egui::RichText::new("[ » SKIP ]")
+                                    .font(FontId::monospace(btn_font_size))
+                                    .color(gray),
+                            )
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::new(1.0, gray)),
+                        );
 
-                if play_btn.clicked() {
-                    action = Some(TimerAction::Toggle);
-                }
+                        if skip_btn.hovered() || skip_btn.has_focus() {
+                            let rect = skip_btn.rect;
+                            ui.painter()
+                                .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
+                            ui.painter().rect_stroke(
+                                rect,
+                                egui::Rounding::same(2.0),
+                                egui::Stroke::new(1.0, accent),
+                            );
+                            ui.painter().text(
+                                rect.center(),
+                                egui::Align2::CENTER_CENTER,
+                                "[ » SKIP ]",
+                                FontId::monospace(btn_font_size),
+                                accent,
+                            );
+                        }
 
-                ui.add_space(spacing);
-
-                let skip_btn = ui.add(
-                    egui::Button::new(
-                        egui::RichText::new("[ » SKIP ]")
-                            .font(FontId::monospace(btn_font_size))
-                            .color(gray),
-                    )
-                    .fill(egui::Color32::TRANSPARENT)
-                    .stroke(egui::Stroke::new(1.0, gray)),
+                        if skip_btn.clicked() {
+                            action = Some(TimerAction::Skip);
+                        }
+                    },
                 );
-
-                if skip_btn.hovered() || skip_btn.has_focus() {
-                    let rect = skip_btn.rect;
-                    ui.painter()
-                        .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
-                    ui.painter().rect_stroke(
-                        rect,
-                        egui::Rounding::same(2.0),
-                        egui::Stroke::new(1.0, accent),
-                    );
-                    ui.painter().text(
-                        rect.center(),
-                        egui::Align2::CENTER_CENTER,
-                        "[ » SKIP ]",
-                        FontId::monospace(btn_font_size),
-                        accent,
-                    );
-                }
-
-                if skip_btn.clicked() {
-                    action = Some(TimerAction::Skip);
-                }
             });
 
             // Navigation (only show if enough vertical space)
@@ -403,44 +434,51 @@ impl TimerView {
 
                 ui.add_space(spacing * 0.3);
 
-                // Navigation - centered
-                let nav_total_width = ui.available_width();
-                let nav_width = 280.0;
+                // Navigation - centered with spacing in the middle
+                let nav_half_width = ui.available_width() / 2.0;
+
                 ui.horizontal(|ui| {
-                    let offset = (nav_total_width - nav_width) / 2.0;
-                    if offset > 0.0 {
-                        ui.add_space(offset);
-                    }
+                    // Left half - Statistics aligned to right
+                    ui.allocate_ui_with_layout(
+                        vec2(nav_half_width - btn_gap, btn_height),
+                        Layout::right_to_left(Align::Center),
+                        |ui| {
+                            let dash_btn = ui.add(
+                                egui::Button::new(
+                                    egui::RichText::new("[ Statistics ]")
+                                        .font(FontId::monospace(btn_font_size))
+                                        .color(theme.text_secondary),
+                                )
+                                .fill(egui::Color32::TRANSPARENT)
+                                .stroke(egui::Stroke::NONE),
+                            );
 
-                    let dash_btn = ui.add(
-                        egui::Button::new(
-                            egui::RichText::new("[ Stats ]")
-                                .font(FontId::monospace(btn_font_size))
-                                .color(theme.text_secondary),
-                        )
-                        .fill(egui::Color32::TRANSPARENT)
-                        .stroke(egui::Stroke::NONE),
+                            if dash_btn.clicked() {
+                                action = Some(TimerAction::OpenStats);
+                            }
+                        },
                     );
 
-                    if dash_btn.clicked() {
-                        action = Some(TimerAction::OpenStats);
-                    }
+                    // Right half - Settings aligned to left
+                    ui.allocate_ui_with_layout(
+                        vec2(nav_half_width - btn_gap, btn_height),
+                        Layout::left_to_right(Align::Center),
+                        |ui| {
+                            let settings_btn = ui.add(
+                                egui::Button::new(
+                                    egui::RichText::new("[ Settings ]")
+                                        .font(FontId::monospace(btn_font_size))
+                                        .color(theme.text_secondary),
+                                )
+                                .fill(egui::Color32::TRANSPARENT)
+                                .stroke(egui::Stroke::NONE),
+                            );
 
-                    ui.add_space(spacing);
-
-                    let settings_btn = ui.add(
-                        egui::Button::new(
-                            egui::RichText::new("[ Settings ]")
-                                .font(FontId::monospace(btn_font_size))
-                                .color(theme.text_secondary),
-                        )
-                        .fill(egui::Color32::TRANSPARENT)
-                        .stroke(egui::Stroke::NONE),
+                            if settings_btn.clicked() {
+                                action = Some(TimerAction::OpenSettings);
+                            }
+                        },
                     );
-
-                    if settings_btn.clicked() {
-                        action = Some(TimerAction::OpenSettings);
-                    }
                 });
             }
 

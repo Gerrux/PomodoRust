@@ -37,6 +37,7 @@ pub struct SettingsState {
     // Sound settings
     pub volume: f32,
     pub notification_sound: NotificationSound,
+    pub tick_enabled: bool,
     // Auto-start settings
     pub auto_start_breaks: bool,
     pub auto_start_work: bool,
@@ -46,6 +47,15 @@ pub struct SettingsState {
     pub always_on_top: bool,
     // Appearance
     pub selected_accent: AccentColor,
+    pub window_opacity: f32,
+    // Goals
+    pub daily_goal: f32,
+    pub notify_on_goal: bool,
+    // Hotkeys
+    pub hotkeys_enabled: bool,
+    pub hotkey_toggle: String,
+    pub hotkey_skip: String,
+    pub hotkey_reset: String,
 }
 
 impl SettingsState {
@@ -58,11 +68,19 @@ impl SettingsState {
             sessions_before_long: config.timer.sessions_before_long as f32,
             volume: config.sounds.volume as f32,
             notification_sound: config.sounds.notification_sound,
+            tick_enabled: config.sounds.tick_enabled,
             auto_start_breaks: config.timer.auto_start_breaks,
             auto_start_work: config.timer.auto_start_work,
             start_with_windows: config.system.start_with_windows,
             always_on_top: config.window.always_on_top,
             selected_accent: config.appearance.accent_color,
+            window_opacity: config.appearance.window_opacity as f32,
+            daily_goal: config.goals.daily_target as f32,
+            notify_on_goal: config.goals.notify_on_goal,
+            hotkeys_enabled: config.hotkeys.enabled,
+            hotkey_toggle: config.hotkeys.toggle.clone(),
+            hotkey_skip: config.hotkeys.skip.clone(),
+            hotkey_reset: config.hotkeys.reset.clone(),
         }
     }
 
@@ -74,11 +92,19 @@ impl SettingsState {
             || self.sessions_before_long.round() as u32 != config.timer.sessions_before_long
             || self.volume.round() as u32 != config.sounds.volume
             || self.notification_sound != config.sounds.notification_sound
+            || self.tick_enabled != config.sounds.tick_enabled
             || self.auto_start_breaks != config.timer.auto_start_breaks
             || self.auto_start_work != config.timer.auto_start_work
             || self.start_with_windows != config.system.start_with_windows
             || self.always_on_top != config.window.always_on_top
             || self.selected_accent != config.appearance.accent_color
+            || self.window_opacity.round() as u32 != config.appearance.window_opacity
+            || self.daily_goal.round() as u32 != config.goals.daily_target
+            || self.notify_on_goal != config.goals.notify_on_goal
+            || self.hotkeys_enabled != config.hotkeys.enabled
+            || self.hotkey_toggle != config.hotkeys.toggle
+            || self.hotkey_skip != config.hotkeys.skip
+            || self.hotkey_reset != config.hotkeys.reset
     }
 
     /// Apply the editing state to a Config, returning a new Config
@@ -92,9 +118,17 @@ impl SettingsState {
         config.timer.auto_start_work = self.auto_start_work;
         config.sounds.volume = self.volume.round() as u32;
         config.sounds.notification_sound = self.notification_sound;
+        config.sounds.tick_enabled = self.tick_enabled;
         config.system.start_with_windows = self.start_with_windows;
         config.window.always_on_top = self.always_on_top;
         config.appearance.accent_color = self.selected_accent;
+        config.appearance.window_opacity = self.window_opacity.round() as u32;
+        config.goals.daily_target = self.daily_goal.round() as u32;
+        config.goals.notify_on_goal = self.notify_on_goal;
+        config.hotkeys.enabled = self.hotkeys_enabled;
+        config.hotkeys.toggle = self.hotkey_toggle.clone();
+        config.hotkeys.skip = self.hotkey_skip.clone();
+        config.hotkeys.reset = self.hotkey_reset.clone();
         config
     }
 }
@@ -260,6 +294,15 @@ impl SettingsView {
                 if test_sound {
                     action = Some(SettingsAction::TestSound(self.state.notification_sound));
                 }
+
+                ui.add_space(theme.spacing_sm);
+
+                toggle_row(
+                    ui,
+                    theme,
+                    "Tick sound",
+                    &mut self.state.tick_enabled,
+                );
             });
 
             ui.add_space(theme.spacing_md);
@@ -294,6 +337,27 @@ impl SettingsView {
                     &retro_colors,
                     &mut self.state.selected_accent,
                 );
+
+                ui.add_space(theme.spacing_sm);
+
+                // Window opacity slider
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Window Opacity").color(theme.text_secondary));
+
+                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.label(
+                            egui::RichText::new(format!("{}%", self.state.window_opacity.round() as u32))
+                                .color(theme.text_muted),
+                        );
+
+                        ui.add_sized(
+                            vec2(120.0, 20.0),
+                            egui::Slider::new(&mut self.state.window_opacity, 30.0..=100.0)
+                                .step_by(5.0)
+                                .show_value(false),
+                        );
+                    });
+                });
             });
 
             ui.add_space(theme.spacing_md);
@@ -310,6 +374,116 @@ impl SettingsView {
                     &mut self.state.start_with_windows,
                 );
                 toggle_row(ui, theme, "Always on top", &mut self.state.always_on_top);
+            });
+
+            ui.add_space(theme.spacing_md);
+
+            // Goals section
+            section_header(ui, theme, "Goals");
+            Card::new().show(ui, theme, |ui| {
+                ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
+
+                duration_row_with_unit(
+                    ui,
+                    theme,
+                    "Daily goal",
+                    &mut self.state.daily_goal,
+                    1.0,
+                    16.0,
+                    "pomodoros",
+                );
+
+                toggle_row(
+                    ui,
+                    theme,
+                    "Notify when goal reached",
+                    &mut self.state.notify_on_goal,
+                );
+            });
+
+            ui.add_space(theme.spacing_md);
+
+            // Hotkeys section
+            section_header(ui, theme, "Global Hotkeys");
+            Card::new().show(ui, theme, |ui| {
+                ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
+
+                toggle_row(
+                    ui,
+                    theme,
+                    "Enable global hotkeys",
+                    &mut self.state.hotkeys_enabled,
+                );
+
+                if self.state.hotkeys_enabled {
+                    ui.add_space(theme.spacing_xs);
+
+                    // Show current hotkey bindings (read-only for now)
+                    hotkey_row(ui, theme, "Toggle (start/pause)", &self.state.hotkey_toggle);
+                    hotkey_row(ui, theme, "Skip session", &self.state.hotkey_skip);
+                    hotkey_row(ui, theme, "Reset timer", &self.state.hotkey_reset);
+
+                    ui.add_space(theme.spacing_xs);
+                    ui.label(
+                        egui::RichText::new("Restart app to apply hotkey changes")
+                            .color(theme.text_muted)
+                            .small(),
+                    );
+                }
+            });
+
+            ui.add_space(theme.spacing_md);
+
+            // CLI Setup section
+            section_header(ui, theme, "Command Line");
+            Card::new().show(ui, theme, |ui| {
+                ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
+
+                ui.label(
+                    egui::RichText::new("Control timer from terminal:")
+                        .color(theme.text_secondary),
+                );
+                ui.add_space(theme.spacing_xs);
+
+                ui.horizontal(|ui| {
+                    ui.label(
+                        egui::RichText::new("pomodorust status")
+                            .color(theme.text_muted)
+                            .code(),
+                    );
+                });
+
+                ui.add_space(theme.spacing_sm);
+
+                // Get current exe path for the command
+                let exe_path = std::env::current_exe()
+                    .ok()
+                    .and_then(|p| p.parent().map(|p| p.to_path_buf()))
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| "C:\\path\\to\\pomodorust".to_string());
+
+                let powershell_cmd = format!(
+                    "$p = [Environment]::GetEnvironmentVariable('Path', 'User'); if ($p -notlike '*{}*') {{ [Environment]::SetEnvironmentVariable('Path', \"$p;{}\", 'User') }}",
+                    exe_path, exe_path
+                );
+
+                if ui
+                    .add_sized(
+                        vec2(ui.available_width(), 32.0),
+                        egui::Button::new("Copy PATH command"),
+                    )
+                    .on_hover_text("Copy PowerShell command to add pomodorust to PATH")
+                    .clicked()
+                {
+                    ui.ctx().copy_text(powershell_cmd);
+                }
+
+                ui.add_space(theme.spacing_xs);
+                ui.label(
+                    egui::RichText::new("Run copied command in PowerShell, then restart terminal")
+                        .color(theme.text_muted)
+                        .small(),
+                );
             });
 
             ui.add_space(theme.spacing_md);
@@ -532,6 +706,31 @@ fn toggle_row(ui: &mut Ui, theme: &Theme, label: &str, value: &mut bool) {
         // Use right-to-left layout for checkbox alignment
         ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
             ui.add(egui::Checkbox::without_text(value));
+        });
+    });
+
+    ui.add_space(theme.spacing_xs);
+}
+
+/// Draw a hotkey display row (read-only)
+fn hotkey_row(ui: &mut Ui, theme: &Theme, label: &str, hotkey: &str) {
+    ui.horizontal(|ui| {
+        ui.label(egui::RichText::new(label).color(theme.text_secondary));
+
+        ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+            // Display hotkey in a styled box
+            let hotkey_text = egui::RichText::new(hotkey)
+                .color(theme.text_primary)
+                .strong()
+                .small();
+
+            egui::Frame::none()
+                .fill(theme.bg_tertiary)
+                .rounding(4.0)
+                .inner_margin(egui::Margin::symmetric(8.0, 4.0))
+                .show(ui, |ui| {
+                    ui.label(hotkey_text);
+                });
         });
     });
 

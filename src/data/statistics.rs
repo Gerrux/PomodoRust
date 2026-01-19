@@ -72,6 +72,19 @@ impl Statistics {
     pub fn total_hours(&self) -> u32 {
         (self.total_work_seconds / 3600) as u32
     }
+
+    /// Check if daily goal is reached
+    pub fn is_daily_goal_reached(&self, target: u32) -> bool {
+        self.today_pomodoros >= target as i32
+    }
+
+    /// Get daily goal progress (0.0 to 1.0+)
+    pub fn daily_goal_progress(&self, target: u32) -> f32 {
+        if target == 0 {
+            return 1.0;
+        }
+        self.today_pomodoros as f32 / target as f32
+    }
 }
 
 impl Default for Statistics {
