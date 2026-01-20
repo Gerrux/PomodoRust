@@ -85,12 +85,8 @@ impl TitleBar {
             } else {
                 theme.bg_secondary
             };
-            let bg_color = Color32::from_rgba_unmultiplied(
-                base_bg.r(),
-                base_bg.g(),
-                base_bg.b(),
-                bg_alpha,
-            );
+            let bg_color =
+                Color32::from_rgba_unmultiplied(base_bg.r(), base_bg.g(), base_bg.b(), bg_alpha);
 
             let rounding = if is_maximized {
                 Rounding::ZERO
@@ -138,9 +134,7 @@ impl TitleBar {
 
         // Draw status message in the center of drag area
         if let Some(message) = status_message {
-            let text = egui::RichText::new(message)
-                .color(theme.success)
-                .small();
+            let text = egui::RichText::new(message).color(theme.success).small();
             let galley = ui.painter().layout_no_wrap(
                 text.text().to_string(),
                 egui::FontId::new(12.0, egui::FontFamily::Proportional),
@@ -160,8 +154,7 @@ impl TitleBar {
             // Always on top (pin) button
             let pin_rect =
                 Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
-            if let Some(btn) =
-                self.draw_pin_button(ui, pin_rect, theme, is_always_on_top, hover_t)
+            if let Some(btn) = self.draw_pin_button(ui, pin_rect, theme, is_always_on_top, hover_t)
             {
                 clicked_button = Some(btn);
             }

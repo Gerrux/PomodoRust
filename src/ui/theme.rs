@@ -133,8 +133,8 @@ impl AccentColor {
                 Color32::from_rgb(219, 39, 119), // pink-600
             ),
             AccentColor::Rose => (
-                Color32::from_rgb(225, 29, 72),  // rose-600
-                Color32::from_rgb(244, 63, 94),  // rose-500
+                Color32::from_rgb(225, 29, 72), // rose-600
+                Color32::from_rgb(244, 63, 94), // rose-500
             ),
             AccentColor::Emerald => (
                 Color32::from_rgb(5, 150, 105),  // emerald-600
@@ -145,21 +145,21 @@ impl AccentColor {
                 Color32::from_rgb(245, 158, 11), // amber-500
             ),
             AccentColor::Cyan => (
-                Color32::from_rgb(8, 145, 178),  // cyan-600
-                Color32::from_rgb(6, 182, 212),  // cyan-500
+                Color32::from_rgb(8, 145, 178), // cyan-600
+                Color32::from_rgb(6, 182, 212), // cyan-500
             ),
             // Retro colors for light mode - use BLACK like printed terminal output
             AccentColor::Matrix => (
-                Color32::from_rgb(0, 0, 0),      // Pure black
-                Color32::from_rgb(20, 20, 20),   // Near black
+                Color32::from_rgb(0, 0, 0),    // Pure black
+                Color32::from_rgb(20, 20, 20), // Near black
             ),
             AccentColor::RetroAmber => (
-                Color32::from_rgb(0, 0, 0),      // Pure black
-                Color32::from_rgb(30, 20, 10),   // Black with warm tint
+                Color32::from_rgb(0, 0, 0),    // Pure black
+                Color32::from_rgb(30, 20, 10), // Black with warm tint
             ),
             AccentColor::Synthwave => (
-                Color32::from_rgb(0, 0, 0),      // Pure black
-                Color32::from_rgb(20, 10, 30),   // Black with purple tint
+                Color32::from_rgb(0, 0, 0),    // Pure black
+                Color32::from_rgb(20, 10, 30), // Black with purple tint
             ),
         }
     }
@@ -344,13 +344,13 @@ impl Theme {
     pub fn new_light(accent: AccentColor) -> Self {
         Self {
             // Backgrounds - high contrast for visibility
-            bg_base: Color32::from_rgb(255, 255, 255),      // Pure white
-            bg_primary: Color32::from_rgb(250, 250, 250),   // #FAFAFA - main bg
+            bg_base: Color32::from_rgb(255, 255, 255), // Pure white
+            bg_primary: Color32::from_rgb(250, 250, 250), // #FAFAFA - main bg
             bg_secondary: Color32::from_rgb(241, 241, 241), // #F1F1F1
-            bg_tertiary: Color32::from_rgb(212, 212, 216),  // #D4D4D8 - buttons (zinc-300)
-            bg_elevated: Color32::from_rgb(255, 255, 255),  // White for elevated
-            bg_hover: Color32::from_rgb(161, 161, 170),     // #A1A1AA - hover (zinc-400)
-            bg_active: Color32::from_rgb(113, 113, 122),    // #71717A - active (zinc-500)
+            bg_tertiary: Color32::from_rgb(212, 212, 216), // #D4D4D8 - buttons (zinc-300)
+            bg_elevated: Color32::from_rgb(255, 255, 255), // White for elevated
+            bg_hover: Color32::from_rgb(161, 161, 170), // #A1A1AA - hover (zinc-400)
+            bg_active: Color32::from_rgb(113, 113, 122), // #71717A - active (zinc-500)
 
             // Borders - visible
             border_subtle: Color32::from_rgb(212, 212, 216), // #D4D4D8 zinc-300
@@ -358,29 +358,29 @@ impl Theme {
             border_strong: Color32::from_rgb(82, 82, 91),    // #52525B zinc-600
 
             // Text
-            text_primary: Color32::from_rgb(9, 9, 11),       // #09090B zinc-950
-            text_secondary: Color32::from_rgb(63, 63, 70),   // #3F3F46 zinc-700
-            text_muted: Color32::from_rgb(113, 113, 122),    // #71717A zinc-500
+            text_primary: Color32::from_rgb(9, 9, 11), // #09090B zinc-950
+            text_secondary: Color32::from_rgb(63, 63, 70), // #3F3F46 zinc-700
+            text_muted: Color32::from_rgb(113, 113, 122), // #71717A zinc-500
             text_disabled: Color32::from_rgb(161, 161, 170), // #A1A1AA zinc-400
 
             // Accent
             accent,
 
             // Semantic - darker for light bg contrast
-            success: Color32::from_rgb(22, 163, 74),       // green-600
+            success: Color32::from_rgb(22, 163, 74), // green-600
             success_muted: Color32::from_rgb(220, 252, 231), // green-100
-            warning: Color32::from_rgb(217, 119, 6),       // amber-600
+            warning: Color32::from_rgb(217, 119, 6), // amber-600
             warning_muted: Color32::from_rgb(254, 243, 199), // amber-100
-            error: Color32::from_rgb(220, 38, 38),         // red-600
+            error: Color32::from_rgb(220, 38, 38),   // red-600
             error_muted: Color32::from_rgb(254, 226, 226), // red-100
 
             // Session colors - slightly darker for light mode contrast
-            work_start: Color32::from_rgb(225, 29, 72),    // rose-600
-            work_end: Color32::from_rgb(244, 63, 94),      // rose-500
-            break_start: Color32::from_rgb(5, 150, 105),   // emerald-600
-            break_end: Color32::from_rgb(16, 185, 129),    // emerald-500
+            work_start: Color32::from_rgb(225, 29, 72), // rose-600
+            work_end: Color32::from_rgb(244, 63, 94),   // rose-500
+            break_start: Color32::from_rgb(5, 150, 105), // emerald-600
+            break_end: Color32::from_rgb(16, 185, 129), // emerald-500
             long_break_start: Color32::from_rgb(79, 70, 229), // indigo-600
-            long_break_end: Color32::from_rgb(99, 102, 241),  // indigo-500
+            long_break_end: Color32::from_rgb(99, 102, 241), // indigo-500
 
             // Spacing (in pixels) - same as dark
             spacing_xs: 4.0,
@@ -533,44 +533,43 @@ impl Theme {
         // the ASCII art and monospace font, not from colored text
         match self.accent {
             AccentColor::Matrix => match session_type {
-                crate::core::SessionType::Work => (
-                    Color32::from_rgb(0, 0, 0),
-                    Color32::from_rgb(20, 20, 20),
-                ),
+                crate::core::SessionType::Work => {
+                    (Color32::from_rgb(0, 0, 0), Color32::from_rgb(20, 20, 20))
+                }
                 crate::core::SessionType::ShortBreak => (
-                    Color32::from_rgb(20, 30, 20),   // Slight green tint
+                    Color32::from_rgb(20, 30, 20), // Slight green tint
                     Color32::from_rgb(10, 20, 10),
                 ),
                 crate::core::SessionType::LongBreak => (
-                    Color32::from_rgb(20, 30, 30),   // Slight teal tint
+                    Color32::from_rgb(20, 30, 30), // Slight teal tint
                     Color32::from_rgb(10, 20, 20),
                 ),
             },
             AccentColor::RetroAmber => match session_type {
                 crate::core::SessionType::Work => (
                     Color32::from_rgb(0, 0, 0),
-                    Color32::from_rgb(30, 20, 10),   // Warm black
+                    Color32::from_rgb(30, 20, 10), // Warm black
                 ),
                 crate::core::SessionType::ShortBreak => (
-                    Color32::from_rgb(40, 25, 10),   // Dark brown
+                    Color32::from_rgb(40, 25, 10), // Dark brown
                     Color32::from_rgb(30, 20, 5),
                 ),
                 crate::core::SessionType::LongBreak => (
-                    Color32::from_rgb(50, 20, 10),   // Dark red-brown
+                    Color32::from_rgb(50, 20, 10), // Dark red-brown
                     Color32::from_rgb(40, 15, 5),
                 ),
             },
             AccentColor::Synthwave => match session_type {
                 crate::core::SessionType::Work => (
                     Color32::from_rgb(0, 0, 0),
-                    Color32::from_rgb(20, 10, 30),   // Purple-black
+                    Color32::from_rgb(20, 10, 30), // Purple-black
                 ),
                 crate::core::SessionType::ShortBreak => (
-                    Color32::from_rgb(10, 20, 30),   // Cyan-black
+                    Color32::from_rgb(10, 20, 30), // Cyan-black
                     Color32::from_rgb(5, 15, 25),
                 ),
                 crate::core::SessionType::LongBreak => (
-                    Color32::from_rgb(30, 10, 40),   // Deep purple
+                    Color32::from_rgb(30, 10, 40), // Deep purple
                     Color32::from_rgb(20, 5, 30),
                 ),
             },

@@ -204,8 +204,7 @@ impl TimerView {
                     Layout::right_to_left(Align::Center),
                     |ui| {
                         let stats_btn = egui::Button::new(
-                            egui::RichText::new("Stats")
-                                .color(theme.text_primary)
+                            egui::RichText::new("Stats").color(theme.text_primary),
                         )
                         .fill(if theme.is_light {
                             egui::Color32::WHITE
@@ -228,8 +227,7 @@ impl TimerView {
                     Layout::left_to_right(Align::Center),
                     |ui| {
                         let settings_btn = egui::Button::new(
-                            egui::RichText::new("Settings")
-                                .color(theme.text_primary)
+                            egui::RichText::new("Settings").color(theme.text_primary),
                         )
                         .fill(if theme.is_light {
                             egui::Color32::WHITE

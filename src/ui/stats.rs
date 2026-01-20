@@ -76,107 +76,107 @@ impl StatsView {
                 bottom: 0.0,
             };
             egui::Frame::none().inner_margin(margin).show(ui, |ui| {
-            // Header with back and settings buttons - matches settings style
-            ui.horizontal(|ui| {
-                if IconButton::new(Icon::ArrowLeft)
-                    .with_size(32.0)
-                    .with_icon_scale(0.5)
-                    .show(ui, theme)
-                    .clicked()
-                {
-                    action = Some(StatsAction::Back);
-                }
-
-                ui.add_space(12.0);
-
-                ui.label(
-                    egui::RichText::new("Stats")
-                        .font(theme.font_h2())
-                        .color(theme.text_primary),
-                );
-
-                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
-                    if IconButton::new(Icon::Settings)
+                // Header with back and settings buttons - matches settings style
+                ui.horizontal(|ui| {
+                    if IconButton::new(Icon::ArrowLeft)
                         .with_size(32.0)
                         .with_icon_scale(0.5)
                         .show(ui, theme)
                         .clicked()
                     {
-                        action = Some(StatsAction::OpenSettings);
+                        action = Some(StatsAction::Back);
                     }
 
-                    ui.add_space(8.0);
+                    ui.add_space(12.0);
 
-                    // Export button with dropdown
-                    ui.scope(|ui| {
-                        self.show_export_button(ui, theme, &mut action);
+                    ui.label(
+                        egui::RichText::new("Stats")
+                            .font(theme.font_h2())
+                            .color(theme.text_primary),
+                    );
+
+                    ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                        if IconButton::new(Icon::Settings)
+                            .with_size(32.0)
+                            .with_icon_scale(0.5)
+                            .show(ui, theme)
+                            .clicked()
+                        {
+                            action = Some(StatsAction::OpenSettings);
+                        }
+
+                        ui.add_space(8.0);
+
+                        // Export button with dropdown
+                        ui.scope(|ui| {
+                            self.show_export_button(ui, theme, &mut action);
+                        });
+
+                        ui.add_space(8.0);
+
+                        // Reset all stats button
+                        if stats.total_pomodoros > 0 {
+                            let reset_response = IconButton::new(Icon::Trash)
+                                .with_size(32.0)
+                                .with_icon_scale(0.5)
+                                .show(ui, theme);
+
+                            if reset_response.clicked() {
+                                self.show_reset_confirmation = true;
+                            }
+
+                            reset_response.on_hover_text("Reset all statistics");
+                        }
+
+                        ui.add_space(8.0);
+
+                        // Undo last session button
+                        if stats.today_pomodoros > 0 {
+                            let undo_response = IconButton::new(Icon::RotateCcw)
+                                .with_size(32.0)
+                                .with_icon_scale(0.5)
+                                .show(ui, theme);
+
+                            if undo_response.clicked() {
+                                action = Some(StatsAction::UndoLastSession);
+                            }
+
+                            undo_response.on_hover_text("Undo last session");
+                        }
                     });
-
-                    ui.add_space(8.0);
-
-                    // Reset all stats button
-                    if stats.total_pomodoros > 0 {
-                        let reset_response = IconButton::new(Icon::Trash)
-                            .with_size(32.0)
-                            .with_icon_scale(0.5)
-                            .show(ui, theme);
-
-                        if reset_response.clicked() {
-                            self.show_reset_confirmation = true;
-                        }
-
-                        reset_response.on_hover_text("Reset all statistics");
-                    }
-
-                    ui.add_space(8.0);
-
-                    // Undo last session button
-                    if stats.today_pomodoros > 0 {
-                        let undo_response = IconButton::new(Icon::RotateCcw)
-                            .with_size(32.0)
-                            .with_icon_scale(0.5)
-                            .show(ui, theme);
-
-                        if undo_response.clicked() {
-                            action = Some(StatsAction::UndoLastSession);
-                        }
-
-                        undo_response.on_hover_text("Undo last session");
-                    }
                 });
-            });
 
-            ui.add_space(theme.spacing_lg);
+                ui.add_space(theme.spacing_lg);
 
-            // Main content area with scroll
-            ScrollArea::vertical()
-                .auto_shrink([false, false])
-                .show(ui, |ui| {
-                    if is_wide {
-                        self.show_wide_layout(
-                            ui,
-                            session,
-                            stats,
-                            theme,
-                            pulse,
-                            spacing,
-                            is_very_wide,
-                            daily_goal,
-                            &mut action,
-                        );
-                    } else {
-                        self.show_narrow_layout(
-                            ui,
-                            session,
-                            stats,
-                            theme,
-                            pulse,
-                            spacing,
-                            daily_goal,
-                            &mut action,
-                        );
-                    }
-                });
+                // Main content area with scroll
+                ScrollArea::vertical()
+                    .auto_shrink([false, false])
+                    .show(ui, |ui| {
+                        if is_wide {
+                            self.show_wide_layout(
+                                ui,
+                                session,
+                                stats,
+                                theme,
+                                pulse,
+                                spacing,
+                                is_very_wide,
+                                daily_goal,
+                                &mut action,
+                            );
+                        } else {
+                            self.show_narrow_layout(
+                                ui,
+                                session,
+                                stats,
+                                theme,
+                                pulse,
+                                spacing,
+                                daily_goal,
+                                &mut action,
+                            );
+                        }
+                    });
             }); // Frame
         }); // vertical
 
@@ -198,11 +198,8 @@ impl StatsView {
         let screen_rect = ui.ctx().screen_rect();
 
         // Dark overlay
-        ui.painter().rect_filled(
-            screen_rect,
-            0.0,
-            egui::Color32::from_black_alpha(180),
-        );
+        ui.painter()
+            .rect_filled(screen_rect, 0.0, egui::Color32::from_black_alpha(180));
 
         // Dialog window
         egui::Area::new(egui::Id::new("reset_confirmation_dialog"))

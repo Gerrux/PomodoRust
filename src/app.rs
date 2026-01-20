@@ -90,12 +90,9 @@ impl PomodoRustApp {
 
     /// Internal initialization with a config
     fn init(cc: &eframe::CreationContext<'_>, config: Config) -> Self {
-
         // Create theme from config
-        let mut theme = Theme::from_mode(
-            config.appearance.theme_mode,
-            config.appearance.accent_color,
-        );
+        let mut theme =
+            Theme::from_mode(config.appearance.theme_mode, config.appearance.accent_color);
         if config.accessibility.high_contrast {
             theme = theme.with_high_contrast();
         }
