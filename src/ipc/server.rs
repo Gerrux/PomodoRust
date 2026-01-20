@@ -133,12 +133,12 @@ impl IpcServer {
 
         let mut reader = BufReader::new(stream.try_clone().unwrap_or_else(|_| {
             tracing::error!("Failed to clone stream");
-            return stream.try_clone().unwrap();
+            stream.try_clone().unwrap()
         }));
 
         let mut line = String::new();
         match reader.read_line(&mut line) {
-            Ok(0) => return, // EOF
+            Ok(0) => (), // EOF
             Ok(_) => {
                 let line = line.trim();
                 tracing::debug!("IPC received: {}", line);
