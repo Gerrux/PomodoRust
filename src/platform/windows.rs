@@ -8,11 +8,7 @@
 
 use std::env;
 use windows::Win32::Foundation::HWND;
-use windows::Win32::Graphics::Dwm::{
-    DwmExtendFrameIntoClientArea, DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE,
-    DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
-};
-use windows::Win32::UI::Controls::MARGINS;
+use windows::Win32::Graphics::Dwm::{DwmSetWindowAttribute, DWMWA_USE_IMMERSIVE_DARK_MODE};
 use windows::Win32::UI::WindowsAndMessaging::{
     FlashWindowEx, FLASHWINFO, FLASHW_ALL, FLASHW_TIMERNOFG,
 };
@@ -21,12 +17,34 @@ use winreg::RegKey;
 
 use crate::error::PlatformError;
 
+use std::sync::OnceLock;
+
+/// Cached Windows 11 detection result (avoids repeated registry reads)
+static IS_WINDOWS_11: OnceLock<bool> = OnceLock::new();
+
+/// Check if running on Windows 11 (build 22000+)
+/// Result is cached after first call for better performance.
+fn is_windows_11() -> bool {
+    *IS_WINDOWS_11.get_or_init(|| {
+        let hklm = RegKey::predef(HKEY_LOCAL_MACHINE);
+        if let Ok(nt_key) = hklm.open_subkey(r"SOFTWARE\Microsoft\Windows NT\CurrentVersion") {
+            if let Ok(build_str) = nt_key.get_value::<String, _>("CurrentBuild") {
+                if let Ok(build) = build_str.parse::<u32>() {
+                    // Windows 11 is build 22000+
+                    return build >= 22000;
+                }
+            }
+        }
+        false
+    })
+}
+
 /// Apply Windows DWM effects (shadow and rounded corners)
 pub fn apply_window_effects(hwnd: isize) {
     unsafe {
         let hwnd = HWND(hwnd as *mut std::ffi::c_void);
 
-        // Enable dark mode for window frame
+        // Enable dark mode for window frame (works on Windows 10 1809+)
         let dark_mode: i32 = 1;
         let _ = DwmSetWindowAttribute(
             hwnd,
@@ -35,27 +53,36 @@ pub fn apply_window_effects(hwnd: isize) {
             std::mem::size_of::<i32>() as u32,
         );
 
-        // Enable rounded corners (Windows 11)
-        let corner_preference = DWMWCP_ROUND.0;
-        let _ = DwmSetWindowAttribute(
-            hwnd,
-            DWMWA_WINDOW_CORNER_PREFERENCE,
-            &corner_preference as *const _ as *const std::ffi::c_void,
-            std::mem::size_of::<i32>() as u32,
-        );
+        // Windows 11-specific effects
+        if is_windows_11() {
+            use windows::Win32::Graphics::Dwm::{
+                DwmExtendFrameIntoClientArea, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_ROUND,
+            };
+            use windows::Win32::UI::Controls::MARGINS;
 
-        // Extend frame minimally for shadow without visible DWM frame
-        // Using 1px margins instead of -1 avoids the "double titlebar" effect
-        // when window opacity is low
-        let margins = MARGINS {
-            cxLeftWidth: 1,
-            cxRightWidth: 1,
-            cyTopHeight: 1,
-            cyBottomHeight: 1,
-        };
-        let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
+            // Enable rounded corners (Windows 11 only)
+            let corner_preference = DWMWCP_ROUND.0;
+            let _ = DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                &corner_preference as *const _ as *const std::ffi::c_void,
+                std::mem::size_of::<i32>() as u32,
+            );
 
-        tracing::info!("Applied Windows DWM effects");
+            // Extend frame minimally for shadow without visible DWM frame
+            // Only on Windows 11 to avoid artifacts on Windows 10
+            let margins = MARGINS {
+                cxLeftWidth: 1,
+                cxRightWidth: 1,
+                cyTopHeight: 1,
+                cyBottomHeight: 1,
+            };
+            let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
+
+            tracing::info!("Applied Windows 11 DWM effects");
+        } else {
+            tracing::info!("Applied Windows 10 DWM effects (dark mode only)");
+        }
     }
 }
 

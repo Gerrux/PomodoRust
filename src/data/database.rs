@@ -38,7 +38,7 @@ impl Database {
         Self::db_dir().map(|dir| dir.join("pomodorust.db"))
     }
 
-    /// Open or create the database
+    /// Open or create the database with performance optimizations
     pub fn open() -> SqliteResult<Self> {
         let path = Self::db_path().unwrap_or_else(|| PathBuf::from("pomodorust.db"));
 
@@ -48,6 +48,18 @@ impl Database {
         }
 
         let conn = Connection::open(&path)?;
+
+        // Apply SQLite performance optimizations for faster startup
+        // These are especially important on Windows 10 with slower storage
+        conn.execute_batch(
+            r#"
+            PRAGMA journal_mode = WAL;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA cache_size = 2000;
+            PRAGMA temp_store = MEMORY;
+            "#,
+        )?;
+
         let db = Self { conn };
         db.initialize()?;
         Ok(db)

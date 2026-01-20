@@ -565,6 +565,8 @@ impl SettingsView {
                     action = Some(SettingsAction::ResetDefaults);
                 }
             });
+
+            ui.add_space(theme.spacing_lg);
         });
 
         // Check if config changed and emit UpdateConfig action

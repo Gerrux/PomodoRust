@@ -67,13 +67,29 @@ pub struct PomodoRustApp {
     last_window_pos: Option<egui::Pos2>,
     last_window_size: Option<egui::Vec2>,
     last_window_maximized: bool,
+
+    // Status message for titlebar (e.g., "Settings saved")
+    status_message: Option<String>,
+    status_time: Option<std::time::Instant>,
 }
 
+/// Duration to show status message in titlebar
+const STATUS_MESSAGE_DURATION: std::time::Duration = std::time::Duration::from_secs(2);
+
 impl PomodoRustApp {
-    /// Create a new application instance
+    /// Create a new application instance with the given config
+    pub fn with_config(cc: &eframe::CreationContext<'_>, config: Config) -> Self {
+        Self::init(cc, config)
+    }
+
+    /// Create a new application instance (loads config from disk)
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
-        // Load configuration
         let config = Config::load();
+        Self::init(cc, config)
+    }
+
+    /// Internal initialization with a config
+    fn init(cc: &eframe::CreationContext<'_>, config: Config) -> Self {
 
         // Create theme from config
         let mut theme = Theme::new(config.appearance.accent_color);
@@ -151,7 +167,26 @@ impl PomodoRustApp {
             last_window_pos: None,
             last_window_size: None,
             last_window_maximized: false,
+            status_message: None,
+            status_time: None,
         }
+    }
+
+    /// Show a status message in the titlebar
+    fn show_status(&mut self, message: impl Into<String>) {
+        self.status_message = Some(message.into());
+        self.status_time = Some(std::time::Instant::now());
+    }
+
+    /// Get current status message if still valid
+    fn current_status(&mut self) -> Option<&str> {
+        if let Some(time) = self.status_time {
+            if time.elapsed() > STATUS_MESSAGE_DURATION {
+                self.status_message = None;
+                self.status_time = None;
+            }
+        }
+        self.status_message.as_deref()
     }
 
     /// Handle timer completion
@@ -181,7 +216,7 @@ impl PomodoRustApp {
 
         // Play sound
         if self.config.sounds.enabled {
-            if let Some(ref audio) = self.audio {
+            if let Some(ref mut audio) = self.audio {
                 audio.play_notification(self.config.sounds.notification_sound);
             }
         }
@@ -380,6 +415,7 @@ impl PomodoRustApp {
             }
             SettingsAction::SelectPreset(index) => {
                 let presets = [Preset::classic(), Preset::short(), Preset::long()];
+                let preset_names = ["Classic", "Short", "Long"];
                 if let Some(preset) = presets.get(index) {
                     self.config.apply_preset(preset);
                     self.session.set_preset(preset.clone());
@@ -388,6 +424,7 @@ impl PomodoRustApp {
                     if let Some(ref mut sv) = self.settings_view {
                         sv.reset_from_config(&self.config);
                     }
+                    self.show_status(format!("{} preset applied", preset_names[index]));
                 }
             }
             SettingsAction::ResetDefaults => {
@@ -411,6 +448,7 @@ impl PomodoRustApp {
                 if let Some(ref mut sv) = self.settings_view {
                     sv.reset_from_config(&self.config);
                 }
+                self.show_status("Defaults restored");
             }
             SettingsAction::SetAlwaysOnTop(enabled) => {
                 ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(if enabled {
@@ -420,7 +458,7 @@ impl PomodoRustApp {
                 }));
             }
             SettingsAction::TestSound(sound) => {
-                if let Some(ref audio) = self.audio {
+                if let Some(ref mut audio) = self.audio {
                     audio.play_notification(sound);
                 }
             }
@@ -794,6 +832,17 @@ impl eframe::App for PomodoRustApp {
         // Collect settings action to handle after UI
         let mut settings_action: Option<SettingsAction> = None;
 
+        // Get current status message for titlebar (only show in settings view)
+        let status_for_titlebar = if self.current_view == View::Settings {
+            let status = self.current_status().map(|s| s.to_string());
+            if status.is_some() {
+                ctx.request_repaint(); // Repaint to update/hide status
+            }
+            status
+        } else {
+            None
+        };
+
         // Calculate background color with opacity
         let bg_alpha = (self.config.appearance.window_opacity as f32 / 100.0 * 255.0) as u8;
         let bg_color = egui::Color32::from_rgba_unmultiplied(
@@ -816,11 +865,12 @@ impl eframe::App for PomodoRustApp {
             )
             .show(ctx, |ui| {
                 // Title bar
-                let (should_drag, button) = self.titlebar.show(
+                let (should_drag, button) = self.titlebar.show_with_status(
                     ui,
                     &self.theme,
                     is_maximized,
                     self.config.window.always_on_top,
+                    status_for_titlebar.as_deref(),
                 );
 
                 if should_drag {

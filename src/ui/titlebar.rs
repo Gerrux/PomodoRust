@@ -47,6 +47,19 @@ impl TitleBar {
         is_maximized: bool,
         is_always_on_top: bool,
     ) -> (bool, Option<TitleBarButton>) {
+        self.show_with_status(ui, theme, is_maximized, is_always_on_top, None)
+    }
+
+    /// Render the title bar with optional status message
+    /// Returns: (should_drag, clicked_button)
+    pub fn show_with_status(
+        &mut self,
+        ui: &mut Ui,
+        theme: &Theme,
+        is_maximized: bool,
+        is_always_on_top: bool,
+        status_message: Option<&str>,
+    ) -> (bool, Option<TitleBarButton>) {
         let mut clicked_button = None;
         let mut should_drag = false;
 
@@ -110,6 +123,23 @@ impl TitleBar {
         // Double-click to maximize
         if drag_response.double_clicked() {
             clicked_button = Some(TitleBarButton::Maximize);
+        }
+
+        // Draw status message in the center of drag area
+        if let Some(message) = status_message {
+            let text = egui::RichText::new(message)
+                .color(theme.success)
+                .small();
+            let galley = ui.painter().layout_no_wrap(
+                text.text().to_string(),
+                egui::FontId::new(12.0, egui::FontFamily::Proportional),
+                theme.success,
+            );
+            let text_pos = egui::pos2(
+                drag_rect.center().x - galley.size().x / 2.0,
+                drag_rect.center().y - galley.size().y / 2.0,
+            );
+            ui.painter().galley(text_pos, galley, theme.success);
         }
 
         // Draw buttons only if hovering or animating
