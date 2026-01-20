@@ -27,13 +27,11 @@ pub fn show_notification(title: &str, body: &str) {
 
 /// Get the XDG autostart directory path
 fn get_autostart_dir() -> Option<PathBuf> {
-    if let Some(config_home) = env::var_os("XDG_CONFIG_HOME") {
-        Some(PathBuf::from(config_home).join("autostart"))
-    } else if let Some(home) = env::var_os("HOME") {
-        Some(PathBuf::from(home).join(".config").join("autostart"))
-    } else {
-        None
-    }
+    env::var_os("XDG_CONFIG_HOME")
+        .map(|config_home| PathBuf::from(config_home).join("autostart"))
+        .or_else(|| {
+            env::var_os("HOME").map(|home| PathBuf::from(home).join(".config").join("autostart"))
+        })
 }
 
 /// Get the path to the autostart .desktop file
