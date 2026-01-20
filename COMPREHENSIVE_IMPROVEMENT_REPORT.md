@@ -42,7 +42,7 @@
 | Метрика | Значение |
 |---------|----------|
 | Строк кода | ~9,500 Rust |
-| Платформы | Windows (полная), macOS/Linux (базовая) |
+| Платформы | Windows (полная), Linux (полная), macOS (базовая) |
 | Темы | 9 цветовых схем + 3 ретро |
 | База данных | SQLite со статистикой |
 | Звуки | 6 встроенных (выбор в настройках) |
@@ -332,9 +332,17 @@ User Story: Как пользователь, я хочу видеть над ч�
 
 ## 5.2 Важные gaps (Should Have)
 
-### Gap #4: macOS/Linux Parity
+### ~~Gap #4: Linux Parity~~ ✅ ЗАКРЫТ
+**Статус:** ✅ Реализован полностью (v0.2.1)
+**Реализовано:**
+- D-Bus notifications через notify-rust
+- XDG Desktop Entry autostart (`~/.config/autostart/`)
+- Global hotkeys через global-hotkey crate (X11/Wayland)
+- GitHub Actions CI/CD для Linux
+
+### Gap #4b: macOS Parity
 **Текущее:** Базовая поддержка без autostart
-**Требуется:** Полная поддержка всех платформ
+**Требуется:** LaunchAgent autostart, native notifications
 **Сложность:** Средняя
 
 ### Gap #5: Daily/Weekly Goals
@@ -456,16 +464,18 @@ User Story: Как пользователь, я хочу видеть над ч�
 
 ## 6.7 Кроссплатформенность
 
-| ID | Улучшение | Описание | Сложность | Impact | Приоритет |
-|----|-----------|----------|-----------|--------|-----------|
-| P01 | macOS Autostart | LaunchAgent | Medium | High | **P1** |
-| P02 | Linux Autostart | systemd user service | Medium | High | **P1** |
-| P03 | macOS Native Notifications | objc crate | Medium | Medium | P2 |
-| P04 | Linux DBus Notifications | Улучшенные | Medium | Medium | P2 |
-| P05 | Homebrew Formula | Установка на macOS | Medium | Medium | P2 |
-| P06 | AUR Package | Arch Linux | Low | Medium | P2 |
-| P07 | Flatpak | Linux universal | Medium | Medium | P3 |
-| P08 | Menu Bar Mode | macOS menu bar app | High | Medium | P3 |
+| ID | Улучшение | Описание | Сложность | Impact | Статус |
+|----|-----------|----------|-----------|--------|--------|
+| P01 | macOS Autostart | LaunchAgent | Medium | High | ❌ Pending |
+| P02 | Linux Autostart | XDG Desktop Entry | Medium | High | ✅ **DONE** |
+| P03 | macOS Native Notifications | objc crate | Medium | Medium | ❌ Pending |
+| P04 | Linux DBus Notifications | notify-rust | Medium | Medium | ✅ **DONE** |
+| P05 | Homebrew Formula | Установка на macOS | Medium | Medium | ❌ Pending |
+| P06 | AUR Package | Arch Linux | Low | Medium | ❌ Pending |
+| P07 | Flatpak | Linux universal | Medium | Medium | ❌ Pending |
+| P08 | Menu Bar Mode | macOS menu bar app | High | Medium | ❌ Pending |
+| P09 | Linux Global Hotkeys | X11/Wayland | Medium | High | ✅ **DONE** |
+| P10 | GitHub Actions CI | Linux + Windows builds | Medium | High | ✅ **DONE** |
 
 ## 6.8 Архитектура и код
 
@@ -483,7 +493,7 @@ User Story: Как пользователь, я хочу видеть над ч�
 |----|-----------|----------|-----------|--------|--------|
 | O01 | Architecture Docs | ARCHITECTURE.md | Low | High | ✅ **DONE** |
 | O02 | Good First Issues | 10+ простых задач | Low | High | ✅ **DONE** |
-| O03 | CI/CD All Platforms | Windows+macOS+Linux | Medium | High | ❌ Pending |
+| O03 | CI/CD All Platforms | Windows+Linux | Medium | High | ✅ **DONE** |
 | O04 | Issue Templates | Bug/Feature templates | Low | Medium | P2 |
 | O05 | PR Template | Checklist для PR | Low | Medium | P2 |
 | O06 | Cargo Publish | crates.io публикация | Low | Medium | P2 |
@@ -1792,14 +1802,26 @@ log_level = "info"
 ---
 
 *Document generated: 2026-01-19*
-*Last updated: 2026-01-19*
-*Version: 1.1*
+*Last updated: 2026-01-20*
+*Version: 1.2*
 *Author: AI Business Analysis*
-*Next review: 2026-02-19*
+*Next review: 2026-02-20*
 
 ---
 
 ## Changelog
+
+### v1.2 (2026-01-20)
+**Выполненные улучшения:**
+- ✅ Linux Platform Support (P02, P04, P09) — полная реализация
+  - D-Bus notifications через notify-rust
+  - XDG Desktop Entry autostart (~/.config/autostart/)
+  - Global hotkeys через global-hotkey crate (X11/Wayland)
+- ✅ CI/CD Pipeline (O03) — GitHub Actions для Linux и Windows
+- ✅ Window State Persistence — сохранение позиции, размера, maximized
+- Обновлены Gap #4 (Linux Parity) как закрытый
+- Обновлена секция 6.7 (Кроссплатформенность)
+- Обновлена секция 6.9 (Open Source Infrastructure)
 
 ### v1.1 (2026-01-19)
 **Выполненные улучшения:**

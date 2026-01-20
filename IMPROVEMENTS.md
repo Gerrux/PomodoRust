@@ -214,7 +214,7 @@ CREATE TABLE session_notes (
 |-----------|--------|-------------|
 | Windows | ✅ Полная поддержка | DWM effects, registry autostart |
 | macOS | ⚠️ Базовая | Нет autostart, fallback notifications |
-| Linux | ⚠️ Базовая | Нет autostart, DBus notifications |
+| Linux | ✅ **Полная поддержка** | D-Bus notifications, XDG autostart, global hotkeys |
 
 ### 5.2 Улучшения по платформам
 
@@ -225,17 +225,17 @@ CREATE TABLE session_notes (
 - [ ] Touch Bar support
 - [ ] Handoff support (связь с iOS)
 
-**Linux:**
-- [ ] systemd user service для автозапуска
-- [ ] DBus notifications
-- [ ] Wayland native support
+**Linux:** ✅ **РЕАЛИЗОВАНО (v0.2.1)**
+- [x] ~~XDG Desktop Entry для автозапуска~~ ✅ DONE (`~/.config/autostart/`)
+- [x] ~~D-Bus notifications через notify-rust~~ ✅ DONE
+- [x] ~~Global hotkeys (X11/Wayland)~~ ✅ DONE (через global-hotkey crate)
+- [ ] Wayland native support (частично, через xdg-desktop-portal)
 - [ ] Tray icon через StatusNotifierItem
-- [ ] .desktop file generation
 
 **Общее:**
-- [ ] Единый API для platform-specific функций
+- [x] ~~Единый API для platform-specific функций~~ ✅ DONE (`src/platform/mod.rs`)
 - [ ] Feature flags для platform capabilities
-- [ ] CI/CD для всех платформ
+- [x] ~~CI/CD для всех платформ~~ ✅ DONE (GitHub Actions)
 
 ### 5.3 Мобильные платформы
 
@@ -392,16 +392,21 @@ pub trait PomodoPlugin {
 | API documentation | ❌ Нет | Средний |
 | User guide | ❌ Нет | Средний |
 
-### 8.2 CI/CD
+### 8.2 CI/CD ✅ РЕАЛИЗОВАНО
 
-| Pipeline | Описание | Приоритет |
-|----------|----------|-----------|
-| Build (all platforms) | Windows, macOS, Linux | Высокий |
-| Tests | cargo test | Высокий |
-| Linting | clippy, rustfmt | Высокий |
-| Security audit | cargo audit | Средний |
-| Release automation | GitHub Releases | Высокий |
-| Changelog generation | Автоматический CHANGELOG | Средний |
+| Pipeline | Описание | Статус |
+|----------|----------|--------|
+| Build (all platforms) | Windows, Linux | ✅ **DONE** |
+| Tests | cargo test | ✅ **DONE** |
+| Linting | clippy, rustfmt | ✅ **DONE** |
+| Security audit | cargo audit | ❌ Pending |
+| Release automation | GitHub Releases | ✅ **DONE** |
+| Changelog generation | Автоматический CHANGELOG | ❌ Pending |
+
+**GitHub Actions Workflows:**
+- `.github/workflows/build.yml` — Build для Linux и Windows
+- `.github/workflows/ci.yml` — Clippy + Rustfmt + Tests
+- `.github/workflows/release.yml` — Автоматические релизы
 
 ### 8.3 Community
 
@@ -466,7 +471,7 @@ pub trait PomodoPlugin {
 2. [ ] Session notes
 3. [ ] Monthly heatmap calendar
 4. [ ] Light mode theme
-5. [ ] CI/CD для всех платформ
+5. [x] ~~CI/CD для всех платформ~~ ✅ DONE (GitHub Actions)
 6. [x] ~~Architecture documentation~~ ✅ DONE (ARCHITECTURE.md)
 
 ### Tier 3: Major Features (1-2 недели каждый)
@@ -475,8 +480,9 @@ pub trait PomodoPlugin {
 2. [ ] Plugin system (MVP)
 3. [ ] Discord Rich Presence
 4. [ ] Achievement system
-5. [ ] macOS/Linux autostart
-6. [x] ~~Global Hotkeys~~ ✅ DONE (новое)
+5. [x] ~~Linux autostart~~ ✅ DONE (XDG Desktop Entry)
+6. [x] ~~Global Hotkeys~~ ✅ DONE
+7. [ ] macOS autostart (LaunchAgent)
 
 ### Tier 4: Large Initiatives (месяц+)
 
@@ -513,6 +519,9 @@ pub trait PomodoPlugin {
 - ✅ **Good First Issues** — GOOD_FIRST_ISSUES.md
 - ✅ **Notification Sounds** — 6 выбираемых звуков
 - ✅ **Window Opacity** — Слайдер в настройках
+- ✅ **Linux Platform Support** — D-Bus notifications, XDG autostart, global hotkeys
+- ✅ **CI/CD Pipeline** — GitHub Actions для Linux и Windows
+- ✅ **Window State Persistence** — Сохранение позиции и размера окна
 
 ---
 
@@ -528,12 +537,20 @@ pub trait PomodoPlugin {
 ---
 
 *Документ создан: 2026-01-18*
-*Последнее обновление: 2026-01-19*
-*Версия анализа: v0.2.0*
+*Последнее обновление: 2026-01-20*
+*Версия анализа: v0.2.1*
 
 ---
 
 ## Changelog
+
+### v0.2.1 (2026-01-20)
+- ✅ Добавлена полная поддержка Linux (notifications, autostart, global hotkeys)
+- ✅ Добавлен CI/CD pipeline (GitHub Actions для Linux и Windows)
+- ✅ Добавлено сохранение состояния окна (позиция, размер, maximized)
+- Обновлена секция 5.1 с новым статусом Linux
+- Обновлена секция 8.2 CI/CD как реализованная
+- Обновлены Tier 2 и Tier 3 приоритезации
 
 ### v0.2.0 (2026-01-19)
 - Обновлён статус Quick Wins (opacity, tick sound, notification sounds) — ✅ Done
