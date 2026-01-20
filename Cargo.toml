@@ -54,6 +54,11 @@ notify-rust = "4"
 winresource = "0.1"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
+# Linux-specific
+[target.'cfg(target_os = "linux")'.dependencies]
+notify-rust = "4"
+global-hotkey = "0.6"
+
 [profile.release]
 opt-level = "z"
 lto = true
