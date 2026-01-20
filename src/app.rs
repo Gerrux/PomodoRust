@@ -153,7 +153,9 @@ impl PomodoRustApp {
         let session_type = self.session.session_type();
 
         // Track if goal was reached before this session
-        let goal_was_reached_before = self.statistics.is_daily_goal_reached(self.config.goals.daily_target);
+        let goal_was_reached_before = self
+            .statistics
+            .is_daily_goal_reached(self.config.goals.daily_target);
 
         // Record to database
         if let (Some(db), Some(start_time)) = (&self.database, self.session_start_time) {
@@ -166,7 +168,9 @@ impl PomodoRustApp {
 
         // Check if goal was just reached
         let goal_just_reached = !goal_was_reached_before
-            && self.statistics.is_daily_goal_reached(self.config.goals.daily_target)
+            && self
+                .statistics
+                .is_daily_goal_reached(self.config.goals.daily_target)
             && session_type == SessionType::Work;
 
         // Play sound
@@ -178,13 +182,23 @@ impl PomodoRustApp {
 
         // Show notification
         if self.config.system.notifications_enabled {
-            let (title, body): (&str, String) = if goal_just_reached && self.config.goals.notify_on_goal {
-                ("Daily Goal Reached!", format!("You completed {} pomodoros today!", self.config.goals.daily_target))
+            let (title, body): (&str, String) = if goal_just_reached
+                && self.config.goals.notify_on_goal
+            {
+                (
+                    "Daily Goal Reached!",
+                    format!(
+                        "You completed {} pomodoros today!",
+                        self.config.goals.daily_target
+                    ),
+                )
             } else {
                 match session_type {
                     SessionType::Work => ("Focus Complete!", "Time for a break.".to_string()),
                     SessionType::ShortBreak => ("Break Over", "Ready to focus again?".to_string()),
-                    SessionType::LongBreak => ("Long Break Over", "Let's get back to work!".to_string()),
+                    SessionType::LongBreak => {
+                        ("Long Break Over", "Let's get back to work!".to_string())
+                    }
                 }
             };
             crate::platform::show_notification(title, &body);
@@ -458,10 +472,8 @@ impl PomodoRustApp {
                     crate::core::TimerEvent::Resumed => {
                         IpcResponse::ok_with_message("Timer resumed")
                     }
-                    crate::core::TimerEvent::Paused => {
-                        IpcResponse::ok_with_message("Timer paused")
-                    }
-                    _ => IpcResponse::ok()
+                    crate::core::TimerEvent::Paused => IpcResponse::ok_with_message("Timer paused"),
+                    _ => IpcResponse::ok(),
                 }
             }
 
@@ -474,7 +486,10 @@ impl PomodoRustApp {
             IpcCommand::Skip => {
                 self.session.skip();
                 self.session_start_time = None;
-                IpcResponse::ok_with_message(format!("Skipped to {}", self.session.session_type().label()))
+                IpcResponse::ok_with_message(format!(
+                    "Skipped to {}",
+                    self.session.session_type().label()
+                ))
             }
 
             IpcCommand::Status => {
@@ -511,9 +526,18 @@ impl PomodoRustApp {
                 let period = if period.is_empty() { "today" } else { &period };
 
                 let (hours, pomodoros) = match period {
-                    "today" => (self.statistics.today_hours(), self.statistics.today_pomodoros),
-                    "week" => (self.statistics.week_hours(), self.statistics.today_pomodoros), // week doesn't have pomodoro count
-                    "all" => (self.statistics.total_hours() as f32, self.statistics.total_pomodoros),
+                    "today" => (
+                        self.statistics.today_hours(),
+                        self.statistics.today_pomodoros,
+                    ),
+                    "week" => (
+                        self.statistics.week_hours(),
+                        self.statistics.today_pomodoros,
+                    ), // week doesn't have pomodoro count
+                    "all" => (
+                        self.statistics.total_hours() as f32,
+                        self.statistics.total_pomodoros,
+                    ),
                     _ => return IpcResponse::error(format!("Unknown period: {}", period)),
                 };
 

@@ -6,7 +6,7 @@
 mod protocol;
 mod server;
 
-pub use protocol::{IpcCommand, IpcResponse, IpcStatus, IpcStats};
+pub use protocol::{IpcCommand, IpcResponse, IpcStats, IpcStatus};
 pub use server::{is_app_running, send_command, IpcServer};
 
 /// Default IPC port

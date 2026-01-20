@@ -9,8 +9,8 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use super::protocol::{IpcCommand, IpcResponse};
 use super::ipc_address;
+use super::protocol::{IpcCommand, IpcResponse};
 
 /// IPC Server that listens for CLI commands
 pub struct IpcServer {
@@ -79,7 +79,10 @@ impl IpcServer {
         let listener = match TcpListener::bind(ipc_address()) {
             Ok(l) => l,
             Err(e) => {
-                tracing::warn!("Failed to bind IPC server: {}. CLI will not be available.", e);
+                tracing::warn!(
+                    "Failed to bind IPC server: {}. CLI will not be available.",
+                    e
+                );
                 return;
             }
         };
@@ -237,8 +240,7 @@ pub fn send_command(command: &IpcCommand) -> Result<IpcResponse, String> {
         .read_line(&mut line)
         .map_err(|e| format!("Failed to read response: {}", e))?;
 
-    IpcResponse::from_json(line.trim())
-        .map_err(|e| format!("Invalid response: {}", e))
+    IpcResponse::from_json(line.trim()).map_err(|e| format!("Invalid response: {}", e))
 }
 
 /// Check if the app is running

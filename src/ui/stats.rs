@@ -287,7 +287,13 @@ impl StatsView {
         });
     }
 
-    fn show_compact_stats_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, daily_goal: u32) {
+    fn show_compact_stats_card(
+        &self,
+        ui: &mut Ui,
+        stats: &Statistics,
+        theme: &Theme,
+        daily_goal: u32,
+    ) {
         let goal_reached = stats.is_daily_goal_reached(daily_goal);
 
         Card::new().show(ui, theme, |ui| {
@@ -299,13 +305,7 @@ impl StatsView {
             } else {
                 format!("{}/{}", stats.today_pomodoros, daily_goal)
             };
-            stat_row(
-                ui,
-                theme,
-                Icon::Target,
-                "Daily Goal",
-                &goal_value,
-            );
+            stat_row(ui, theme, Icon::Target, "Daily Goal", &goal_value);
 
             ui.add_space(theme.spacing_xs);
 
@@ -593,7 +593,14 @@ impl StatsView {
         });
     }
 
-    fn show_focus_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32, daily_goal: u32) {
+    fn show_focus_card(
+        &self,
+        ui: &mut Ui,
+        stats: &Statistics,
+        theme: &Theme,
+        width: f32,
+        daily_goal: u32,
+    ) {
         let (accent_start, accent_end) = theme.accent_gradient();
         let inner_width = width - 32.0;
         let goal_progress = stats.daily_goal_progress(daily_goal);
@@ -633,12 +640,12 @@ impl StatsView {
                 } else {
                     format!("{}/{} pomodoros", stats.today_pomodoros, daily_goal)
                 };
-                let text_color = if goal_reached { theme.success } else { theme.text_muted };
-                ui.label(
-                    egui::RichText::new(goal_text)
-                        .size(11.0)
-                        .color(text_color),
-                );
+                let text_color = if goal_reached {
+                    theme.success
+                } else {
+                    theme.text_muted
+                };
+                ui.label(egui::RichText::new(goal_text).size(11.0).color(text_color));
             });
 
             ui.add_space(8.0);
@@ -646,7 +653,8 @@ impl StatsView {
             // Progress bar
             let bar_width = inner_width - 8.0;
             let bar_height = 6.0;
-            let (rect, _) = ui.allocate_exact_size(vec2(bar_width, bar_height), egui::Sense::hover());
+            let (rect, _) =
+                ui.allocate_exact_size(vec2(bar_width, bar_height), egui::Sense::hover());
 
             // Background
             ui.painter().rect_filled(rect, 3.0, theme.bg_tertiary);

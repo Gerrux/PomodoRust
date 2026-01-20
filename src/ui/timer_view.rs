@@ -356,8 +356,11 @@ impl TimerView {
                         if play_btn.hovered() || play_btn.has_focus() {
                             let color = if is_running { theme.warning } else { accent };
                             let rect = play_btn.rect;
-                            ui.painter()
-                                .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
+                            ui.painter().rect_filled(
+                                rect,
+                                egui::Rounding::same(2.0),
+                                theme.bg_tertiary,
+                            );
                             ui.painter().rect_stroke(
                                 rect,
                                 egui::Rounding::same(2.0),
@@ -395,8 +398,11 @@ impl TimerView {
 
                         if skip_btn.hovered() || skip_btn.has_focus() {
                             let rect = skip_btn.rect;
-                            ui.painter()
-                                .rect_filled(rect, egui::Rounding::same(2.0), theme.bg_tertiary);
+                            ui.painter().rect_filled(
+                                rect,
+                                egui::Rounding::same(2.0),
+                                theme.bg_tertiary,
+                            );
                             ui.painter().rect_stroke(
                                 rect,
                                 egui::Rounding::same(2.0),
