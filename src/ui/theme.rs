@@ -1,7 +1,32 @@
-//! Design system - Vercel/shadcn inspired dark theme
+//! Design system - Vercel/shadcn inspired theme with light and dark modes
 
 use egui::{Color32, FontFamily, FontId, Rounding, Stroke, Vec2};
 use serde::{Deserialize, Serialize};
+
+use crate::platform::is_windows_11;
+
+/// Theme mode options
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum ThemeMode {
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl ThemeMode {
+    pub fn all() -> &'static [ThemeMode] {
+        &[ThemeMode::System, ThemeMode::Light, ThemeMode::Dark]
+    }
+
+    pub fn name(&self) -> &'static str {
+        match self {
+            ThemeMode::System => "System",
+            ThemeMode::Light => "Light",
+            ThemeMode::Dark => "Dark",
+        }
+    }
+}
 
 /// Accent color options
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -94,6 +119,56 @@ impl AccentColor {
         self.gradient().0
     }
 
+    /// Get gradient colors optimized for light backgrounds
+    /// Returns darker/more saturated versions that have good contrast on light
+    pub fn gradient_light(&self) -> (Color32, Color32) {
+        match self {
+            // Standard colors - use slightly darker versions for better contrast
+            AccentColor::Blue => (
+                Color32::from_rgb(37, 99, 235),  // blue-600
+                Color32::from_rgb(124, 58, 237), // violet-600
+            ),
+            AccentColor::Purple => (
+                Color32::from_rgb(124, 58, 237), // violet-600
+                Color32::from_rgb(219, 39, 119), // pink-600
+            ),
+            AccentColor::Rose => (
+                Color32::from_rgb(225, 29, 72),  // rose-600
+                Color32::from_rgb(244, 63, 94),  // rose-500
+            ),
+            AccentColor::Emerald => (
+                Color32::from_rgb(5, 150, 105),  // emerald-600
+                Color32::from_rgb(16, 185, 129), // emerald-500
+            ),
+            AccentColor::Amber => (
+                Color32::from_rgb(217, 119, 6),  // amber-600
+                Color32::from_rgb(245, 158, 11), // amber-500
+            ),
+            AccentColor::Cyan => (
+                Color32::from_rgb(8, 145, 178),  // cyan-600
+                Color32::from_rgb(6, 182, 212),  // cyan-500
+            ),
+            // Retro colors for light mode - use BLACK like printed terminal output
+            AccentColor::Matrix => (
+                Color32::from_rgb(0, 0, 0),      // Pure black
+                Color32::from_rgb(20, 20, 20),   // Near black
+            ),
+            AccentColor::RetroAmber => (
+                Color32::from_rgb(0, 0, 0),      // Pure black
+                Color32::from_rgb(30, 20, 10),   // Black with warm tint
+            ),
+            AccentColor::Synthwave => (
+                Color32::from_rgb(0, 0, 0),      // Pure black
+                Color32::from_rgb(20, 10, 30),   // Black with purple tint
+            ),
+        }
+    }
+
+    /// Get solid color optimized for light backgrounds
+    pub fn solid_light(&self) -> Color32 {
+        self.gradient_light().0
+    }
+
     /// Check if this is a retro/TUI style
     pub fn is_retro(&self) -> bool {
         matches!(
@@ -183,6 +258,9 @@ pub struct Theme {
 
     // Accessibility
     pub reduced_motion: bool,
+
+    // Mode tracking
+    pub is_light: bool,
 }
 
 impl Theme {
@@ -235,13 +313,13 @@ impl Theme {
             spacing_xl: 32.0,
             spacing_2xl: 48.0,
 
-            // Rounding
+            // Rounding - use sharp corners on Windows 10, rounded on Windows 11/Linux/macOS
             rounding_none: 0.0,
-            rounding_sm: 4.0,
-            rounding_md: 8.0,
-            rounding_lg: 12.0,
-            rounding_xl: 16.0,
-            rounding_full: 9999.0,
+            rounding_sm: if is_windows_11() { 4.0 } else { 0.0 },
+            rounding_md: if is_windows_11() { 8.0 } else { 0.0 },
+            rounding_lg: if is_windows_11() { 12.0 } else { 0.0 },
+            rounding_xl: if is_windows_11() { 16.0 } else { 0.0 },
+            rounding_full: 9999.0, // Keep for circular elements
 
             // Shadows
             shadow_sm: 20,
@@ -255,6 +333,101 @@ impl Theme {
 
             // Accessibility
             reduced_motion: false,
+
+            // Mode tracking
+            is_light: false,
+        }
+    }
+
+    /// Create a new light theme with the given accent color
+    /// Uses high-contrast light palette for readability
+    pub fn new_light(accent: AccentColor) -> Self {
+        Self {
+            // Backgrounds - high contrast for visibility
+            bg_base: Color32::from_rgb(255, 255, 255),      // Pure white
+            bg_primary: Color32::from_rgb(250, 250, 250),   // #FAFAFA - main bg
+            bg_secondary: Color32::from_rgb(241, 241, 241), // #F1F1F1
+            bg_tertiary: Color32::from_rgb(212, 212, 216),  // #D4D4D8 - buttons (zinc-300)
+            bg_elevated: Color32::from_rgb(255, 255, 255),  // White for elevated
+            bg_hover: Color32::from_rgb(161, 161, 170),     // #A1A1AA - hover (zinc-400)
+            bg_active: Color32::from_rgb(113, 113, 122),    // #71717A - active (zinc-500)
+
+            // Borders - visible
+            border_subtle: Color32::from_rgb(212, 212, 216), // #D4D4D8 zinc-300
+            border_default: Color32::from_rgb(161, 161, 170), // #A1A1AA zinc-400
+            border_strong: Color32::from_rgb(82, 82, 91),    // #52525B zinc-600
+
+            // Text
+            text_primary: Color32::from_rgb(9, 9, 11),       // #09090B zinc-950
+            text_secondary: Color32::from_rgb(63, 63, 70),   // #3F3F46 zinc-700
+            text_muted: Color32::from_rgb(113, 113, 122),    // #71717A zinc-500
+            text_disabled: Color32::from_rgb(161, 161, 170), // #A1A1AA zinc-400
+
+            // Accent
+            accent,
+
+            // Semantic - darker for light bg contrast
+            success: Color32::from_rgb(22, 163, 74),       // green-600
+            success_muted: Color32::from_rgb(220, 252, 231), // green-100
+            warning: Color32::from_rgb(217, 119, 6),       // amber-600
+            warning_muted: Color32::from_rgb(254, 243, 199), // amber-100
+            error: Color32::from_rgb(220, 38, 38),         // red-600
+            error_muted: Color32::from_rgb(254, 226, 226), // red-100
+
+            // Session colors - slightly darker for light mode contrast
+            work_start: Color32::from_rgb(225, 29, 72),    // rose-600
+            work_end: Color32::from_rgb(244, 63, 94),      // rose-500
+            break_start: Color32::from_rgb(5, 150, 105),   // emerald-600
+            break_end: Color32::from_rgb(16, 185, 129),    // emerald-500
+            long_break_start: Color32::from_rgb(79, 70, 229), // indigo-600
+            long_break_end: Color32::from_rgb(99, 102, 241),  // indigo-500
+
+            // Spacing (in pixels) - same as dark
+            spacing_xs: 4.0,
+            spacing_sm: 8.0,
+            spacing_md: 16.0,
+            spacing_lg: 24.0,
+            spacing_xl: 32.0,
+            spacing_2xl: 48.0,
+
+            // Rounding - same as dark
+            rounding_none: 0.0,
+            rounding_sm: if is_windows_11() { 4.0 } else { 0.0 },
+            rounding_md: if is_windows_11() { 8.0 } else { 0.0 },
+            rounding_lg: if is_windows_11() { 12.0 } else { 0.0 },
+            rounding_xl: if is_windows_11() { 16.0 } else { 0.0 },
+            rounding_full: 9999.0,
+
+            // Shadows - lighter for light mode
+            shadow_sm: 10,
+            shadow_md: 20,
+            shadow_lg: 30,
+
+            // Animations - same as dark
+            anim_fast: 0.15,
+            anim_normal: 0.3,
+            anim_slow: 0.5,
+
+            // Accessibility
+            reduced_motion: false,
+
+            // Mode tracking
+            is_light: true,
+        }
+    }
+
+    /// Create a theme from mode and accent color
+    /// System mode auto-detects from OS settings
+    pub fn from_mode(mode: ThemeMode, accent: AccentColor) -> Self {
+        let is_light = match mode {
+            ThemeMode::Light => true,
+            ThemeMode::Dark => false,
+            ThemeMode::System => crate::platform::system_uses_light_theme(),
+        };
+        if is_light {
+            Self::new_light(accent)
+        } else {
+            Self::new(accent)
         }
     }
 
@@ -277,80 +450,141 @@ impl Theme {
         }
 
         match session_type {
-            // Work sessions use the accent color
-            crate::core::SessionType::Work => self.accent.gradient(),
+            // Work sessions use the accent color (light-adjusted if needed)
+            crate::core::SessionType::Work => {
+                if self.is_light {
+                    self.accent.gradient_light()
+                } else {
+                    self.accent.gradient()
+                }
+            }
             crate::core::SessionType::ShortBreak => (self.break_start, self.break_end),
             crate::core::SessionType::LongBreak => (self.long_break_start, self.long_break_end),
         }
     }
 
     /// Get retro-themed session colors
+    /// Returns darker colors for light mode, bright neon for dark mode
     fn retro_session_gradient(&self, session_type: crate::core::SessionType) -> (Color32, Color32) {
+        if self.is_light {
+            self.retro_session_gradient_light(session_type)
+        } else {
+            self.retro_session_gradient_dark(session_type)
+        }
+    }
+
+    /// Retro session colors for dark mode (bright neon)
+    fn retro_session_gradient_dark(
+        &self,
+        session_type: crate::core::SessionType,
+    ) -> (Color32, Color32) {
         match self.accent {
-            AccentColor::Matrix => {
-                match session_type {
-                    // Work: Bright green
-                    crate::core::SessionType::Work => {
-                        (Color32::from_rgb(0, 255, 65), Color32::from_rgb(0, 200, 50))
-                    }
-                    // Short break: Cyan/teal
-                    crate::core::SessionType::ShortBreak => (
-                        Color32::from_rgb(0, 200, 200),
-                        Color32::from_rgb(0, 160, 160),
-                    ),
-                    // Long break: Blue-green
-                    crate::core::SessionType::LongBreak => (
-                        Color32::from_rgb(0, 150, 255),
-                        Color32::from_rgb(0, 120, 200),
-                    ),
+            AccentColor::Matrix => match session_type {
+                crate::core::SessionType::Work => {
+                    (Color32::from_rgb(0, 255, 65), Color32::from_rgb(0, 200, 50))
                 }
-            }
-            AccentColor::RetroAmber => {
-                match session_type {
-                    // Work: Bright amber
-                    crate::core::SessionType::Work => (
-                        Color32::from_rgb(255, 176, 0),
-                        Color32::from_rgb(255, 204, 0),
-                    ),
-                    // Short break: Soft orange
-                    crate::core::SessionType::ShortBreak => (
-                        Color32::from_rgb(255, 140, 60),
-                        Color32::from_rgb(255, 160, 80),
-                    ),
-                    // Long break: Warm red-orange
-                    crate::core::SessionType::LongBreak => (
-                        Color32::from_rgb(255, 100, 50),
-                        Color32::from_rgb(255, 120, 70),
-                    ),
-                }
-            }
-            AccentColor::Synthwave => {
-                match session_type {
-                    // Work: Hot pink
-                    crate::core::SessionType::Work => (
-                        Color32::from_rgb(255, 0, 128),
-                        Color32::from_rgb(255, 50, 150),
-                    ),
-                    // Short break: Cyan
-                    crate::core::SessionType::ShortBreak => (
-                        Color32::from_rgb(0, 255, 255),
-                        Color32::from_rgb(50, 200, 255),
-                    ),
-                    // Long break: Purple
-                    crate::core::SessionType::LongBreak => (
-                        Color32::from_rgb(180, 0, 255),
-                        Color32::from_rgb(140, 50, 255),
-                    ),
-                }
-            }
-            // Fallback (shouldn't reach here)
+                crate::core::SessionType::ShortBreak => (
+                    Color32::from_rgb(0, 200, 200),
+                    Color32::from_rgb(0, 160, 160),
+                ),
+                crate::core::SessionType::LongBreak => (
+                    Color32::from_rgb(0, 150, 255),
+                    Color32::from_rgb(0, 120, 200),
+                ),
+            },
+            AccentColor::RetroAmber => match session_type {
+                crate::core::SessionType::Work => (
+                    Color32::from_rgb(255, 176, 0),
+                    Color32::from_rgb(255, 204, 0),
+                ),
+                crate::core::SessionType::ShortBreak => (
+                    Color32::from_rgb(255, 140, 60),
+                    Color32::from_rgb(255, 160, 80),
+                ),
+                crate::core::SessionType::LongBreak => (
+                    Color32::from_rgb(255, 100, 50),
+                    Color32::from_rgb(255, 120, 70),
+                ),
+            },
+            AccentColor::Synthwave => match session_type {
+                crate::core::SessionType::Work => (
+                    Color32::from_rgb(255, 0, 128),
+                    Color32::from_rgb(255, 50, 150),
+                ),
+                crate::core::SessionType::ShortBreak => (
+                    Color32::from_rgb(0, 255, 255),
+                    Color32::from_rgb(50, 200, 255),
+                ),
+                crate::core::SessionType::LongBreak => (
+                    Color32::from_rgb(180, 0, 255),
+                    Color32::from_rgb(140, 50, 255),
+                ),
+            },
             _ => self.accent.gradient(),
         }
     }
 
-    /// Get accent gradient
+    /// Retro session colors for light mode - BLACK like printed terminal
+    fn retro_session_gradient_light(
+        &self,
+        session_type: crate::core::SessionType,
+    ) -> (Color32, Color32) {
+        // All retro themes use black in light mode - the retro feel comes from
+        // the ASCII art and monospace font, not from colored text
+        match self.accent {
+            AccentColor::Matrix => match session_type {
+                crate::core::SessionType::Work => (
+                    Color32::from_rgb(0, 0, 0),
+                    Color32::from_rgb(20, 20, 20),
+                ),
+                crate::core::SessionType::ShortBreak => (
+                    Color32::from_rgb(20, 30, 20),   // Slight green tint
+                    Color32::from_rgb(10, 20, 10),
+                ),
+                crate::core::SessionType::LongBreak => (
+                    Color32::from_rgb(20, 30, 30),   // Slight teal tint
+                    Color32::from_rgb(10, 20, 20),
+                ),
+            },
+            AccentColor::RetroAmber => match session_type {
+                crate::core::SessionType::Work => (
+                    Color32::from_rgb(0, 0, 0),
+                    Color32::from_rgb(30, 20, 10),   // Warm black
+                ),
+                crate::core::SessionType::ShortBreak => (
+                    Color32::from_rgb(40, 25, 10),   // Dark brown
+                    Color32::from_rgb(30, 20, 5),
+                ),
+                crate::core::SessionType::LongBreak => (
+                    Color32::from_rgb(50, 20, 10),   // Dark red-brown
+                    Color32::from_rgb(40, 15, 5),
+                ),
+            },
+            AccentColor::Synthwave => match session_type {
+                crate::core::SessionType::Work => (
+                    Color32::from_rgb(0, 0, 0),
+                    Color32::from_rgb(20, 10, 30),   // Purple-black
+                ),
+                crate::core::SessionType::ShortBreak => (
+                    Color32::from_rgb(10, 20, 30),   // Cyan-black
+                    Color32::from_rgb(5, 15, 25),
+                ),
+                crate::core::SessionType::LongBreak => (
+                    Color32::from_rgb(30, 10, 40),   // Deep purple
+                    Color32::from_rgb(20, 5, 30),
+                ),
+            },
+            _ => self.accent.gradient_light(),
+        }
+    }
+
+    /// Get accent gradient (light-adjusted if in light mode)
     pub fn accent_gradient(&self) -> (Color32, Color32) {
-        self.accent.gradient()
+        if self.is_light {
+            self.accent.gradient_light()
+        } else {
+            self.accent.gradient()
+        }
     }
 
     /// Get window rounding
@@ -465,7 +699,7 @@ impl Theme {
         let mut style = (*ctx.style()).clone();
 
         // Visuals
-        style.visuals.dark_mode = true;
+        style.visuals.dark_mode = !self.is_light;
         style.visuals.override_text_color = Some(self.text_primary);
         style.visuals.panel_fill = self.bg_primary;
         style.visuals.window_fill = self.bg_primary;

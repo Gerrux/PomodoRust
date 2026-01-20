@@ -12,7 +12,6 @@ default-run = "pomodorust"
 # GUI Framework
 eframe = { version = "0.29", default-features = false, features = ["glow", "persistence"] }
 egui = "0.29"
-egui_extras = { version = "0.29", features = ["image"] }
 
 # Data & Serialization
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -28,11 +27,9 @@ directories = "5.0"
 chrono = { version = "0.4", features = ["serde"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
 tracing = "0.1"
-tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-subscriber = "0.3"
 rfd = "0.15"
 
-# CLI
-clap = { version = "4.5", features = ["derive"] }
 
 # Windows-specific
 [target.'cfg(windows)'.dependencies]

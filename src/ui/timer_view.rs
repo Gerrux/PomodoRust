@@ -3,8 +3,7 @@
 use egui::{vec2, Align, FontId, Layout, Ui};
 
 use super::components::{
-    AsciiProgressBar, AsciiSessionDots, AsciiSpinner, AsciiTime, CircularProgress, GradientButton,
-    Icon, IconButton,
+    AsciiProgressBar, AsciiSpinner, AsciiTime, CircularProgress, Icon, IconButton,
 };
 use super::theme::Theme;
 use crate::core::{Session, SessionType};
@@ -36,6 +35,7 @@ impl TimerView {
         session: &Session,
         theme: &Theme,
         pulse: f32,
+        window_opacity: u32,
     ) -> Option<TimerAction> {
         // Update animation time
         self.time_offset += ui.ctx().input(|i| i.unstable_dt);
@@ -44,7 +44,7 @@ impl TimerView {
         if theme.accent.is_retro() {
             self.show_tui_style(ui, session, theme, pulse)
         } else {
-            self.show_modern_style(ui, session, theme, pulse)
+            self.show_modern_style(ui, session, theme, pulse, window_opacity)
         }
     }
 
@@ -55,6 +55,7 @@ impl TimerView {
         session: &Session,
         theme: &Theme,
         pulse: f32,
+        window_opacity: u32,
     ) -> Option<TimerAction> {
         let mut action = None;
 
@@ -82,11 +83,24 @@ impl TimerView {
             let (start_color, end_color) = theme.session_gradient(session.session_type());
             let progress = session.timer().progress();
 
+            // Adjust colors based on window opacity (for light mode)
+            // Lower opacity = darker colors for visibility
+            // At 30% opacity should be fully black, at 100% normal colors
+            let opacity_factor = ((100 - window_opacity.min(100)) as f32 / 70.0).min(1.0); // 0.0 at 100%, 1.0 at 30%
+
+            let ring_bg_color = if theme.is_light {
+                // Darken to black as opacity decreases
+                let black = egui::Color32::from_rgb(20, 20, 20);
+                Theme::lerp_color(theme.bg_tertiary, black, opacity_factor)
+            } else {
+                theme.bg_tertiary
+            };
+
             CircularProgress::new(progress)
                 .with_radius(timer_radius)
                 .with_thickness(timer_thickness)
                 .with_colors(start_color, end_color)
-                .with_bg_color(theme.bg_tertiary)
+                .with_bg_color(ring_bg_color)
                 .with_pulse(if session.timer().is_running() && !theme.reduced_motion {
                     pulse
                 } else {
@@ -106,8 +120,14 @@ impl TimerView {
 
                         ui.add_space(2.0);
 
-                        // Session type label
-                        let label_color = Theme::lerp_color(start_color, end_color, 0.5);
+                        // Session type label - darken to black as opacity decreases (light mode)
+                        let base_label_color = Theme::lerp_color(start_color, end_color, 0.5);
+                        let label_color = if theme.is_light {
+                            let black = egui::Color32::from_rgb(10, 10, 10);
+                            Theme::lerp_color(base_label_color, black, opacity_factor)
+                        } else {
+                            base_label_color
+                        };
                         ui.label(
                             egui::RichText::new(session.session_type().label())
                                 .size(label_font_size)
@@ -137,6 +157,7 @@ impl TimerView {
                             .with_icon_scale(0.45)
                             .filled(false)
                             .with_gradient(start_color, end_color)
+                            .light_mode(theme.is_light)
                             .show(ui, theme)
                             .clicked()
                         {
@@ -155,6 +176,7 @@ impl TimerView {
                             .with_icon_scale(0.45)
                             .filled(false)
                             .with_gradient(start_color, end_color)
+                            .light_mode(theme.is_light)
                             .show(ui, theme)
                             .clicked()
                         {
@@ -167,11 +189,11 @@ impl TimerView {
             ui.add_space(spacing * 1.5);
 
             // Session progress dots
-            self.show_session_dots(ui, session, theme, min_dim);
+            self.show_session_dots(ui, session, theme, min_dim, opacity_factor);
 
             ui.add_space(spacing * 0.75);
 
-            // Bottom navigation buttons - centered with spacing in the middle
+            // Bottom navigation buttons - simple bordered buttons
             let nav_gap = spacing * 0.25;
             let nav_half_width = ui.available_width() / 2.0;
 
@@ -181,13 +203,20 @@ impl TimerView {
                     vec2(nav_half_width - nav_gap, nav_btn_height),
                     Layout::right_to_left(Align::Center),
                     |ui| {
-                        if GradientButton::new("Stats")
-                            .with_size(vec2(nav_btn_width, nav_btn_height))
-                            .with_gradient(theme.bg_tertiary, theme.bg_hover)
-                            .with_id("stats_btn")
-                            .show(ui, theme)
-                            .clicked()
-                        {
+                        let stats_btn = egui::Button::new(
+                            egui::RichText::new("Stats")
+                                .color(theme.text_primary)
+                        )
+                        .fill(if theme.is_light {
+                            egui::Color32::WHITE
+                        } else {
+                            theme.bg_tertiary
+                        })
+                        .stroke(egui::Stroke::new(1.0, theme.border_default))
+                        .rounding(theme.rounding_md)
+                        .min_size(vec2(nav_btn_width, nav_btn_height));
+
+                        if ui.add(stats_btn).clicked() {
                             action = Some(TimerAction::OpenStats);
                         }
                     },
@@ -198,13 +227,20 @@ impl TimerView {
                     vec2(nav_half_width - nav_gap, nav_btn_height),
                     Layout::left_to_right(Align::Center),
                     |ui| {
-                        if GradientButton::new("Settings")
-                            .with_size(vec2(nav_btn_width, nav_btn_height))
-                            .with_gradient(theme.bg_tertiary, theme.bg_hover)
-                            .with_id("settings_btn")
-                            .show(ui, theme)
-                            .clicked()
-                        {
+                        let settings_btn = egui::Button::new(
+                            egui::RichText::new("Settings")
+                                .color(theme.text_primary)
+                        )
+                        .fill(if theme.is_light {
+                            egui::Color32::WHITE
+                        } else {
+                            theme.bg_tertiary
+                        })
+                        .stroke(egui::Stroke::new(1.0, theme.border_default))
+                        .rounding(theme.rounding_md)
+                        .min_size(vec2(nav_btn_width, nav_btn_height));
+
+                        if ui.add(settings_btn).clicked() {
                             action = Some(TimerAction::OpenSettings);
                         }
                     },
@@ -303,16 +339,51 @@ impl TimerView {
 
             ui.add_space(spacing * 0.5);
 
-            // ASCII session dots
-            let session_dots = AsciiSessionDots::render(
-                session.completed_work_sessions(),
-                session.total_sessions_in_cycle(),
-            );
-            ui.label(
-                egui::RichText::new(&session_dots)
-                    .font(FontId::monospace(label_font_size))
-                    .color(theme.text_secondary),
-            );
+            // ASCII session dots with colors - centered using LayoutJob
+            let total = session.total_sessions_in_cycle();
+            let current_idx = session.current_session_in_cycle().saturating_sub(1);
+
+            let mut job = egui::text::LayoutJob::default();
+            let font_id = FontId::monospace(label_font_size);
+
+            for i in 0..total {
+                let is_completed = i < current_idx;
+                let is_current_dot = i == current_idx;
+
+                let (symbol, color) = if is_completed {
+                    ("●", theme.success)
+                } else if is_current_dot {
+                    ("○", accent)
+                } else {
+                    ("○", theme.border_default)
+                };
+
+                job.append(
+                    symbol,
+                    0.0,
+                    egui::TextFormat {
+                        font_id: font_id.clone(),
+                        color,
+                        ..Default::default()
+                    },
+                );
+
+                // Add space between dots (except after last)
+                if i < total - 1 {
+                    job.append(
+                        " ",
+                        0.0,
+                        egui::TextFormat {
+                            font_id: font_id.clone(),
+                            color: egui::Color32::TRANSPARENT,
+                            ..Default::default()
+                        },
+                    );
+                }
+            }
+
+            job.halign = egui::Align::Center;
+            ui.label(job);
 
             // Session counter
             ui.label(
@@ -495,7 +566,14 @@ impl TimerView {
         action
     }
 
-    fn show_session_dots(&self, ui: &mut Ui, session: &Session, theme: &Theme, scale: f32) {
+    fn show_session_dots(
+        &self,
+        ui: &mut Ui,
+        session: &Session,
+        theme: &Theme,
+        scale: f32,
+        opacity_factor: f32,
+    ) {
         let total = session.total_sessions_in_cycle() as usize;
         // Current session index (0-based)
         let current_idx = (session.current_session_in_cycle() as usize).saturating_sub(1);
@@ -510,29 +588,58 @@ impl TimerView {
         let height = dot_radius * 3.0;
         let (rect, _) = ui.allocate_exact_size(vec2(dots_width, height), egui::Sense::hover());
 
+        let black = egui::Color32::from_rgb(20, 20, 20);
+
         // Draw dots manually for perfect centering
+        // Only completed sessions are filled, current/future are outlined
         let start_x = rect.left() + dot_radius;
         let center_y = rect.center().y;
+        let stroke_width = (dot_radius * 0.3).clamp(1.5, 2.5);
+
         for i in 0..total {
             let is_completed = i < current_idx;
             let is_current = i == current_idx;
 
-            let color = if is_completed {
+            let base_color = if is_completed {
                 theme.success
             } else if is_current {
                 let (start, end) = theme.session_gradient(session.session_type());
                 Theme::lerp_color(start, end, 0.5)
             } else {
-                theme.bg_hover
+                theme.border_default
+            };
+
+            // Darken to black in light mode as opacity decreases
+            let color = if theme.is_light {
+                Theme::lerp_color(base_color, black, opacity_factor)
+            } else {
+                base_color
             };
 
             let center = egui::pos2(start_x + dot_spacing * i as f32, center_y);
-            ui.painter().circle_filled(center, dot_radius, color);
+
+            if is_completed {
+                // Filled circle for completed
+                ui.painter().circle_filled(center, dot_radius, color);
+            } else {
+                // Outline only for current and future
+                ui.painter().circle_stroke(
+                    center,
+                    dot_radius,
+                    egui::Stroke::new(stroke_width, color),
+                );
+            }
         }
 
         ui.add_space(4.0);
 
-        // Session text
+        // Session text - darken to black in light mode
+        let text_color = if theme.is_light {
+            Theme::lerp_color(theme.text_muted, black, opacity_factor)
+        } else {
+            theme.text_muted
+        };
+
         ui.label(
             egui::RichText::new(format!(
                 "Session {}/{}",
@@ -540,7 +647,7 @@ impl TimerView {
                 session.total_sessions_in_cycle()
             ))
             .size(caption_size)
-            .color(theme.text_muted),
+            .color(text_color),
         );
     }
 }

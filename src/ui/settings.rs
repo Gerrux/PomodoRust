@@ -9,7 +9,7 @@
 use egui::{vec2, Color32, Layout, Rect, Ui};
 
 use super::components::{draw_icon, Card, Icon, IconButton};
-use super::theme::{AccentColor, Theme};
+use super::theme::{AccentColor, Theme, ThemeMode};
 use crate::data::{Config, NotificationSound};
 
 /// Actions from settings
@@ -46,6 +46,7 @@ pub struct SettingsState {
     // Window settings
     pub always_on_top: bool,
     // Appearance
+    pub theme_mode: ThemeMode,
     pub selected_accent: AccentColor,
     pub window_opacity: f32,
     // Goals
@@ -76,6 +77,7 @@ impl SettingsState {
             auto_start_work: config.timer.auto_start_work,
             start_with_windows: config.system.start_with_windows,
             always_on_top: config.window.always_on_top,
+            theme_mode: config.appearance.theme_mode,
             selected_accent: config.appearance.accent_color,
             window_opacity: config.appearance.window_opacity as f32,
             daily_goal: config.goals.daily_target as f32,
@@ -102,6 +104,7 @@ impl SettingsState {
             || self.auto_start_work != config.timer.auto_start_work
             || self.start_with_windows != config.system.start_with_windows
             || self.always_on_top != config.window.always_on_top
+            || self.theme_mode != config.appearance.theme_mode
             || self.selected_accent != config.appearance.accent_color
             || self.window_opacity.round() as u32 != config.appearance.window_opacity
             || self.daily_goal.round() as u32 != config.goals.daily_target
@@ -128,6 +131,7 @@ impl SettingsState {
         config.sounds.tick_enabled = self.tick_enabled;
         config.system.start_with_windows = self.start_with_windows;
         config.window.always_on_top = self.always_on_top;
+        config.appearance.theme_mode = self.theme_mode;
         config.appearance.accent_color = self.selected_accent;
         config.appearance.window_opacity = self.window_opacity.round() as u32;
         config.goals.daily_target = self.daily_goal.round() as u32;
@@ -163,7 +167,40 @@ impl SettingsView {
             self.state.always_on_top = config.window.always_on_top;
         }
 
+        // Max-width container - centered with limited width like web pages
+        let max_content_width = 600.0;
+        let available_width = ui.available_width();
+        let content_width = available_width.min(max_content_width);
+        let horizontal_margin = ((available_width - content_width) / 2.0).max(0.0);
+
         egui::ScrollArea::vertical().show(ui, |ui| {
+            // Apply horizontal margins for centering
+            let margin = egui::Margin {
+                left: horizontal_margin,
+                right: horizontal_margin,
+                top: 0.0,
+                bottom: 0.0,
+            };
+            egui::Frame::none().inner_margin(margin).show(ui, |ui| {
+            // Force dark theme styles for all widgets (fixes Windows 10 light theme issues)
+            let visuals = &mut ui.style_mut().visuals;
+            visuals.widgets.inactive.bg_fill = theme.bg_tertiary;
+            visuals.widgets.inactive.weak_bg_fill = theme.bg_tertiary;
+            visuals.widgets.inactive.fg_stroke = egui::Stroke::new(1.0, theme.text_primary);
+            visuals.widgets.hovered.bg_fill = theme.bg_hover;
+            visuals.widgets.hovered.weak_bg_fill = theme.bg_hover;
+            visuals.widgets.hovered.fg_stroke = egui::Stroke::new(1.0, theme.text_primary);
+            visuals.widgets.active.bg_fill = theme.bg_active;
+            visuals.widgets.active.weak_bg_fill = theme.bg_active;
+            visuals.widgets.active.fg_stroke = egui::Stroke::new(1.0, theme.text_primary);
+            visuals.widgets.open.bg_fill = theme.bg_tertiary;
+            visuals.widgets.open.weak_bg_fill = theme.bg_tertiary;
+            visuals.widgets.open.fg_stroke = egui::Stroke::new(1.0, theme.text_primary);
+            visuals.widgets.noninteractive.bg_fill = theme.bg_secondary;
+            visuals.widgets.noninteractive.fg_stroke = egui::Stroke::new(1.0, theme.text_secondary);
+            visuals.selection.bg_fill = Theme::with_alpha(theme.accent.solid(), 100);
+            visuals.selection.stroke = egui::Stroke::new(1.0, theme.accent.solid());
+
             // Header
             ui.horizontal(|ui| {
                 if IconButton::new(Icon::ArrowLeft)
@@ -275,9 +312,15 @@ impl SettingsView {
                     ui.label(egui::RichText::new("Sound").color(theme.text_secondary));
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                        // Test button
+                        // Test button with explicit styling
+                        let play_btn = egui::Button::new(
+                            egui::RichText::new("\u{25B6}").color(theme.text_primary),
+                        )
+                        .fill(theme.bg_tertiary)
+                        .stroke(egui::Stroke::new(1.0, theme.border_subtle));
+
                         if ui
-                            .add_sized(vec2(28.0, 22.0), egui::Button::new("\u{25B6}"))
+                            .add_sized(vec2(28.0, 22.0), play_btn)
                             .on_hover_text("Test sound")
                             .clicked()
                         {
@@ -286,15 +329,30 @@ impl SettingsView {
 
                         ui.add_space(4.0);
 
+                        // Apply dark theme styles for ComboBox button
+                        ui.style_mut().visuals.widgets.inactive.bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.inactive.weak_bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.hovered.bg_fill = theme.bg_hover;
+                        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = theme.bg_hover;
+                        ui.style_mut().visuals.widgets.active.bg_fill = theme.bg_active;
+                        ui.style_mut().visuals.widgets.active.weak_bg_fill = theme.bg_active;
+                        ui.style_mut().visuals.widgets.open.bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.open.weak_bg_fill = theme.bg_tertiary;
+
                         egui::ComboBox::from_id_salt("notification_sound")
-                            .selected_text(self.state.notification_sound.name())
+                            .selected_text(
+                                egui::RichText::new(self.state.notification_sound.name())
+                                    .color(theme.text_primary),
+                            )
                             .width(120.0)
                             .show_ui(ui, |ui| {
+                                ui.style_mut().visuals.widgets.inactive.bg_fill = theme.bg_secondary;
+                                ui.style_mut().visuals.widgets.hovered.bg_fill = theme.bg_hover;
                                 for sound in NotificationSound::all() {
                                     ui.selectable_value(
                                         &mut self.state.notification_sound,
                                         *sound,
-                                        sound.name(),
+                                        egui::RichText::new(sound.name()).color(theme.text_primary),
                                     );
                                 }
                             });
@@ -320,6 +378,43 @@ impl SettingsView {
             section_header(ui, theme, "Appearance");
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
+
+                // Theme mode selector
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new("Theme").color(theme.text_secondary));
+
+                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                        // Apply dark theme styles for ComboBox button
+                        ui.style_mut().visuals.widgets.inactive.bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.inactive.weak_bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.hovered.bg_fill = theme.bg_hover;
+                        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = theme.bg_hover;
+                        ui.style_mut().visuals.widgets.active.bg_fill = theme.bg_active;
+                        ui.style_mut().visuals.widgets.active.weak_bg_fill = theme.bg_active;
+                        ui.style_mut().visuals.widgets.open.bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.open.weak_bg_fill = theme.bg_tertiary;
+
+                        egui::ComboBox::from_id_salt("theme_mode")
+                            .selected_text(
+                                egui::RichText::new(self.state.theme_mode.name())
+                                    .color(theme.text_primary),
+                            )
+                            .width(100.0)
+                            .show_ui(ui, |ui| {
+                                ui.style_mut().visuals.widgets.inactive.bg_fill = theme.bg_secondary;
+                                ui.style_mut().visuals.widgets.hovered.bg_fill = theme.bg_hover;
+                                for mode in ThemeMode::all() {
+                                    ui.selectable_value(
+                                        &mut self.state.theme_mode,
+                                        *mode,
+                                        egui::RichText::new(mode.name()).color(theme.text_primary),
+                                    );
+                                }
+                            });
+                    });
+                });
+
+                ui.add_space(theme.spacing_sm);
 
                 // Standard colors
                 let standard_colors: Vec<_> = AccentColor::all()
@@ -497,11 +592,14 @@ impl SettingsView {
                     exe_path, exe_path
                 );
 
+                let copy_btn = egui::Button::new(
+                    egui::RichText::new("Copy PATH command").color(theme.text_primary),
+                )
+                .fill(theme.bg_tertiary)
+                .stroke(egui::Stroke::new(1.0, theme.border_subtle));
+
                 if ui
-                    .add_sized(
-                        vec2(ui.available_width(), 32.0),
-                        egui::Button::new("Copy PATH command"),
-                    )
+                    .add_sized(vec2(ui.available_width(), 32.0), copy_btn)
                     .on_hover_text("Copy PowerShell command to add pomodorust to PATH")
                     .clicked()
                 {
@@ -536,11 +634,15 @@ impl SettingsView {
                 ui.horizontal(|ui| {
                     ui.spacing_mut().item_spacing.x = theme.spacing_sm;
                     for (i, preset) in presets.iter().enumerate() {
+                        let preset_btn = egui::Button::new(
+                            egui::RichText::new(format!("{}\n{}", preset.0, preset.1))
+                                .color(theme.text_primary),
+                        )
+                        .fill(theme.bg_tertiary)
+                        .stroke(egui::Stroke::new(1.0, theme.border_subtle));
+
                         if ui
-                            .add_sized(
-                                vec2(button_width, 48.0),
-                                egui::Button::new(format!("{}\n{}", preset.0, preset.1)),
-                            )
+                            .add_sized(vec2(button_width, 48.0), preset_btn)
                             .clicked()
                         {
                             preset_clicked = Some(i);
@@ -558,16 +660,20 @@ impl SettingsView {
             ui.horizontal(|ui| {
                 ui.add_space((ui.available_width() - 150.0) / 2.0);
 
-                if ui
-                    .add(egui::Button::new("Reset to Defaults").fill(theme.bg_tertiary))
-                    .clicked()
-                {
+                let reset_btn = egui::Button::new(
+                    egui::RichText::new("Reset to Defaults").color(theme.text_primary),
+                )
+                .fill(theme.bg_tertiary)
+                .stroke(egui::Stroke::new(1.0, theme.border_subtle));
+
+                if ui.add(reset_btn).clicked() {
                     action = Some(SettingsAction::ResetDefaults);
                 }
             });
 
             ui.add_space(theme.spacing_lg);
-        });
+            }); // Frame
+        }); // ScrollArea
 
         // Check if config changed and emit UpdateConfig action
         if action.is_none() && self.state.differs_from(config) {
@@ -693,7 +799,12 @@ fn color_picker_row(
             ui.spacing_mut().item_spacing.x = 6.0;
             for accent in colors.iter().rev() {
                 let is_selected = *selected == **accent;
-                let (color, _) = accent.gradient();
+                // Show light-mode colors when in light theme
+                let (color, _) = if theme.is_light {
+                    accent.gradient_light()
+                } else {
+                    accent.gradient()
+                };
 
                 let size = if is_selected { 26.0 } else { 22.0 };
                 let (rect, response) =
@@ -707,10 +818,16 @@ fn color_picker_row(
                     .circle_filled(rect.center(), size / 2.0 - 2.0, color);
 
                 if is_selected {
+                    // Use contrasting color for selection ring based on theme
+                    let ring_color = if theme.is_light {
+                        Color32::from_rgb(10, 10, 10) // Dark ring on light bg
+                    } else {
+                        Color32::WHITE // White ring on dark bg
+                    };
                     ui.painter().circle_stroke(
                         rect.center(),
                         size / 2.0,
-                        egui::Stroke::new(2.0, Color32::WHITE),
+                        egui::Stroke::new(2.0, ring_color),
                     );
                 }
 

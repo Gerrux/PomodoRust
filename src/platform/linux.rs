@@ -144,3 +144,43 @@ pub fn show_pomodorust_window() -> bool {
     // Would require X11/Wayland-specific implementation
     false
 }
+
+/// Check if the system is using light theme
+/// Detects via gsettings for GNOME/GTK-based environments
+/// Returns true if light theme is detected, false otherwise (defaults to dark)
+pub fn system_uses_light_theme() -> bool {
+    use std::process::Command;
+
+    // Try GNOME color-scheme (GNOME 42+)
+    if let Ok(output) = Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "color-scheme"])
+        .output()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("prefer-light") || stdout.contains("default") {
+            // "default" often means light in GNOME
+            // But let's also check gtk-theme for confirmation
+        } else if stdout.contains("prefer-dark") {
+            return false;
+        }
+    }
+
+    // Try GTK theme name (fallback for older GNOME and other GTK environments)
+    if let Ok(output) = Command::new("gsettings")
+        .args(["get", "org.gnome.desktop.interface", "gtk-theme"])
+        .output()
+    {
+        let stdout = String::from_utf8_lossy(&output.stdout).to_lowercase();
+        // Common dark theme indicators
+        if stdout.contains("dark") || stdout.contains("noir") {
+            return false;
+        }
+        // If it doesn't contain "dark", assume light
+        if output.status.success() {
+            return true;
+        }
+    }
+
+    // Default to dark theme if detection fails
+    false
+}

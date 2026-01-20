@@ -72,12 +72,23 @@ impl TitleBar {
         let hover_t = self.bar_hover_state.hover_t();
 
         // Background - only visible on hover, with smooth transition
-        let bg_alpha = (hover_t * 0.6 * 255.0) as u8;
+        // Use higher opacity for light theme for better visibility
+        let bg_alpha = if theme.is_light {
+            (hover_t * 0.85 * 255.0) as u8
+        } else {
+            (hover_t * 0.6 * 255.0) as u8
+        };
         if bg_alpha > 0 {
+            // Use darker bg for light theme
+            let base_bg = if theme.is_light {
+                Color32::from_rgb(230, 230, 235)
+            } else {
+                theme.bg_secondary
+            };
             let bg_color = Color32::from_rgba_unmultiplied(
-                theme.bg_secondary.r(),
-                theme.bg_secondary.g(),
-                theme.bg_secondary.b(),
+                base_bg.r(),
+                base_bg.g(),
+                base_bg.b(),
                 bg_alpha,
             );
 
@@ -116,7 +127,7 @@ impl TitleBar {
             Sense::drag(),
         );
 
-        if drag_response.dragged() {
+        if drag_response.drag_started() {
             should_drag = true;
         }
 
@@ -149,14 +160,9 @@ impl TitleBar {
             // Always on top (pin) button
             let pin_rect =
                 Rect::from_min_size(egui::pos2(button_x, buttons_rect.top()), button_size);
-            if let Some(btn) = self.draw_pin_button(
-                ui,
-                pin_rect,
-                &mut self.pin_state.clone(),
-                theme,
-                is_always_on_top,
-                hover_t,
-            ) {
+            if let Some(btn) =
+                self.draw_pin_button(ui, pin_rect, theme, is_always_on_top, hover_t)
+            {
                 clicked_button = Some(btn);
             }
             button_x += button_size.x;
@@ -168,7 +174,6 @@ impl TitleBar {
                 ui,
                 min_rect,
                 TitleBarButton::Minimize,
-                &mut self.minimize_state.clone(),
                 theme,
                 is_maximized,
                 hover_t,
@@ -184,7 +189,6 @@ impl TitleBar {
                 ui,
                 max_rect,
                 TitleBarButton::Maximize,
-                &mut self.maximize_state.clone(),
                 theme,
                 is_maximized,
                 hover_t,
@@ -200,7 +204,6 @@ impl TitleBar {
                 ui,
                 close_rect,
                 TitleBarButton::Close,
-                &mut self.close_state.clone(),
                 theme,
                 is_maximized,
                 hover_t,
@@ -228,7 +231,6 @@ impl TitleBar {
         ui: &mut Ui,
         rect: Rect,
         button_type: TitleBarButton,
-        state: &mut InteractionState,
         theme: &Theme,
         is_maximized: bool,
         bar_hover_t: f32,
@@ -241,6 +243,13 @@ impl TitleBar {
         };
         let response = ui.interact(rect, egui::Id::new(button_id), Sense::click());
 
+        // Get the state for this button type
+        let state = match button_type {
+            TitleBarButton::AlwaysOnTop => &mut self.pin_state,
+            TitleBarButton::Minimize => &mut self.minimize_state,
+            TitleBarButton::Maximize => &mut self.maximize_state,
+            TitleBarButton::Close => &mut self.close_state,
+        };
         state.update(response.hovered(), response.is_pointer_button_down_on());
         let hover_t = state.hover_t();
         let press_t = state.press_t();
@@ -248,7 +257,7 @@ impl TitleBar {
         // Button opacity based on bar hover
         let base_alpha = (bar_hover_t * 255.0) as u8;
 
-        // Background color
+        // Background color - more visible hover for light theme
         let bg_color = if button_type == TitleBarButton::Close {
             if hover_t > 0.0 {
                 let red = Color32::from_rgb(220, 38, 38);
@@ -262,7 +271,11 @@ impl TitleBar {
                 Color32::TRANSPARENT
             }
         } else {
-            let hover_bg = theme.bg_hover;
+            let hover_bg = if theme.is_light {
+                Color32::from_rgb(200, 200, 210) // Darker hover for light theme
+            } else {
+                theme.bg_hover
+            };
             Color32::from_rgba_unmultiplied(
                 hover_bg.r(),
                 hover_bg.g(),
@@ -274,10 +287,16 @@ impl TitleBar {
         // Draw background
         ui.painter().rect_filled(rect, 0.0, bg_color);
 
-        // Icon color with opacity
+        // Icon color with opacity - use dark icons for light theme
         let icon_alpha = base_alpha;
         let icon_color = if button_type == TitleBarButton::Close && hover_t > 0.0 {
             Color32::from_rgba_unmultiplied(255, 255, 255, icon_alpha)
+        } else if theme.is_light {
+            // Dark icons for light theme
+            let dark = Color32::from_rgb(60, 60, 70);
+            let darker = Color32::from_rgb(20, 20, 30);
+            let base = Theme::lerp_color(dark, darker, hover_t);
+            Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), icon_alpha)
         } else {
             let base = Theme::lerp_color(theme.text_muted, theme.text_primary, hover_t);
             Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), icon_alpha)
@@ -317,16 +336,16 @@ impl TitleBar {
         &mut self,
         ui: &mut Ui,
         rect: Rect,
-        state: &mut InteractionState,
         theme: &Theme,
         is_pinned: bool,
         bar_hover_t: f32,
     ) -> Option<TitleBarButton> {
         let response = ui.interact(rect, egui::Id::new("titlebar_pin_button"), Sense::click());
 
-        state.update(response.hovered(), response.is_pointer_button_down_on());
-        let hover_t = state.hover_t();
-        let press_t = state.press_t();
+        self.pin_state
+            .update(response.hovered(), response.is_pointer_button_down_on());
+        let hover_t = self.pin_state.hover_t();
+        let press_t = self.pin_state.press_t();
 
         // Button opacity based on bar hover
         let base_alpha = (bar_hover_t * 255.0) as u8;
@@ -341,7 +360,11 @@ impl TitleBar {
                 ((0.3 + hover_t * 0.3) * base_alpha as f32) as u8,
             )
         } else {
-            let hover_bg = theme.bg_hover;
+            let hover_bg = if theme.is_light {
+                Color32::from_rgb(200, 200, 210)
+            } else {
+                theme.bg_hover
+            };
             Color32::from_rgba_unmultiplied(
                 hover_bg.r(),
                 hover_bg.g(),
@@ -361,6 +384,12 @@ impl TitleBar {
                 accent_color.b(),
                 base_alpha,
             )
+        } else if theme.is_light {
+            // Dark icons for light theme
+            let dark = Color32::from_rgb(60, 60, 70);
+            let darker = Color32::from_rgb(20, 20, 30);
+            let base = Theme::lerp_color(dark, darker, hover_t);
+            Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), base_alpha)
         } else {
             let base = Theme::lerp_color(theme.text_muted, theme.text_primary, hover_t);
             Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), base_alpha)

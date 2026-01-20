@@ -91,13 +91,14 @@ impl GradientButton {
             );
         }
 
-        // Text
+        // Text - use contrasting color based on background
+        let text_color = Theme::contrasting_text(start_color);
         ui.painter().text(
             scaled_rect.center(),
             egui::Align2::CENTER_CENTER,
             &self.text,
             theme.font_body(),
-            Color32::WHITE,
+            text_color,
         );
 
         // Request repaint if animating
@@ -117,6 +118,7 @@ pub struct IconButton {
     filled: bool,
     icon_scale: f32,
     custom_gradient: Option<(Color32, Color32)>,
+    is_light_mode: bool,
 }
 
 impl IconButton {
@@ -128,6 +130,7 @@ impl IconButton {
             filled: false,
             icon_scale: 0.5,
             custom_gradient: None,
+            is_light_mode: false,
         }
     }
 
@@ -153,6 +156,12 @@ impl IconButton {
         self
     }
 
+    /// Enable light mode styling (beige bg, black border, black icon)
+    pub fn light_mode(mut self, enabled: bool) -> Self {
+        self.is_light_mode = enabled;
+        self
+    }
+
     pub fn show(mut self, ui: &mut Ui, theme: &Theme) -> Response {
         let (rect, response) = ui.allocate_exact_size(vec2(self.size, self.size), Sense::click());
 
@@ -172,7 +181,25 @@ impl IconButton {
         let scaled_rect = Rect::from_center_size(rect.center(), vec2(scaled_size, scaled_size));
 
         // Background and icon color
-        let icon_color = if self.filled {
+        let icon_color = if self.is_light_mode {
+            // Light mode: beige background, black border, black icon
+            let beige = Color32::from_rgb(250, 247, 240);
+            let beige_hover = Color32::from_rgb(245, 241, 232);
+            let bg_color = Theme::lerp_color(beige, beige_hover, hover_t);
+            ui.painter()
+                .rect_filled(scaled_rect, scaled_size / 2.0, bg_color);
+
+            // Black border
+            let border_color = Color32::from_rgb(60, 60, 60);
+            ui.painter().rect_stroke(
+                scaled_rect,
+                scaled_size / 2.0,
+                Stroke::new(1.5, border_color),
+            );
+
+            // Black icon
+            Color32::from_rgb(20, 20, 20)
+        } else if self.filled {
             let (start, end) = self
                 .custom_gradient
                 .unwrap_or_else(|| theme.accent_gradient());
@@ -185,7 +212,7 @@ impl IconButton {
                 end,
                 Rounding::same(scaled_size / 2.0),
             );
-            Color32::WHITE
+            Theme::contrasting_text(start)
         } else if let Some((start, _end)) = self.custom_gradient {
             // Outline style with accent color - subtle bg, colored border and icon
             let bg_color = Theme::lerp_color(theme.bg_tertiary, theme.bg_hover, hover_t);

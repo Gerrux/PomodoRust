@@ -53,16 +53,29 @@ impl StatsView {
         daily_goal: u32,
     ) -> Option<StatsAction> {
         let mut action = None;
-        let available = ui.available_size();
 
-        // Responsive breakpoints
-        let is_wide = available.x > 550.0;
-        let is_very_wide = available.x > 750.0;
+        // Max-width container - centered with limited width like web pages
+        let max_content_width = 800.0;
+        let available_width = ui.available_width();
+        let content_width = available_width.min(max_content_width);
+        let horizontal_margin = ((available_width - content_width) / 2.0).max(0.0);
+
+        // Calculate responsive breakpoints based on content width
+        let is_wide = content_width > 550.0;
+        let is_very_wide = content_width > 750.0;
 
         // Responsive sizing based on available space
         let spacing = if is_wide { 16.0 } else { 12.0 };
 
         ui.vertical(|ui| {
+            // Apply horizontal margins for centering
+            let margin = egui::Margin {
+                left: horizontal_margin,
+                right: horizontal_margin,
+                top: 0.0,
+                bottom: 0.0,
+            };
+            egui::Frame::none().inner_margin(margin).show(ui, |ui| {
             // Header with back and settings buttons - matches settings style
             ui.horizontal(|ui| {
                 if IconButton::new(Icon::ArrowLeft)
@@ -164,7 +177,8 @@ impl StatsView {
                         );
                     }
                 });
-        });
+            }); // Frame
+        }); // vertical
 
         // Reset confirmation dialog
         if self.show_reset_confirmation {

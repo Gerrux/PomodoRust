@@ -9,7 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::error::ConfigError;
-use crate::ui::theme::AccentColor;
+use crate::ui::theme::{AccentColor, ThemeMode};
 
 /// Available notification sounds
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -87,6 +87,8 @@ impl Default for SoundConfig {
 /// Appearance configuration
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AppearanceConfig {
+    #[serde(default)]
+    pub theme_mode: ThemeMode,
     pub accent_color: AccentColor,
     pub compact_mode: bool,
     pub window_opacity: u32,
@@ -95,6 +97,7 @@ pub struct AppearanceConfig {
 impl Default for AppearanceConfig {
     fn default() -> Self {
         Self {
+            theme_mode: ThemeMode::System,
             accent_color: AccentColor::Blue,
             compact_mode: false,
             window_opacity: 100,

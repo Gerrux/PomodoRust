@@ -5,65 +5,104 @@
 //! Run without arguments to start the GUI.
 //! Run with a command (e.g., `pomodorust status`) to use CLI mode.
 
-use clap::{Parser, Subcommand};
 use eframe::egui;
 use pomodorust::data::Config;
 use pomodorust::ipc::{IpcCommand, IpcResponse, IpcStats, IpcStatus};
 use pomodorust::{is_app_running, send_command, PomodoRustApp};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use std::env;
 
 #[cfg(windows)]
 use windows::core::PCWSTR;
 #[cfg(windows)]
 use windows::Win32::UI::WindowsAndMessaging::FindWindowW;
 
-/// CLI argument parser
-#[derive(Parser)]
-#[command(name = "pomodorust")]
-#[command(author = "gerrux")]
-#[command(version)]
-#[command(about = "PomodoRust - A modern Pomodoro timer", long_about = None)]
-struct Cli {
-    #[command(subcommand)]
-    command: Option<Commands>,
+const VERSION: &str = env!("CARGO_PKG_VERSION");
+
+enum Command {
+    Start { session: Option<String> },
+    Pause,
+    Resume,
+    Toggle,
+    Stop,
+    Skip,
+    Status,
+    Stats { period: String },
+    Ping,
 }
 
-#[derive(Subcommand)]
-enum Commands {
-    /// Start the timer (optionally specify session type)
-    Start {
-        /// Session type: work, short, long
-        #[arg(short, long)]
-        session: Option<String>,
-    },
-    /// Pause the timer
-    Pause,
-    /// Resume the timer
-    Resume,
-    /// Toggle start/pause
-    Toggle,
-    /// Stop and reset the timer
-    Stop,
-    /// Skip to next session
-    Skip,
-    /// Get current timer status
-    Status,
-    /// Get statistics
-    Stats {
-        /// Period: today, week, all (default: today)
-        #[arg(short, long, default_value = "today")]
-        period: String,
-    },
-    /// Check if PomodoRust GUI is running
-    Ping,
+fn print_help() {
+    println!("PomodoRust v{} - A modern Pomodoro timer", VERSION);
+    println!();
+    println!("USAGE: pomodorust [COMMAND]");
+    println!();
+    println!("COMMANDS:");
+    println!("  start [-s <type>]   Start timer (type: work, short, long)");
+    println!("  pause               Pause the timer");
+    println!("  resume              Resume the timer");
+    println!("  toggle              Toggle start/pause");
+    println!("  stop                Stop and reset the timer");
+    println!("  skip                Skip to next session");
+    println!("  status              Get current timer status");
+    println!("  stats [-p <period>] Get statistics (period: today, week, all)");
+    println!("  ping                Check if GUI is running");
+    println!();
+    println!("Run without arguments to start the GUI.");
+}
+
+fn parse_args() -> Option<Command> {
+    let args: Vec<String> = env::args().collect();
+
+    if args.len() < 2 {
+        return None;
+    }
+
+    let cmd = args[1].to_lowercase();
+
+    match cmd.as_str() {
+        "-h" | "--help" | "help" => {
+            print_help();
+            std::process::exit(0);
+        }
+        "-v" | "--version" | "version" => {
+            println!("pomodorust {}", VERSION);
+            std::process::exit(0);
+        }
+        "start" => {
+            let session = parse_option(&args[2..], &["-s", "--session"]);
+            Some(Command::Start { session })
+        }
+        "pause" => Some(Command::Pause),
+        "resume" => Some(Command::Resume),
+        "toggle" => Some(Command::Toggle),
+        "stop" => Some(Command::Stop),
+        "skip" => Some(Command::Skip),
+        "status" => Some(Command::Status),
+        "stats" => {
+            let period = parse_option(&args[2..], &["-p", "--period"])
+                .unwrap_or_else(|| "today".to_string());
+            Some(Command::Stats { period })
+        }
+        "ping" => Some(Command::Ping),
+        _ => {
+            eprintln!("Unknown command: {}", cmd);
+            eprintln!("Run 'pomodorust --help' for usage.");
+            std::process::exit(1);
+        }
+    }
+}
+
+fn parse_option(args: &[String], flags: &[&str]) -> Option<String> {
+    for (i, arg) in args.iter().enumerate() {
+        if flags.contains(&arg.as_str()) {
+            return args.get(i + 1).cloned();
+        }
+    }
+    None
 }
 
 fn main() {
     // Parse CLI arguments
-    let cli = Cli::parse();
-
-    // If a command is provided, run in CLI mode
-    if let Some(command) = cli.command {
+    if let Some(command) = parse_args() {
         run_cli(command);
         return;
     }
@@ -73,7 +112,7 @@ fn main() {
 }
 
 /// Run the CLI mode
-fn run_cli(command: Commands) {
+fn run_cli(command: Command) {
     // Attach to parent console on Windows (needed because of windows_subsystem = "windows")
     #[cfg(windows)]
     unsafe {
@@ -85,23 +124,23 @@ fn run_cli(command: Commands) {
     }
 
     // Check if app is running for non-ping commands
-    if !matches!(command, Commands::Ping) && !is_app_running() {
+    if !matches!(command, Command::Ping) && !is_app_running() {
         eprintln!("Error: PomodoRust GUI is not running. Start the app first.");
         std::process::exit(1);
     }
 
     let ipc_command = match command {
-        Commands::Start { session } => IpcCommand::Start {
+        Command::Start { session } => IpcCommand::Start {
             session_type: session,
         },
-        Commands::Pause => IpcCommand::Pause,
-        Commands::Resume => IpcCommand::Resume,
-        Commands::Toggle => IpcCommand::Toggle,
-        Commands::Stop => IpcCommand::Stop,
-        Commands::Skip => IpcCommand::Skip,
-        Commands::Status => IpcCommand::Status,
-        Commands::Stats { period } => IpcCommand::Stats { period },
-        Commands::Ping => IpcCommand::Ping,
+        Command::Pause => IpcCommand::Pause,
+        Command::Resume => IpcCommand::Resume,
+        Command::Toggle => IpcCommand::Toggle,
+        Command::Stop => IpcCommand::Stop,
+        Command::Skip => IpcCommand::Skip,
+        Command::Status => IpcCommand::Status,
+        Command::Stats { period } => IpcCommand::Stats { period },
+        Command::Ping => IpcCommand::Ping,
     };
 
     match send_command(&ipc_command) {
@@ -206,16 +245,6 @@ fn run_gui() {
         }
         return;
     }
-
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(tracing_subscriber::EnvFilter::new(
-            std::env::var("RUST_LOG").unwrap_or_else(|_| "pomodorust=info".into()),
-        ))
-        .with(tracing_subscriber::fmt::layer())
-        .init();
-
-    tracing::info!("Starting PomodoRust...");
 
     // Load config early to apply window settings
     let config = Config::load();

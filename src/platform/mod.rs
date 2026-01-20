@@ -25,8 +25,9 @@ pub use audio::AudioPlayer;
 
 #[cfg(windows)]
 pub use windows::{
-    apply_window_effects, flash_pomodorust_window, flash_window, remove_autostart, set_autostart,
-    show_notification, show_pomodorust_window, stop_flash_window,
+    apply_window_effects, flash_pomodorust_window, flash_window, is_windows_11, remove_autostart,
+    set_autostart, show_notification, show_pomodorust_window, stop_flash_window,
+    system_uses_light_theme,
 };
 
 #[cfg(windows)]
@@ -35,7 +36,7 @@ pub use hotkeys::{HotkeyAction, HotkeyManager};
 #[cfg(target_os = "linux")]
 pub use linux::{
     apply_window_effects, flash_pomodorust_window, flash_window, remove_autostart, set_autostart,
-    show_notification, show_pomodorust_window, stop_flash_window,
+    show_notification, show_pomodorust_window, stop_flash_window, system_uses_light_theme,
 };
 
 #[cfg(target_os = "linux")]
@@ -81,6 +82,20 @@ pub fn stop_flash_window(_hwnd: isize) {
 pub fn flash_pomodorust_window(_count: u32) -> bool {
     // Window flash is platform-specific
     false
+}
+
+/// Check if running on Windows 11 (or modern desktop with rounded corners)
+/// Returns true for Linux/macOS (use rounded corners), false for Windows 10
+#[cfg(not(windows))]
+pub fn is_windows_11() -> bool {
+    true // Use rounded corners on non-Windows platforms
+}
+
+/// Check if the system is using light theme (fallback for unsupported platforms)
+/// Returns false (defaults to dark theme)
+#[cfg(not(any(windows, target_os = "linux")))]
+pub fn system_uses_light_theme() -> bool {
+    false // Default to dark theme on unsupported platforms
 }
 
 #[cfg(not(any(windows, target_os = "linux")))]

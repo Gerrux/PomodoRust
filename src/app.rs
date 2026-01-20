@@ -92,7 +92,10 @@ impl PomodoRustApp {
     fn init(cc: &eframe::CreationContext<'_>, config: Config) -> Self {
 
         // Create theme from config
-        let mut theme = Theme::new(config.appearance.accent_color);
+        let mut theme = Theme::from_mode(
+            config.appearance.theme_mode,
+            config.appearance.accent_color,
+        );
         if config.accessibility.high_contrast {
             theme = theme.with_high_contrast();
         }
@@ -432,7 +435,10 @@ impl PomodoRustApp {
                 let _ = self.config.save();
 
                 self.session.set_preset(self.config.to_preset());
-                self.theme = Theme::new(self.config.appearance.accent_color);
+                self.theme = Theme::from_mode(
+                    self.config.appearance.theme_mode,
+                    self.config.appearance.accent_color,
+                );
                 if self.config.accessibility.high_contrast {
                     self.theme = self.theme.clone().with_high_contrast();
                 }
@@ -468,11 +474,15 @@ impl PomodoRustApp {
     /// Apply new configuration
     fn apply_config(&mut self, new_config: Config, ctx: &egui::Context) {
         // Check if theme changed
-        if new_config.appearance.accent_color != self.config.appearance.accent_color
+        if new_config.appearance.theme_mode != self.config.appearance.theme_mode
+            || new_config.appearance.accent_color != self.config.appearance.accent_color
             || new_config.accessibility.high_contrast != self.config.accessibility.high_contrast
             || new_config.accessibility.reduced_motion != self.config.accessibility.reduced_motion
         {
-            self.theme = Theme::new(new_config.appearance.accent_color);
+            self.theme = Theme::from_mode(
+                new_config.appearance.theme_mode,
+                new_config.appearance.accent_color,
+            );
             if new_config.accessibility.high_contrast {
                 self.theme = self.theme.clone().with_high_contrast();
             }
@@ -519,6 +529,7 @@ impl PomodoRustApp {
 
         self.config = new_config;
         let _ = self.config.save();
+        self.show_status("Settings saved");
     }
 
     /// Handle IPC commands from CLI
@@ -919,6 +930,7 @@ impl eframe::App for PomodoRustApp {
                                     &self.session,
                                     &self.theme,
                                     self.animations.pulse_value(),
+                                    self.config.appearance.window_opacity,
                                 ) {
                                     self.handle_timer_action(action);
                                 }
