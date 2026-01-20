@@ -62,6 +62,11 @@ pub struct PomodoRustApp {
     #[allow(dead_code)]
     hotkey_manager: HotkeyManager,
     hotkey_receiver: Option<Receiver<HotkeyAction>>,
+
+    // Window state tracking for persistence
+    last_window_pos: Option<egui::Pos2>,
+    last_window_size: Option<egui::Vec2>,
+    last_window_maximized: bool,
 }
 
 impl PomodoRustApp {
@@ -137,6 +142,9 @@ impl PomodoRustApp {
             ipc_receiver,
             hotkey_manager,
             hotkey_receiver,
+            last_window_pos: None,
+            last_window_size: None,
+            last_window_maximized: false,
         }
     }
 
@@ -621,6 +629,20 @@ impl eframe::App for PomodoRustApp {
     }
 
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // Track window state for persistence (only when not maximized to preserve normal size)
+        ctx.input(|i| {
+            let maximized = i.viewport().maximized.unwrap_or(false);
+            self.last_window_maximized = maximized;
+
+            // Only save position/size when not maximized (to preserve "normal" window state)
+            if !maximized {
+                if let Some(rect) = i.viewport().inner_rect {
+                    self.last_window_pos = Some(rect.min);
+                    self.last_window_size = Some(rect.size());
+                }
+            }
+        });
+
         // Handle IPC commands from CLI
         self.handle_ipc_commands();
 
@@ -784,5 +806,26 @@ impl eframe::App for PomodoRustApp {
                 self.current_view = View::Stats;
             }
         });
+    }
+
+    fn on_exit(&mut self, _gl: Option<&eframe::glow::Context>) {
+        // Save window state to config
+        if let Some(size) = self.last_window_size {
+            self.config.window.width = size.x;
+            self.config.window.height = size.y;
+        }
+
+        if let Some(pos) = self.last_window_pos {
+            self.config.window.x = Some(pos.x);
+            self.config.window.y = Some(pos.y);
+        }
+
+        self.config.window.maximized = self.last_window_maximized;
+
+        if let Err(e) = self.config.save() {
+            tracing::error!("Failed to save window state on exit: {}", e);
+        } else {
+            tracing::info!("Window state saved on exit");
+        }
     }
 }

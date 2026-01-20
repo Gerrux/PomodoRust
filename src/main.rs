@@ -78,7 +78,10 @@ fn run_cli(command: Commands) {
     #[cfg(windows)]
     unsafe {
         use windows::Win32::System::Console::{AttachConsole, ATTACH_PARENT_PROCESS};
-        let _ = AttachConsole(ATTACH_PARENT_PROCESS);
+        if AttachConsole(ATTACH_PARENT_PROCESS).is_ok() {
+            // Move to new line since cursor is at end of command line
+            println!();
+        }
     }
 
     // Check if app is running for non-ping commands
@@ -194,6 +197,16 @@ fn print_stats(stats: &IpcStats) {
 
 /// Run the GUI mode
 fn run_gui() {
+    // Check if another instance is already running
+    if is_app_running() {
+        // Try to show existing window and exit
+        #[cfg(windows)]
+        {
+            pomodorust::platform::show_pomodorust_window();
+        }
+        return;
+    }
+
     // Initialize logging
     tracing_subscriber::registry()
         .with(tracing_subscriber::EnvFilter::new(
@@ -208,20 +221,31 @@ fn run_gui() {
     let config = Config::load();
 
     let mut viewport = egui::ViewportBuilder::default()
-        .with_inner_size([360.0, 480.0])
-        .with_min_inner_size([320.0, 400.0])
+        .with_inner_size([config.window.width, config.window.height])
+        .with_min_inner_size([320.0, 350.0])
         .with_decorations(false)
         .with_transparent(true)
         .with_resizable(true)
         .with_icon(load_icon());
 
+    // Apply saved window position if available
+    let has_saved_position = config.window.x.is_some() && config.window.y.is_some();
+    if let (Some(x), Some(y)) = (config.window.x, config.window.y) {
+        viewport = viewport.with_position([x, y]);
+    }
+
     if config.window.always_on_top {
         viewport = viewport.with_always_on_top();
     }
 
+    if config.window.maximized {
+        viewport = viewport.with_maximized(true);
+    }
+
     let options = eframe::NativeOptions {
         viewport,
-        centered: true,
+        // Only center if no saved position
+        centered: !has_saved_position,
         ..Default::default()
     };
 

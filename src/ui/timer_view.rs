@@ -255,9 +255,6 @@ impl TimerView {
         let progress = session.timer().progress();
         let is_running = session.timer().is_running();
 
-        // Check if we have enough height for navigation buttons
-        let show_nav = available.y > 350.0;
-
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
             ui.add_space(spacing * 0.3);
 
@@ -421,66 +418,63 @@ impl TimerView {
                 );
             });
 
-            // Navigation (only show if enough vertical space)
-            if show_nav {
-                ui.add_space(spacing * 0.5);
+            ui.add_space(spacing * 0.5);
 
-                // Separator
-                ui.label(
-                    egui::RichText::new("─────────────────────")
-                        .font(FontId::monospace(btn_font_size))
-                        .color(theme.border_subtle),
+            // Separator
+            ui.label(
+                egui::RichText::new("─────────────────────")
+                    .font(FontId::monospace(btn_font_size))
+                    .color(theme.border_subtle),
+            );
+
+            ui.add_space(spacing * 0.3);
+
+            // Navigation - centered with spacing in the middle
+            let nav_half_width = ui.available_width() / 2.0;
+
+            ui.horizontal(|ui| {
+                // Left half - Statistics aligned to right
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - btn_gap, btn_height),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        let dash_btn = ui.add(
+                            egui::Button::new(
+                                egui::RichText::new("[ Statistics ]")
+                                    .font(FontId::monospace(btn_font_size))
+                                    .color(theme.text_secondary),
+                            )
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::NONE),
+                        );
+
+                        if dash_btn.clicked() {
+                            action = Some(TimerAction::OpenStats);
+                        }
+                    },
                 );
 
-                ui.add_space(spacing * 0.3);
+                // Right half - Settings aligned to left
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - btn_gap, btn_height),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        let settings_btn = ui.add(
+                            egui::Button::new(
+                                egui::RichText::new("[ Settings ]")
+                                    .font(FontId::monospace(btn_font_size))
+                                    .color(theme.text_secondary),
+                            )
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::NONE),
+                        );
 
-                // Navigation - centered with spacing in the middle
-                let nav_half_width = ui.available_width() / 2.0;
-
-                ui.horizontal(|ui| {
-                    // Left half - Statistics aligned to right
-                    ui.allocate_ui_with_layout(
-                        vec2(nav_half_width - btn_gap, btn_height),
-                        Layout::right_to_left(Align::Center),
-                        |ui| {
-                            let dash_btn = ui.add(
-                                egui::Button::new(
-                                    egui::RichText::new("[ Statistics ]")
-                                        .font(FontId::monospace(btn_font_size))
-                                        .color(theme.text_secondary),
-                                )
-                                .fill(egui::Color32::TRANSPARENT)
-                                .stroke(egui::Stroke::NONE),
-                            );
-
-                            if dash_btn.clicked() {
-                                action = Some(TimerAction::OpenStats);
-                            }
-                        },
-                    );
-
-                    // Right half - Settings aligned to left
-                    ui.allocate_ui_with_layout(
-                        vec2(nav_half_width - btn_gap, btn_height),
-                        Layout::left_to_right(Align::Center),
-                        |ui| {
-                            let settings_btn = ui.add(
-                                egui::Button::new(
-                                    egui::RichText::new("[ Settings ]")
-                                        .font(FontId::monospace(btn_font_size))
-                                        .color(theme.text_secondary),
-                                )
-                                .fill(egui::Color32::TRANSPARENT)
-                                .stroke(egui::Stroke::NONE),
-                            );
-
-                            if settings_btn.clicked() {
-                                action = Some(TimerAction::OpenSettings);
-                            }
-                        },
-                    );
-                });
-            }
+                        if settings_btn.clicked() {
+                            action = Some(TimerAction::OpenSettings);
+                        }
+                    },
+                );
+            });
 
             ui.add_space(spacing * 0.3);
         });

@@ -44,12 +44,14 @@ pub fn apply_window_effects(hwnd: isize) {
             std::mem::size_of::<i32>() as u32,
         );
 
-        // Extend frame into client area to enable shadow
+        // Extend frame minimally for shadow without visible DWM frame
+        // Using 1px margins instead of -1 avoids the "double titlebar" effect
+        // when window opacity is low
         let margins = MARGINS {
-            cxLeftWidth: -1,
-            cxRightWidth: -1,
-            cyTopHeight: -1,
-            cyBottomHeight: -1,
+            cxLeftWidth: 1,
+            cxRightWidth: 1,
+            cyTopHeight: 1,
+            cyBottomHeight: 1,
         };
         let _ = DwmExtendFrameIntoClientArea(hwnd, &margins);
 
