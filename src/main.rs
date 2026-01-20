@@ -221,20 +221,32 @@ fn run_gui() {
     let config = Config::load();
 
     let mut viewport = egui::ViewportBuilder::default()
-        .with_inner_size([360.0, 480.0])
+        .with_inner_size([config.window.width, config.window.height])
         .with_min_inner_size([320.0, 375.0])
         .with_decorations(false)
         .with_transparent(true)
         .with_resizable(true)
         .with_icon(load_icon());
 
+    // Restore window position if saved
+    if let (Some(x), Some(y)) = (config.window.x, config.window.y) {
+        viewport = viewport.with_position([x, y]);
+    }
+
     if config.window.always_on_top {
         viewport = viewport.with_always_on_top();
     }
 
+    if config.window.maximized {
+        viewport = viewport.with_maximized(true);
+    }
+
+    // Only center if no position was saved
+    let centered = config.window.x.is_none() || config.window.y.is_none();
+
     let options = eframe::NativeOptions {
         viewport,
-        centered: true,
+        centered,
         ..Default::default()
     };
 
