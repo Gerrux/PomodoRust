@@ -76,7 +76,13 @@ impl PomodoRustApp {
         let config = Config::load();
 
         // Create theme from config
-        let theme = Theme::new(config.appearance.accent_color);
+        let mut theme = Theme::new(config.appearance.accent_color);
+        if config.accessibility.high_contrast {
+            theme = theme.with_high_contrast();
+        }
+        if config.accessibility.reduced_motion {
+            theme = theme.with_reduced_motion();
+        }
         theme.apply(&cc.egui_ctx);
 
         // Create session with config preset
@@ -266,6 +272,63 @@ impl PomodoRustApp {
             StatsAction::Export { format } => {
                 self.export_statistics(format);
             }
+            StatsAction::UndoLastSession => {
+                self.undo_last_session();
+            }
+            StatsAction::ResetStats => {
+                self.reset_all_stats();
+            }
+        }
+    }
+
+    /// Reset all statistics
+    fn reset_all_stats(&mut self) {
+        let Some(db) = &self.database else {
+            tracing::warn!("No database available for reset");
+            return;
+        };
+
+        match db.reset_all_stats() {
+            Ok(()) => {
+                tracing::info!("All statistics reset");
+                // Reload statistics
+                self.statistics = Statistics::load(db);
+                // Show notification
+                crate::platform::show_notification(
+                    "Statistics Reset",
+                    "All statistics have been cleared.",
+                );
+            }
+            Err(e) => {
+                tracing::error!("Failed to reset statistics: {}", e);
+            }
+        }
+    }
+
+    /// Undo the last work session
+    fn undo_last_session(&mut self) {
+        let Some(db) = &self.database else {
+            tracing::warn!("No database available for undo");
+            return;
+        };
+
+        match db.undo_last_session() {
+            Ok(Some(session)) => {
+                tracing::info!("Undid session: {:?}", session);
+                // Reload statistics
+                self.statistics = Statistics::load(db);
+                // Show notification
+                crate::platform::show_notification(
+                    "Session Undone",
+                    "Last pomodoro session has been removed from statistics.",
+                );
+            }
+            Ok(None) => {
+                tracing::info!("No session to undo");
+            }
+            Err(e) => {
+                tracing::error!("Failed to undo session: {}", e);
+            }
         }
     }
 
@@ -333,6 +396,12 @@ impl PomodoRustApp {
 
                 self.session.set_preset(self.config.to_preset());
                 self.theme = Theme::new(self.config.appearance.accent_color);
+                if self.config.accessibility.high_contrast {
+                    self.theme = self.theme.clone().with_high_contrast();
+                }
+                if self.config.accessibility.reduced_motion {
+                    self.theme = self.theme.clone().with_reduced_motion();
+                }
 
                 // Reset always on top to default (false)
                 ctx.send_viewport_cmd(egui::ViewportCommand::WindowLevel(
@@ -361,8 +430,17 @@ impl PomodoRustApp {
     /// Apply new configuration
     fn apply_config(&mut self, new_config: Config, ctx: &egui::Context) {
         // Check if theme changed
-        if new_config.appearance.accent_color != self.config.appearance.accent_color {
+        if new_config.appearance.accent_color != self.config.appearance.accent_color
+            || new_config.accessibility.high_contrast != self.config.accessibility.high_contrast
+            || new_config.accessibility.reduced_motion != self.config.accessibility.reduced_motion
+        {
             self.theme = Theme::new(new_config.appearance.accent_color);
+            if new_config.accessibility.high_contrast {
+                self.theme = self.theme.clone().with_high_contrast();
+            }
+            if new_config.accessibility.reduced_motion {
+                self.theme = self.theme.clone().with_reduced_motion();
+            }
         }
 
         // Check if timer settings changed
@@ -686,6 +764,19 @@ impl eframe::App for PomodoRustApp {
             if should_auto_start {
                 self.session.start();
                 self.session_start_time = Some(Utc::now());
+            }
+        }
+
+        // Manage tick sound
+        if let Some(ref mut audio) = self.audio {
+            let should_tick = self.config.sounds.enabled
+                && self.config.sounds.tick_enabled
+                && self.session.timer().is_running();
+
+            if should_tick && !audio.is_tick_playing() {
+                audio.start_tick();
+            } else if !should_tick && audio.is_tick_playing() {
+                audio.stop_tick();
             }
         }
 

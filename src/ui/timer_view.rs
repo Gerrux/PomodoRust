@@ -87,7 +87,7 @@ impl TimerView {
                 .with_thickness(timer_thickness)
                 .with_colors(start_color, end_color)
                 .with_bg_color(theme.bg_tertiary)
-                .with_pulse(if session.timer().is_running() {
+                .with_pulse(if session.timer().is_running() && !theme.reduced_motion {
                     pulse
                 } else {
                     0.0
@@ -259,8 +259,10 @@ impl TimerView {
             ui.add_space(spacing * 0.3);
 
             // Session type with spinner (centered)
-            let spinner = if is_running {
+            let spinner = if is_running && !theme.reduced_motion {
                 AsciiSpinner::braille_frame(self.time_offset)
+            } else if is_running {
+                "●"
             } else {
                 "○"
             };

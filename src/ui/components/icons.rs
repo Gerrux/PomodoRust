@@ -60,6 +60,7 @@ pub enum Icon {
     Download,
     Pin,
     PinOff,
+    Trash,
 }
 
 /// Draw an icon at the specified rectangle
@@ -720,6 +721,23 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
             // Diagonal slash
             let slash_stroke = Stroke::new(stroke_width * 1.5, color);
             painter.line_segment([scale(4.0, 4.0), scale(20.0, 20.0)], slash_stroke);
+        }
+
+        Icon::Trash => {
+            // Trash can icon
+            // Lid
+            painter.line_segment([scale(5.0, 7.0), scale(19.0, 7.0)], stroke);
+            // Lid handle
+            painter.line_segment([scale(9.0, 7.0), scale(9.0, 5.0)], stroke);
+            painter.line_segment([scale(9.0, 5.0), scale(15.0, 5.0)], stroke);
+            painter.line_segment([scale(15.0, 5.0), scale(15.0, 7.0)], stroke);
+            // Body
+            painter.line_segment([scale(6.0, 7.0), scale(7.0, 19.0)], stroke);
+            painter.line_segment([scale(7.0, 19.0), scale(17.0, 19.0)], stroke);
+            painter.line_segment([scale(17.0, 19.0), scale(18.0, 7.0)], stroke);
+            // Inner lines
+            painter.line_segment([scale(10.0, 10.0), scale(10.0, 16.0)], stroke);
+            painter.line_segment([scale(14.0, 10.0), scale(14.0, 16.0)], stroke);
         }
     }
 }

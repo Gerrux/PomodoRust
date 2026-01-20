@@ -7,7 +7,7 @@
 
 use chrono::{DateTime, Datelike, Local, NaiveDate, Utc};
 use directories::ProjectDirs;
-use rusqlite::{params, Connection, Result as SqliteResult};
+use rusqlite::{params, Connection, OptionalExtension, Result as SqliteResult};
 use std::path::PathBuf;
 
 use crate::core::SessionType;
@@ -402,4 +402,96 @@ impl Database {
 
         rows.collect()
     }
+
+    /// Get the most recent work session (for undo)
+    pub fn get_last_work_session(&self) -> SqliteResult<Option<LastSession>> {
+        self.conn
+            .query_row(
+                r#"
+                SELECT id, session_type, duration_seconds, completed, started_at
+                FROM sessions
+                WHERE session_type = 'work'
+                ORDER BY id DESC
+                LIMIT 1
+                "#,
+                [],
+                |row| {
+                    Ok(LastSession {
+                        id: row.get(0)?,
+                        session_type: row.get(1)?,
+                        duration_seconds: row.get(2)?,
+                        completed: row.get::<_, i32>(3)? != 0,
+                        started_at: row.get(4)?,
+                    })
+                },
+            )
+            .optional()
+    }
+
+    /// Undo the last work session
+    pub fn undo_last_session(&self) -> SqliteResult<Option<LastSession>> {
+        // Get the last work session
+        let last_session = self.get_last_work_session()?;
+
+        if let Some(ref session) = last_session {
+            // Parse date from started_at to update correct daily_stats
+            let date = session
+                .started_at
+                .split('T')
+                .next()
+                .unwrap_or(&Self::today_string())
+                .to_string();
+
+            // Update daily stats
+            let pomodoro_field = if session.completed {
+                "completed_pomodoros"
+            } else {
+                "interrupted_pomodoros"
+            };
+
+            self.conn.execute(
+                &format!(
+                    r#"
+                    UPDATE daily_stats
+                    SET total_work_seconds = MAX(0, total_work_seconds - ?1),
+                        {pomodoro_field} = MAX(0, {pomodoro_field} - 1)
+                    WHERE date = ?2
+                    "#
+                ),
+                params![session.duration_seconds, date],
+            )?;
+
+            // Delete the session
+            self.conn
+                .execute("DELETE FROM sessions WHERE id = ?1", params![session.id])?;
+
+            tracing::info!("Undid last session: id={}", session.id);
+        }
+
+        Ok(last_session)
+    }
+
+    /// Reset all statistics (delete all sessions, daily stats, and reset streaks)
+    pub fn reset_all_stats(&self) -> SqliteResult<()> {
+        self.conn.execute_batch(
+            r#"
+            DELETE FROM sessions;
+            DELETE FROM daily_stats;
+            UPDATE streaks SET current_streak = 0, longest_streak = 0, last_active_date = NULL WHERE id = 1;
+            "#,
+        )?;
+
+        tracing::info!("All statistics have been reset");
+        Ok(())
+    }
+}
+
+/// Information about the last session (for undo functionality)
+#[derive(Debug, Clone)]
+pub struct LastSession {
+    pub id: i64,
+    pub session_type: String,
+    pub duration_seconds: i64,
+    pub completed: bool,
+    pub started_at: String,
 }

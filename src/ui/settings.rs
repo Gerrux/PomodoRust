@@ -56,6 +56,9 @@ pub struct SettingsState {
     pub hotkey_toggle: String,
     pub hotkey_skip: String,
     pub hotkey_reset: String,
+    // Accessibility
+    pub high_contrast: bool,
+    pub reduced_motion: bool,
 }
 
 impl SettingsState {
@@ -81,6 +84,8 @@ impl SettingsState {
             hotkey_toggle: config.hotkeys.toggle.clone(),
             hotkey_skip: config.hotkeys.skip.clone(),
             hotkey_reset: config.hotkeys.reset.clone(),
+            high_contrast: config.accessibility.high_contrast,
+            reduced_motion: config.accessibility.reduced_motion,
         }
     }
 
@@ -105,6 +110,8 @@ impl SettingsState {
             || self.hotkey_toggle != config.hotkeys.toggle
             || self.hotkey_skip != config.hotkeys.skip
             || self.hotkey_reset != config.hotkeys.reset
+            || self.high_contrast != config.accessibility.high_contrast
+            || self.reduced_motion != config.accessibility.reduced_motion
     }
 
     /// Apply the editing state to a Config, returning a new Config
@@ -129,6 +136,8 @@ impl SettingsState {
         config.hotkeys.toggle = self.hotkey_toggle.clone();
         config.hotkeys.skip = self.hotkey_skip.clone();
         config.hotkeys.reset = self.hotkey_reset.clone();
+        config.accessibility.high_contrast = self.high_contrast;
+        config.accessibility.reduced_motion = self.reduced_motion;
         config
     }
 }
@@ -358,6 +367,27 @@ impl SettingsView {
                         );
                     });
                 });
+            });
+
+            ui.add_space(theme.spacing_md);
+
+            // Accessibility section
+            section_header(ui, theme, "Accessibility");
+            Card::new().show(ui, theme, |ui| {
+                ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
+
+                toggle_row(
+                    ui,
+                    theme,
+                    "High contrast mode",
+                    &mut self.state.high_contrast,
+                );
+                toggle_row(
+                    ui,
+                    theme,
+                    "Reduced motion",
+                    &mut self.state.reduced_motion,
+                );
             });
 
             ui.add_space(theme.spacing_md);

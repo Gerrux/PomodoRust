@@ -187,6 +187,15 @@ impl Default for HotkeysConfig {
     }
 }
 
+/// Accessibility configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
+pub struct AccessibilityConfig {
+    /// High contrast mode for better visibility
+    pub high_contrast: bool,
+    /// Reduce or disable animations
+    pub reduced_motion: bool,
+}
+
 /// Main configuration struct
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Config {
@@ -199,6 +208,8 @@ pub struct Config {
     pub goals: GoalsConfig,
     #[serde(default)]
     pub hotkeys: HotkeysConfig,
+    #[serde(default)]
+    pub accessibility: AccessibilityConfig,
 }
 
 impl Config {

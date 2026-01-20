@@ -28,6 +28,6 @@ pub mod export;
 mod statistics;
 
 pub use config::{Config, GoalsConfig, NotificationSound};
-pub use database::Database;
+pub use database::{Database, LastSession};
 pub use export::{ExportFormat, Exporter};
 pub use statistics::Statistics;

@@ -180,6 +180,9 @@ pub struct Theme {
     pub anim_fast: f32,
     pub anim_normal: f32,
     pub anim_slow: f32,
+
+    // Accessibility
+    pub reduced_motion: bool,
 }
 
 impl Theme {
@@ -249,7 +252,20 @@ impl Theme {
             anim_fast: 0.15,
             anim_normal: 0.3,
             anim_slow: 0.5,
+
+            // Accessibility
+            reduced_motion: false,
         }
+    }
+
+    /// Create a theme with reduced motion enabled
+    pub fn with_reduced_motion(mut self) -> Self {
+        self.reduced_motion = true;
+        // Set faster animation durations for reduced motion
+        self.anim_fast = 0.0;
+        self.anim_normal = 0.05;
+        self.anim_slow = 0.1;
+        self
     }
 
     /// Get gradient colors for current session type
@@ -525,5 +541,42 @@ impl Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self::new(AccentColor::Blue)
+    }
+}
+
+impl Theme {
+    /// Create a high contrast version of the theme for accessibility
+    pub fn with_high_contrast(mut self) -> Self {
+        // Pure black background for maximum contrast
+        self.bg_base = Color32::BLACK;
+        self.bg_primary = Color32::BLACK;
+        self.bg_secondary = Color32::from_rgb(10, 10, 10);
+        self.bg_tertiary = Color32::from_rgb(20, 20, 20);
+        self.bg_elevated = Color32::from_rgb(25, 25, 25);
+        self.bg_hover = Color32::from_rgb(40, 40, 40);
+        self.bg_active = Color32::from_rgb(50, 50, 50);
+
+        // High contrast borders
+        self.border_subtle = Color32::from_rgb(100, 100, 100);
+        self.border_default = Color32::from_rgb(180, 180, 180);
+        self.border_strong = Color32::WHITE;
+
+        // Maximum contrast text
+        self.text_primary = Color32::WHITE;
+        self.text_secondary = Color32::from_rgb(220, 220, 220);
+        self.text_muted = Color32::from_rgb(180, 180, 180);
+        self.text_disabled = Color32::from_rgb(120, 120, 120);
+
+        // Brighter semantic colors
+        self.success = Color32::from_rgb(0, 255, 100);
+        self.warning = Color32::from_rgb(255, 220, 0);
+        self.error = Color32::from_rgb(255, 80, 80);
+
+        // Brighter accent colors for high contrast
+        let (start, end) = self.accent.gradient();
+        self.work_start = Self::brighten(start, 0.3);
+        self.work_end = Self::brighten(end, 0.3);
+
+        self
     }
 }

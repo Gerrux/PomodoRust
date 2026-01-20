@@ -21,18 +21,25 @@ pub enum StatsAction {
     Export {
         format: ExportFormat,
     },
+    /// Undo the last completed session
+    UndoLastSession,
+    /// Reset all statistics
+    ResetStats,
 }
 
 /// Stats view showing statistics
 pub struct StatsView {
     /// Whether the export dropdown is open
     export_dropdown_open: bool,
+    /// Whether the reset confirmation dialog is open
+    show_reset_confirmation: bool,
 }
 
 impl StatsView {
     pub fn new() -> Self {
         Self {
             export_dropdown_open: false,
+            show_reset_confirmation: false,
         }
     }
 
@@ -91,6 +98,38 @@ impl StatsView {
                     ui.scope(|ui| {
                         self.show_export_button(ui, theme, &mut action);
                     });
+
+                    ui.add_space(8.0);
+
+                    // Reset all stats button
+                    if stats.total_pomodoros > 0 {
+                        let reset_response = IconButton::new(Icon::Trash)
+                            .with_size(32.0)
+                            .with_icon_scale(0.5)
+                            .show(ui, theme);
+
+                        if reset_response.clicked() {
+                            self.show_reset_confirmation = true;
+                        }
+
+                        reset_response.on_hover_text("Reset all statistics");
+                    }
+
+                    ui.add_space(8.0);
+
+                    // Undo last session button
+                    if stats.today_pomodoros > 0 {
+                        let undo_response = IconButton::new(Icon::RotateCcw)
+                            .with_size(32.0)
+                            .with_icon_scale(0.5)
+                            .show(ui, theme);
+
+                        if undo_response.clicked() {
+                            action = Some(StatsAction::UndoLastSession);
+                        }
+
+                        undo_response.on_hover_text("Undo last session");
+                    }
                 });
             });
 
@@ -127,7 +166,113 @@ impl StatsView {
                 });
         });
 
+        // Reset confirmation dialog
+        if self.show_reset_confirmation {
+            self.show_reset_confirmation_dialog(ui, theme, &mut action);
+        }
+
         action
+    }
+
+    /// Show the reset confirmation dialog
+    fn show_reset_confirmation_dialog(
+        &mut self,
+        ui: &mut Ui,
+        theme: &Theme,
+        action: &mut Option<StatsAction>,
+    ) {
+        let screen_rect = ui.ctx().screen_rect();
+
+        // Dark overlay
+        ui.painter().rect_filled(
+            screen_rect,
+            0.0,
+            egui::Color32::from_black_alpha(180),
+        );
+
+        // Dialog window
+        egui::Area::new(egui::Id::new("reset_confirmation_dialog"))
+            .fixed_pos(screen_rect.center() - vec2(140.0, 60.0))
+            .order(egui::Order::Foreground)
+            .show(ui.ctx(), |ui| {
+                egui::Frame::popup(ui.style())
+                    .fill(theme.bg_secondary)
+                    .stroke(egui::Stroke::new(1.0, theme.bg_tertiary))
+                    .rounding(12.0)
+                    .inner_margin(20.0)
+                    .show(ui, |ui| {
+                        ui.set_min_width(280.0);
+
+                        ui.vertical_centered(|ui| {
+                            // Warning icon
+                            let icon_rect = Rect::from_center_size(
+                                ui.cursor().min + vec2(140.0, 16.0),
+                                vec2(32.0, 32.0),
+                            );
+                            draw_icon(ui, Icon::Trash, icon_rect, theme.error);
+                            ui.add_space(40.0);
+
+                            ui.label(
+                                egui::RichText::new("Reset Statistics?")
+                                    .size(16.0)
+                                    .strong()
+                                    .color(theme.text_primary),
+                            );
+
+                            ui.add_space(8.0);
+
+                            ui.label(
+                                egui::RichText::new("This will permanently delete all\nsession history and statistics.")
+                                    .size(13.0)
+                                    .color(theme.text_secondary),
+                            );
+
+                            ui.add_space(16.0);
+
+                            ui.horizontal(|ui| {
+                                // Cancel button
+                                let cancel_btn = ui.add_sized(
+                                    vec2(100.0, 36.0),
+                                    egui::Button::new(
+                                        egui::RichText::new("Cancel")
+                                            .size(13.0)
+                                            .color(theme.text_primary),
+                                    )
+                                    .fill(theme.bg_tertiary)
+                                    .rounding(8.0),
+                                );
+
+                                if cancel_btn.clicked() {
+                                    self.show_reset_confirmation = false;
+                                }
+
+                                ui.add_space(12.0);
+
+                                // Confirm button (red/danger)
+                                let confirm_btn = ui.add_sized(
+                                    vec2(100.0, 36.0),
+                                    egui::Button::new(
+                                        egui::RichText::new("Reset")
+                                            .size(13.0)
+                                            .color(egui::Color32::WHITE),
+                                    )
+                                    .fill(theme.error)
+                                    .rounding(8.0),
+                                );
+
+                                if confirm_btn.clicked() {
+                                    *action = Some(StatsAction::ResetStats);
+                                    self.show_reset_confirmation = false;
+                                }
+                            });
+                        });
+                    });
+            });
+
+        // Close on Escape key
+        if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+            self.show_reset_confirmation = false;
+        }
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -244,7 +389,7 @@ impl StatsView {
                     .with_thickness(4.0)
                     .with_colors(start_color, end_color)
                     .with_bg_color(theme.bg_tertiary)
-                    .with_pulse(if session.timer().is_running() {
+                    .with_pulse(if session.timer().is_running() && !theme.reduced_motion {
                         pulse
                     } else {
                         0.0
@@ -463,7 +608,7 @@ impl StatsView {
                     .with_thickness((radius * 0.12).clamp(3.0, 5.0))
                     .with_colors(start_color, end_color)
                     .with_bg_color(theme.bg_tertiary)
-                    .with_pulse(if session.timer().is_running() {
+                    .with_pulse(if session.timer().is_running() && !theme.reduced_motion {
                         pulse
                     } else {
                         0.0
