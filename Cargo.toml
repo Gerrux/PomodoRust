@@ -1,6 +1,6 @@
 [package]
 name = "pomodorust"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2021"
 authors = ["gerrux"]
 description = "A modern, lightweight Pomodoro timer with Vercel-style dark UI"
