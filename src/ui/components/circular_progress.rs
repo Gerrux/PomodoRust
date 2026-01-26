@@ -73,20 +73,15 @@ impl CircularProgress {
         let outer_radius = self.radius;
         let inner_radius = self.radius - self.thickness;
 
-        // Draw background ring
-        self.draw_ring(
-            ui,
-            center,
-            outer_radius,
-            inner_radius,
-            1.0,
-            self.bg_color,
-            self.bg_color,
-        );
+        // Draw background ring (full circle mesh) with anti-aliasing
+        self.draw_ring_mesh(ui, center, outer_radius, inner_radius, 1.0, self.bg_color, self.bg_color);
+        self.draw_ring_aa(ui, center, outer_radius, inner_radius, 1.0, self.bg_color, self.bg_color);
 
-        // Draw progress ring with gradient
+        // Draw progress ring with gradient and anti-aliasing
         if self.progress > 0.0 {
-            self.draw_progress_ring(ui, center, outer_radius, inner_radius);
+            self.draw_ring_mesh(ui, center, outer_radius, inner_radius, self.progress, self.start_color, self.end_color);
+            self.draw_ring_aa(ui, center, outer_radius, inner_radius, self.progress, self.start_color, self.end_color);
+            self.draw_progress_caps(ui, center, outer_radius, inner_radius);
         }
 
         // Pulse glow effect
@@ -112,8 +107,9 @@ impl CircularProgress {
         });
     }
 
+    /// Draw a ring (or arc) using mesh - same method for both background and progress
     #[allow(clippy::too_many_arguments)]
-    fn draw_ring(
+    fn draw_ring_mesh(
         &self,
         ui: &mut Ui,
         center: Pos2,
@@ -123,24 +119,22 @@ impl CircularProgress {
         start_color: Color32,
         end_color: Color32,
     ) {
-        if progress <= 0.0 {
-            return;
-        }
-
-        // More segments for smoother circle (anti-aliasing effect)
         let segments = ((outer_r * 2.0) as usize).clamp(72, 180);
         let filled_segments = ((segments as f32 * progress) as usize).max(1);
+
+        if filled_segments == 0 {
+            return;
+        }
 
         let start_angle = -PI / 2.0;
         let angle_per_segment = TAU / segments as f32;
 
-        // Batch into single mesh
         let mut mesh = egui::Mesh::default();
         mesh.vertices.reserve(filled_segments * 4);
         mesh.indices.reserve(filled_segments * 6);
 
         for i in 0..filled_segments {
-            let t = i as f32 / segments as f32;
+            let t = if progress >= 1.0 { 0.0 } else { i as f32 / filled_segments.max(1) as f32 };
             let angle1 = start_angle + angle_per_segment * i as f32;
             let angle2 = start_angle + angle_per_segment * (i + 1) as f32;
 
@@ -155,6 +149,7 @@ impl CircularProgress {
             let inner2 = Pos2::new(center.x + inner_r * cos2, center.y + inner_r * sin2);
 
             let idx_base = mesh.vertices.len() as u32;
+
             mesh.vertices.extend_from_slice(&[
                 egui::epaint::Vertex {
                     pos: outer1,
@@ -177,6 +172,7 @@ impl CircularProgress {
                     color,
                 },
             ]);
+
             mesh.indices.extend_from_slice(&[
                 idx_base,
                 idx_base + 1,
@@ -190,93 +186,65 @@ impl CircularProgress {
         ui.painter().add(egui::Shape::mesh(mesh));
     }
 
-    fn draw_progress_ring(&self, ui: &mut Ui, center: Pos2, outer_r: f32, inner_r: f32) {
-        // More segments for smoother circle (anti-aliasing effect)
+    /// Draw anti-aliasing strokes along the edges of the ring
+    #[allow(clippy::too_many_arguments)]
+    fn draw_ring_aa(
+        &self,
+        ui: &mut Ui,
+        center: Pos2,
+        outer_r: f32,
+        inner_r: f32,
+        progress: f32,
+        start_color: Color32,
+        end_color: Color32,
+    ) {
         let segments = ((outer_r * 2.0) as usize).clamp(72, 180);
-        let filled_segments = ((segments as f32 * self.progress) as usize).max(1);
-
-        if filled_segments == 0 {
-            return;
-        }
+        let filled_segments = ((segments as f32 * progress) as usize).max(1);
 
         let start_angle = -PI / 2.0;
         let angle_per_segment = TAU / segments as f32;
-
-        // Batch all segments into a single mesh for performance
-        let mut mesh = egui::Mesh::default();
-        mesh.vertices.reserve(filled_segments * 4);
-        mesh.indices.reserve(filled_segments * 6);
 
         for i in 0..filled_segments {
             let t = i as f32 / filled_segments.max(1) as f32;
             let angle1 = start_angle + angle_per_segment * i as f32;
             let angle2 = start_angle + angle_per_segment * (i + 1) as f32;
 
-            let color = Theme::lerp_color(self.start_color, self.end_color, t);
+            let color = Theme::lerp_color(start_color, end_color, t);
+            let aa_color = Theme::with_alpha(color, 160);
 
-            // Precompute trig for both angles
             let (sin1, cos1) = angle1.sin_cos();
             let (sin2, cos2) = angle2.sin_cos();
 
+            // Outer edge
             let outer1 = Pos2::new(center.x + outer_r * cos1, center.y + outer_r * sin1);
             let outer2 = Pos2::new(center.x + outer_r * cos2, center.y + outer_r * sin2);
+            ui.painter().line_segment([outer1, outer2], Stroke::new(1.0, aa_color));
+
+            // Inner edge
             let inner1 = Pos2::new(center.x + inner_r * cos1, center.y + inner_r * sin1);
             let inner2 = Pos2::new(center.x + inner_r * cos2, center.y + inner_r * sin2);
-
-            let idx_base = mesh.vertices.len() as u32;
-
-            mesh.vertices.extend_from_slice(&[
-                egui::epaint::Vertex {
-                    pos: outer1,
-                    uv: egui::epaint::WHITE_UV,
-                    color,
-                },
-                egui::epaint::Vertex {
-                    pos: outer2,
-                    uv: egui::epaint::WHITE_UV,
-                    color,
-                },
-                egui::epaint::Vertex {
-                    pos: inner2,
-                    uv: egui::epaint::WHITE_UV,
-                    color,
-                },
-                egui::epaint::Vertex {
-                    pos: inner1,
-                    uv: egui::epaint::WHITE_UV,
-                    color,
-                },
-            ]);
-
-            mesh.indices.extend_from_slice(&[
-                idx_base,
-                idx_base + 1,
-                idx_base + 2,
-                idx_base,
-                idx_base + 2,
-                idx_base + 3,
-            ]);
+            ui.painter().line_segment([inner1, inner2], Stroke::new(1.0, aa_color));
         }
+    }
 
-        ui.painter().add(egui::Shape::mesh(mesh));
+    /// Draw rounded caps at start and end of progress arc
+    fn draw_progress_caps(&self, ui: &mut Ui, center: Pos2, outer_r: f32, inner_r: f32) {
+        let start_angle = -PI / 2.0;
+        let mid_r = (outer_r + inner_r) / 2.0;
 
-        // Draw end cap (rounded)
-        if self.progress > 0.0 && self.progress < 1.0 {
+        // Start cap
+        let (sin_s, cos_s) = start_angle.sin_cos();
+        let cap_center = Pos2::new(center.x + mid_r * cos_s, center.y + mid_r * sin_s);
+        ui.painter()
+            .circle_filled(cap_center, self.thickness / 2.0, self.start_color);
+
+        // End cap (only if not complete circle)
+        if self.progress < 1.0 {
             let end_angle = start_angle + TAU * self.progress;
-            let mid_r = (outer_r + inner_r) / 2.0;
             let (sin_e, cos_e) = end_angle.sin_cos();
             let cap_center = Pos2::new(center.x + mid_r * cos_e, center.y + mid_r * sin_e);
             ui.painter()
                 .circle_filled(cap_center, self.thickness / 2.0, self.end_color);
-        }
-
-        // Draw start cap
-        if self.progress > 0.0 {
-            let mid_r = (outer_r + inner_r) / 2.0;
-            let (sin_s, cos_s) = start_angle.sin_cos();
-            let cap_center = Pos2::new(center.x + mid_r * cos_s, center.y + mid_r * sin_s);
-            ui.painter()
-                .circle_filled(cap_center, self.thickness / 2.0, self.start_color);
         }
     }
 }
