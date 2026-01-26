@@ -780,35 +780,67 @@ impl Default for Theme {
 impl Theme {
     /// Create a high contrast version of the theme for accessibility
     pub fn with_high_contrast(mut self) -> Self {
-        // Pure black background for maximum contrast
-        self.bg_base = Color32::BLACK;
-        self.bg_primary = Color32::BLACK;
-        self.bg_secondary = Color32::from_rgb(10, 10, 10);
-        self.bg_tertiary = Color32::from_rgb(20, 20, 20);
-        self.bg_elevated = Color32::from_rgb(25, 25, 25);
-        self.bg_hover = Color32::from_rgb(40, 40, 40);
-        self.bg_active = Color32::from_rgb(50, 50, 50);
+        if self.is_light {
+            // Light high contrast: pure white background, black text
+            self.bg_base = Color32::WHITE;
+            self.bg_primary = Color32::WHITE;
+            self.bg_secondary = Color32::from_rgb(245, 245, 245);
+            self.bg_tertiary = Color32::from_rgb(230, 230, 230);
+            self.bg_elevated = Color32::WHITE;
+            self.bg_hover = Color32::from_rgb(220, 220, 220);
+            self.bg_active = Color32::from_rgb(200, 200, 200);
 
-        // High contrast borders
-        self.border_subtle = Color32::from_rgb(100, 100, 100);
-        self.border_default = Color32::from_rgb(180, 180, 180);
-        self.border_strong = Color32::WHITE;
+            // Dark borders for light theme
+            self.border_subtle = Color32::from_rgb(150, 150, 150);
+            self.border_default = Color32::from_rgb(80, 80, 80);
+            self.border_strong = Color32::BLACK;
 
-        // Maximum contrast text
-        self.text_primary = Color32::WHITE;
-        self.text_secondary = Color32::from_rgb(220, 220, 220);
-        self.text_muted = Color32::from_rgb(180, 180, 180);
-        self.text_disabled = Color32::from_rgb(120, 120, 120);
+            // Maximum contrast dark text
+            self.text_primary = Color32::BLACK;
+            self.text_secondary = Color32::from_rgb(30, 30, 30);
+            self.text_muted = Color32::from_rgb(60, 60, 60);
+            self.text_disabled = Color32::from_rgb(120, 120, 120);
 
-        // Brighter semantic colors
-        self.success = Color32::from_rgb(0, 255, 100);
-        self.warning = Color32::from_rgb(255, 220, 0);
-        self.error = Color32::from_rgb(255, 80, 80);
+            // Darker semantic colors for light background
+            self.success = Color32::from_rgb(0, 140, 60);
+            self.warning = Color32::from_rgb(180, 130, 0);
+            self.error = Color32::from_rgb(200, 0, 0);
 
-        // Brighter accent colors for high contrast
-        let (start, end) = self.accent.gradient();
-        self.work_start = Self::brighten(start, 0.3);
-        self.work_end = Self::brighten(end, 0.3);
+            // Darker accent colors for high contrast on light
+            let (start, end) = self.accent.gradient();
+            self.work_start = Self::darken(start, 0.2);
+            self.work_end = Self::darken(end, 0.2);
+        } else {
+            // Dark high contrast: pure black background, white text
+            self.bg_base = Color32::BLACK;
+            self.bg_primary = Color32::BLACK;
+            self.bg_secondary = Color32::from_rgb(10, 10, 10);
+            self.bg_tertiary = Color32::from_rgb(20, 20, 20);
+            self.bg_elevated = Color32::from_rgb(25, 25, 25);
+            self.bg_hover = Color32::from_rgb(40, 40, 40);
+            self.bg_active = Color32::from_rgb(50, 50, 50);
+
+            // High contrast borders
+            self.border_subtle = Color32::from_rgb(100, 100, 100);
+            self.border_default = Color32::from_rgb(180, 180, 180);
+            self.border_strong = Color32::WHITE;
+
+            // Maximum contrast text
+            self.text_primary = Color32::WHITE;
+            self.text_secondary = Color32::from_rgb(220, 220, 220);
+            self.text_muted = Color32::from_rgb(180, 180, 180);
+            self.text_disabled = Color32::from_rgb(120, 120, 120);
+
+            // Brighter semantic colors
+            self.success = Color32::from_rgb(0, 255, 100);
+            self.warning = Color32::from_rgb(255, 220, 0);
+            self.error = Color32::from_rgb(255, 80, 80);
+
+            // Brighter accent colors for high contrast
+            let (start, end) = self.accent.gradient();
+            self.work_start = Self::brighten(start, 0.3);
+            self.work_end = Self::brighten(end, 0.3);
+        }
 
         self
     }
