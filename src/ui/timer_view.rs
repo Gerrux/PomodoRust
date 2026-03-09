@@ -1,12 +1,13 @@
 //! Compact timer view (main widget) - Responsive layout with TUI mode
 
-use egui::{vec2, Align, FontId, Layout, Ui};
+use egui::{vec2, Align, FontId, Layout, RichText, Ui};
 
 use super::components::{
     AsciiProgressBar, AsciiSpinner, AsciiTime, CircularProgress, Icon, IconButton,
 };
 use super::theme::Theme;
 use crate::core::{Session, SessionType};
+use crate::data::todo::QueuedTask;
 
 /// Actions that can be triggered from the timer view
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -16,16 +17,36 @@ pub enum TimerAction {
     Reset,
     OpenStats,
     OpenSettings,
+    OpenTodo,
+    OpenQueue,
 }
+
+// Layout constants for responsive sizing
+const RADIUS_FACTOR: f32 = 0.28;
+const THICKNESS_RATIO: f32 = 0.08;
+const CONTROL_BTN_FACTOR: f32 = 0.11;
+const SPACING_FACTOR: f32 = 0.04;
+const TIMER_FONT_RATIO: f32 = 0.55;
+const LABEL_FONT_RATIO: f32 = 0.16;
+const NAV_BTN_WIDTH_FACTOR: f32 = 0.35;
+const NAV_BTN_HEIGHT_FACTOR: f32 = 0.08;
+const DOT_RADIUS_FACTOR: f32 = 0.015;
+const DOT_SPACING_FACTOR: f32 = 0.04;
+const DOT_CAPTION_FACTOR: f32 = 0.035;
+
+/// Maximum time_offset before wrapping (avoids float precision loss)
+const TIME_OFFSET_WRAP: f32 = 1000.0;
 
 /// The compact timer view with responsive layout
 pub struct TimerView {
-    time_offset: f32, // For animations
+    time_offset: f32,
 }
 
 impl TimerView {
     pub fn new() -> Self {
-        Self { time_offset: 0.0 }
+        Self {
+            time_offset: 0.0,
+        }
     }
 
     /// Show the timer view and return any action triggered
@@ -36,15 +57,17 @@ impl TimerView {
         theme: &Theme,
         pulse: f32,
         window_opacity: u32,
+        current_task: Option<&QueuedTask>,
+        queue: &[QueuedTask],
     ) -> Option<TimerAction> {
-        // Update animation time
-        self.time_offset += ui.ctx().input(|i| i.unstable_dt);
+        // Update animation time (wrap to avoid float precision loss)
+        self.time_offset = (self.time_offset + ui.ctx().input(|i| i.unstable_dt)) % TIME_OFFSET_WRAP;
 
         // Check if we should use TUI/retro style
         if theme.accent.is_retro() {
-            self.show_tui_style(ui, session, theme, pulse)
+            self.show_tui_style(ui, session, theme, pulse, current_task, queue)
         } else {
-            self.show_modern_style(ui, session, theme, pulse, window_opacity)
+            self.show_modern_style(ui, session, theme, pulse, window_opacity, current_task, queue)
         }
     }
 
@@ -56,6 +79,8 @@ impl TimerView {
         theme: &Theme,
         pulse: f32,
         window_opacity: u32,
+        current_task: Option<&QueuedTask>,
+        queue: &[QueuedTask],
     ) -> Option<TimerAction> {
         let mut action = None;
 
@@ -64,16 +89,14 @@ impl TimerView {
         let min_dim = available.x.min(available.y);
 
         // Responsive sizing based on available space
-        let timer_radius = (min_dim * 0.28).clamp(60.0, 120.0);
-        let timer_thickness = (timer_radius * 0.08).clamp(4.0, 10.0);
-        let control_btn_size = (min_dim * 0.11).clamp(36.0, 48.0); // Smaller buttons
-        let nav_btn_width = (available.x * 0.35).clamp(100.0, 150.0);
-        let nav_btn_height = (min_dim * 0.09).clamp(32.0, 44.0);
-        let spacing = (min_dim * 0.04).clamp(8.0, 24.0);
+        let timer_radius = (min_dim * RADIUS_FACTOR).clamp(60.0, 120.0);
+        let timer_thickness = (timer_radius * THICKNESS_RATIO).clamp(4.0, 10.0);
+        let control_btn_size = (min_dim * CONTROL_BTN_FACTOR).clamp(36.0, 48.0);
+        let spacing = (min_dim * SPACING_FACTOR).clamp(8.0, 24.0);
 
         // Responsive font sizes - larger timer text
-        let timer_font_size = (timer_radius * 0.55).clamp(28.0, 64.0);
-        let label_font_size = (timer_radius * 0.16).clamp(11.0, 18.0);
+        let timer_font_size = (timer_radius * TIMER_FONT_RATIO).clamp(28.0, 64.0);
+        let label_font_size = (timer_radius * LABEL_FONT_RATIO).clamp(11.0, 18.0);
 
         // Use centered vertical layout
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
@@ -83,10 +106,9 @@ impl TimerView {
             let (start_color, end_color) = theme.session_gradient(session.session_type());
             let progress = session.timer().progress();
 
-            // Adjust colors based on window opacity (for light mode)
-            // Lower opacity = darker colors for visibility
-            // At 30% opacity should be fully black, at 100% normal colors
-            let opacity_factor = ((100 - window_opacity.min(100)) as f32 / 70.0).min(1.0); // 0.0 at 100%, 1.0 at 30%
+            // Adjust colors for light mode visibility at lower window opacity.
+            // Maps opacity 100% -> 0.0 (normal) down to 30% -> 1.0 (fully darkened).
+            let opacity_factor = ((100 - window_opacity.min(100)) as f32 / 70.0).min(1.0);
 
             let ring_bg_color = if theme.is_light {
                 // Darken to black as opacity decreases
@@ -191,11 +213,43 @@ impl TimerView {
             // Session progress dots
             self.show_session_dots(ui, session, theme, min_dim, opacity_factor);
 
-            ui.add_space(spacing * 0.75);
+            ui.add_space(spacing * 0.5);
 
-            // Bottom navigation buttons - simple bordered buttons
+            // Current task display (if pinned)
+            if let Some(task) = current_task {
+                ui.horizontal(|ui| {
+                    ui.label(
+                        RichText::new(">")
+                            .size(11.0)
+                            .color(theme.accent.solid()),
+                    );
+                    let max_chars = ((ui.available_width() - 50.0) / (12.0 * 0.5)) as usize;
+                    let title = crate::ui::todo_view::truncate_text(&task.title, max_chars.max(10));
+                    ui.label(
+                        RichText::new(&title)
+                            .size(12.0)
+                            .color(theme.text_secondary),
+                    );
+                    ui.label(
+                        RichText::new(format!("{}/{}", task.completed_pomodoros, task.planned_pomodoros))
+                            .size(11.0)
+                            .color(theme.text_muted),
+                    );
+                });
+            }
+
+            ui.add_space(spacing * 0.25);
+
+            // Navigation buttons row
             let nav_gap = spacing * 0.25;
             let nav_half_width = ui.available_width() / 2.0;
+            let nav_btn_width = (available.x * NAV_BTN_WIDTH_FACTOR).clamp(80.0, 130.0);
+            let nav_btn_height = (min_dim * NAV_BTN_HEIGHT_FACTOR).clamp(28.0, 38.0);
+            let nav_btn_fill = if theme.is_light {
+                egui::Color32::WHITE
+            } else {
+                theme.bg_tertiary
+            };
 
             ui.horizontal(|ui| {
                 // Left half - Stats aligned to right
@@ -203,19 +257,14 @@ impl TimerView {
                     vec2(nav_half_width - nav_gap, nav_btn_height),
                     Layout::right_to_left(Align::Center),
                     |ui| {
-                        let stats_btn = egui::Button::new(
-                            egui::RichText::new("Stats").color(theme.text_primary),
+                        let btn = egui::Button::new(
+                            RichText::new("Статистика").size(label_font_size * 0.85).color(theme.text_primary),
                         )
-                        .fill(if theme.is_light {
-                            egui::Color32::WHITE
-                        } else {
-                            theme.bg_tertiary
-                        })
+                        .fill(nav_btn_fill)
                         .stroke(egui::Stroke::new(1.0, theme.border_default))
                         .rounding(theme.rounding_md)
                         .min_size(vec2(nav_btn_width, nav_btn_height));
-
-                        if ui.add(stats_btn).clicked() {
+                        if ui.add(btn).clicked() {
                             action = Some(TimerAction::OpenStats);
                         }
                     },
@@ -226,26 +275,66 @@ impl TimerView {
                     vec2(nav_half_width - nav_gap, nav_btn_height),
                     Layout::left_to_right(Align::Center),
                     |ui| {
-                        let settings_btn = egui::Button::new(
-                            egui::RichText::new("Settings").color(theme.text_primary),
+                        let btn = egui::Button::new(
+                            RichText::new("Настройки").size(label_font_size * 0.85).color(theme.text_primary),
                         )
-                        .fill(if theme.is_light {
-                            egui::Color32::WHITE
-                        } else {
-                            theme.bg_tertiary
-                        })
+                        .fill(nav_btn_fill)
                         .stroke(egui::Stroke::new(1.0, theme.border_default))
                         .rounding(theme.rounding_md)
                         .min_size(vec2(nav_btn_width, nav_btn_height));
-
-                        if ui.add(settings_btn).clicked() {
+                        if ui.add(btn).clicked() {
                             action = Some(TimerAction::OpenSettings);
                         }
                     },
                 );
             });
 
-            ui.add_space(spacing);
+            ui.add_space(spacing * 0.15);
+
+            ui.horizontal(|ui| {
+                // Left half - Todo aligned to right
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - nav_gap, nav_btn_height),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        let btn = egui::Button::new(
+                            RichText::new("Задачи").size(label_font_size * 0.85).color(theme.text_primary),
+                        )
+                        .fill(nav_btn_fill)
+                        .stroke(egui::Stroke::new(1.0, theme.border_default))
+                        .rounding(theme.rounding_md)
+                        .min_size(vec2(nav_btn_width, nav_btn_height));
+                        if ui.add(btn).clicked() {
+                            action = Some(TimerAction::OpenTodo);
+                        }
+                    },
+                );
+
+                // Right half - Queue aligned to left
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - nav_gap, nav_btn_height),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        let queue_text = if queue.is_empty() {
+                            "Очередь".to_string()
+                        } else {
+                            format!("Очередь ({})", queue.len())
+                        };
+                        let btn = egui::Button::new(
+                            RichText::new(&queue_text).size(label_font_size * 0.85).color(theme.text_primary),
+                        )
+                        .fill(nav_btn_fill)
+                        .stroke(egui::Stroke::new(1.0, theme.border_default))
+                        .rounding(theme.rounding_md)
+                        .min_size(vec2(nav_btn_width, nav_btn_height));
+                        if ui.add(btn).clicked() {
+                            action = Some(TimerAction::OpenQueue);
+                        }
+                    },
+                );
+            });
+
+            ui.add_space(spacing * 0.5);
         });
 
         action
@@ -258,6 +347,8 @@ impl TimerView {
         session: &Session,
         theme: &Theme,
         _pulse: f32,
+        current_task: Option<&QueuedTask>,
+        queue: &[QueuedTask],
     ) -> Option<TimerAction> {
         let mut action = None;
 
@@ -495,7 +586,23 @@ impl TimerView {
                 );
             });
 
-            ui.add_space(spacing * 0.5);
+            ui.add_space(spacing * 0.3);
+
+            // Current task display
+            if let Some(task) = current_task {
+                ui.label(
+                    egui::RichText::new(format!(
+                        "> {} [{}/{}]",
+                        crate::ui::todo_view::truncate_text(&task.title, 18),
+                        task.completed_pomodoros,
+                        task.planned_pomodoros,
+                    ))
+                    .font(FontId::monospace(btn_font_size * 0.9))
+                    .color(theme.text_secondary),
+                );
+            }
+
+            ui.add_space(spacing * 0.3);
 
             // Separator
             ui.label(
@@ -506,48 +613,89 @@ impl TimerView {
 
             ui.add_space(spacing * 0.3);
 
-            // Navigation - centered with spacing in the middle
+            // Navigation buttons - always visible
             let nav_half_width = ui.available_width() / 2.0;
 
             ui.horizontal(|ui| {
-                // Left half - Statistics aligned to right
                 ui.allocate_ui_with_layout(
                     vec2(nav_half_width - btn_gap, btn_height),
                     Layout::right_to_left(Align::Center),
                     |ui| {
                         let dash_btn = ui.add(
                             egui::Button::new(
-                                egui::RichText::new("[ Statistics ]")
+                                egui::RichText::new("[ Стат ]")
                                     .font(FontId::monospace(btn_font_size))
                                     .color(theme.text_secondary),
                             )
                             .fill(egui::Color32::TRANSPARENT)
                             .stroke(egui::Stroke::NONE),
                         );
-
                         if dash_btn.clicked() {
                             action = Some(TimerAction::OpenStats);
                         }
                     },
                 );
 
-                // Right half - Settings aligned to left
                 ui.allocate_ui_with_layout(
                     vec2(nav_half_width - btn_gap, btn_height),
                     Layout::left_to_right(Align::Center),
                     |ui| {
                         let settings_btn = ui.add(
                             egui::Button::new(
-                                egui::RichText::new("[ Settings ]")
+                                egui::RichText::new("[ Настр ]")
                                     .font(FontId::monospace(btn_font_size))
                                     .color(theme.text_secondary),
                             )
                             .fill(egui::Color32::TRANSPARENT)
                             .stroke(egui::Stroke::NONE),
                         );
-
                         if settings_btn.clicked() {
                             action = Some(TimerAction::OpenSettings);
+                        }
+                    },
+                );
+            });
+
+            ui.horizontal(|ui| {
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - btn_gap, btn_height),
+                    Layout::right_to_left(Align::Center),
+                    |ui| {
+                        let todo_btn = ui.add(
+                            egui::Button::new(
+                                egui::RichText::new("[ Задачи ]")
+                                    .font(FontId::monospace(btn_font_size))
+                                    .color(theme.text_secondary),
+                            )
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::NONE),
+                        );
+                        if todo_btn.clicked() {
+                            action = Some(TimerAction::OpenTodo);
+                        }
+                    },
+                );
+
+                ui.allocate_ui_with_layout(
+                    vec2(nav_half_width - btn_gap, btn_height),
+                    Layout::left_to_right(Align::Center),
+                    |ui| {
+                        let queue_text = if queue.is_empty() {
+                            "[ Очередь ]".to_string()
+                        } else {
+                            format!("[ Очередь {} ]", queue.len())
+                        };
+                        let queue_btn = ui.add(
+                            egui::Button::new(
+                                egui::RichText::new(&queue_text)
+                                    .font(FontId::monospace(btn_font_size))
+                                    .color(theme.text_secondary),
+                            )
+                            .fill(egui::Color32::TRANSPARENT)
+                            .stroke(egui::Stroke::NONE),
+                        );
+                        if queue_btn.clicked() {
+                            action = Some(TimerAction::OpenQueue);
                         }
                     },
                 );
@@ -577,9 +725,9 @@ impl TimerView {
         let current_idx = (session.current_session_in_cycle() as usize).saturating_sub(1);
 
         // Responsive dot sizing
-        let dot_radius = (scale * 0.015).clamp(4.0, 7.0);
-        let dot_spacing = (scale * 0.04).clamp(12.0, 20.0);
-        let caption_size = (scale * 0.035).clamp(10.0, 14.0);
+        let dot_radius = (scale * DOT_RADIUS_FACTOR).clamp(4.0, 7.0);
+        let dot_spacing = (scale * DOT_SPACING_FACTOR).clamp(12.0, 20.0);
+        let caption_size = (scale * DOT_CAPTION_FACTOR).clamp(10.0, 14.0);
 
         // Calculate total width and allocate centered rect
         let dots_width = dot_spacing * (total - 1) as f32 + dot_radius * 2.0;

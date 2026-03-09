@@ -18,6 +18,8 @@ pub mod stats;
 pub mod theme;
 pub mod timer_view;
 pub mod titlebar;
+pub mod todo_view;
+pub mod todo_window;
 
 pub use animations::AnimationState;
 pub use layout::{responsive, ResponsiveSize};

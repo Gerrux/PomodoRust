@@ -43,6 +43,7 @@ pub struct SessionRecord {
     pub completed: bool,
     pub started_at: String,
     pub ended_at: String,
+    pub todo_id: Option<i64>,
 }
 
 /// Daily statistics record for export
@@ -185,18 +186,24 @@ impl Exporter {
 
         // Sessions section
         content.push_str("# Sessions\n");
-        content
-            .push_str("ID,Type,Duration (s),Planned Duration (s),Completed,Started At,Ended At\n");
+        content.push_str(
+            "ID,Type,Duration (s),Planned Duration (s),Completed,Started At,Ended At,Todo ID\n",
+        );
         for session in &data.sessions {
+            let todo_id_str = session
+                .todo_id
+                .map(|id| id.to_string())
+                .unwrap_or_default();
             content.push_str(&format!(
-                "{},{},{},{},{},{},{}\n",
+                "{},{},{},{},{},{},{},{}\n",
                 session.id,
                 session.session_type,
                 session.duration_seconds,
                 session.planned_duration,
                 session.completed,
                 session.started_at,
-                session.ended_at
+                session.ended_at,
+                todo_id_str
             ));
         }
 

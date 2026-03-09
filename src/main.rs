@@ -279,6 +279,22 @@ fn run_gui() {
         ..Default::default()
     };
 
+    // Create system tray (must be on main thread before event loop)
+    let system_tray = if config.system.minimize_to_tray {
+        match pomodorust::platform::SystemTray::new() {
+            Ok(tray) => {
+                tracing::info!("System tray created");
+                Some(tray)
+            }
+            Err(e) => {
+                tracing::error!("Failed to create system tray: {}", e);
+                None
+            }
+        }
+    } else {
+        None
+    };
+
     // Spawn thread to apply Windows DWM effects after window creation
     #[cfg(windows)]
     std::thread::spawn(|| {
@@ -296,7 +312,7 @@ fn run_gui() {
     let _ = eframe::run_native(
         "PomodoRust",
         options,
-        Box::new(move |cc| Ok(Box::new(PomodoRustApp::with_config(cc, config)))),
+        Box::new(move |cc| Ok(Box::new(PomodoRustApp::with_config(cc, config, system_tray)))),
     );
 }
 

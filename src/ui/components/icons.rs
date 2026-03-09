@@ -61,6 +61,15 @@ pub enum Icon {
     Pin,
     PinOff,
     Trash,
+
+    // Todo
+    ListTodo,
+    ClipboardList,
+    MoreVertical,
+    Square,
+    CheckSquare,
+    CirclePlus,
+    GripVertical,
 }
 
 /// Draw an icon at the specified rectangle
@@ -738,6 +747,88 @@ pub fn draw_icon(ui: &mut Ui, icon: Icon, rect: Rect, color: Color32) {
             // Inner lines
             painter.line_segment([scale(10.0, 10.0), scale(10.0, 16.0)], stroke);
             painter.line_segment([scale(14.0, 10.0), scale(14.0, 16.0)], stroke);
+        }
+
+        Icon::ListTodo => {
+            // Three lines with checkboxes
+            let line_stroke = Stroke::new(stroke_width, color);
+            // Row 1: checkbox + line
+            painter.rect_stroke(
+                Rect::from_min_size(scale(5.0, 6.0), vec2(size * 0.13, size * 0.13)),
+                0.0,
+                line_stroke,
+            );
+            painter.line_segment([scale(11.0, 7.5), scale(19.0, 7.5)], line_stroke);
+            // Row 2: checked + line
+            painter.rect_stroke(
+                Rect::from_min_size(scale(5.0, 11.0), vec2(size * 0.13, size * 0.13)),
+                0.0,
+                line_stroke,
+            );
+            // Checkmark inside
+            painter.line_segment([scale(5.5, 12.5), scale(6.5, 13.5)], line_stroke);
+            painter.line_segment([scale(6.5, 13.5), scale(8.0, 11.5)], line_stroke);
+            painter.line_segment([scale(11.0, 12.5), scale(19.0, 12.5)], line_stroke);
+            // Row 3: checkbox + line
+            painter.rect_stroke(
+                Rect::from_min_size(scale(5.0, 16.0), vec2(size * 0.13, size * 0.13)),
+                0.0,
+                line_stroke,
+            );
+            painter.line_segment([scale(11.0, 17.5), scale(19.0, 17.5)], line_stroke);
+        }
+
+        Icon::ClipboardList => {
+            // Clipboard with lines
+            let body = Rect::from_min_max(scale(6.0, 6.0), scale(18.0, 20.0));
+            painter.rect_stroke(body, size * 0.04, stroke);
+            painter.line_segment([scale(9.0, 4.0), scale(9.0, 6.0)], stroke);
+            painter.line_segment([scale(15.0, 4.0), scale(15.0, 6.0)], stroke);
+            painter.line_segment([scale(9.0, 4.0), scale(15.0, 4.0)], stroke);
+            painter.line_segment([scale(9.0, 10.0), scale(15.0, 10.0)], stroke);
+            painter.line_segment([scale(9.0, 13.0), scale(15.0, 13.0)], stroke);
+            painter.line_segment([scale(9.0, 16.0), scale(13.0, 16.0)], stroke);
+        }
+
+        Icon::MoreVertical => {
+            // Three vertical dots
+            let r = size * 0.09;
+            painter.circle_filled(scale(12.0, 6.0), r, color);
+            painter.circle_filled(scale(12.0, 12.0), r, color);
+            painter.circle_filled(scale(12.0, 18.0), r, color);
+        }
+
+        Icon::Square => {
+            // Empty square (unchecked checkbox)
+            let r = Rect::from_min_max(scale(6.0, 6.0), scale(18.0, 18.0));
+            painter.rect_stroke(r, size * 0.08, stroke);
+        }
+
+        Icon::CheckSquare => {
+            // Square with checkmark (checked checkbox)
+            let r = Rect::from_min_max(scale(6.0, 6.0), scale(18.0, 18.0));
+            painter.rect_stroke(r, size * 0.08, stroke);
+            painter.line_segment([scale(9.0, 12.0), scale(11.0, 15.0)], stroke);
+            painter.line_segment([scale(11.0, 15.0), scale(15.0, 9.0)], stroke);
+        }
+
+        Icon::CirclePlus => {
+            // Circle with plus
+            let r = size * 0.4;
+            painter.circle_stroke(center, r, stroke);
+            painter.line_segment([scale(12.0, 9.0), scale(12.0, 15.0)], stroke);
+            painter.line_segment([scale(9.0, 12.0), scale(15.0, 12.0)], stroke);
+        }
+
+        Icon::GripVertical => {
+            // 6 dots in 2 columns x 3 rows (drag handle)
+            let r = size * 0.07;
+            painter.circle_filled(scale(9.0, 7.0), r, color);
+            painter.circle_filled(scale(15.0, 7.0), r, color);
+            painter.circle_filled(scale(9.0, 12.0), r, color);
+            painter.circle_filled(scale(15.0, 12.0), r, color);
+            painter.circle_filled(scale(9.0, 17.0), r, color);
+            painter.circle_filled(scale(15.0, 17.0), r, color);
         }
     }
 }

@@ -26,8 +26,10 @@ mod config;
 mod database;
 pub mod export;
 mod statistics;
+pub mod todo;
 
-pub use config::{Config, GoalsConfig, NotificationSound};
-pub use database::{Database, LastSession};
+pub use config::{Config, GoalsConfig, NotificationSound, TodoConfig};
+pub use database::{Database, LastSession, TaskTimeStats};
 pub use export::{ExportFormat, Exporter};
 pub use statistics::Statistics;
+pub use todo::{Priority, Project, QueuedTask, TodoItem, Workspace};

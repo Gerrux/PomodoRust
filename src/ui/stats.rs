@@ -25,6 +25,10 @@ pub enum StatsAction {
     UndoLastSession,
     /// Reset all statistics
     ResetStats,
+    /// Change the displayed week (offset from current week)
+    ChangeWeek {
+        offset: i32,
+    },
 }
 
 /// Stats view showing statistics
@@ -33,6 +37,10 @@ pub struct StatsView {
     export_dropdown_open: bool,
     /// Whether the reset confirmation dialog is open
     show_reset_confirmation: bool,
+    /// Week offset for chart navigation (0 = current week, -1 = previous, etc.)
+    pub week_offset: i32,
+    /// Cached weekly hours for the selected week
+    pub selected_week_hours: Option<Vec<f32>>,
 }
 
 impl StatsView {
@@ -40,7 +48,39 @@ impl StatsView {
         Self {
             export_dropdown_open: false,
             show_reset_confirmation: false,
+            week_offset: 0,
+            selected_week_hours: None,
         }
+    }
+
+    /// Get the week label for the current offset
+    fn week_label(&self) -> String {
+        use chrono::{Datelike, Local};
+        let today = Local::now().date_naive();
+        let reference = today + chrono::Duration::weeks(self.week_offset as i64);
+        let start = reference
+            - chrono::Duration::days(reference.weekday().num_days_from_monday() as i64);
+        let end = start + chrono::Duration::days(6);
+        if self.week_offset == 0 {
+            "This Week".to_string()
+        } else {
+            format!("{} — {}", start.format("%d %b"), end.format("%d %b"))
+        }
+    }
+
+    /// Get the hours data for the currently displayed week
+    fn displayed_week_hours<'a>(&'a self, stats: &'a Statistics) -> &'a [f32] {
+        if self.week_offset == 0 {
+            &stats.week_daily_hours
+        } else {
+            self.selected_week_hours.as_deref().unwrap_or(&stats.week_daily_hours)
+        }
+    }
+
+    /// Total hours for the displayed week
+    fn displayed_week_total(&self, stats: &Statistics) -> f32 {
+        let hours = self.displayed_week_hours(stats);
+        (hours.iter().sum::<f32>() * 10.0).round() / 10.0
     }
 
     pub fn show(
@@ -90,7 +130,7 @@ impl StatsView {
                     ui.add_space(12.0);
 
                     ui.label(
-                        egui::RichText::new("Stats")
+                        egui::RichText::new("Статистика")
                             .font(theme.font_h2())
                             .color(theme.text_primary),
                     );
@@ -339,7 +379,7 @@ impl StatsView {
                     ui.add_space(spacing);
 
                     // Week activity chart
-                    self.show_week_activity_card(ui, stats, theme, right_col_width);
+                    self.show_week_activity_card(ui, stats, theme, right_col_width, action);
 
                     ui.add_space(spacing);
 
@@ -376,7 +416,7 @@ impl StatsView {
 
         // Week Activity section
         section_header(ui, theme, "Week Activity");
-        self.show_compact_week_card(ui, stats, theme);
+        self.show_compact_week_card(ui, stats, theme, action);
 
         ui.add_space(spacing);
 
@@ -513,17 +553,63 @@ impl StatsView {
         });
     }
 
-    fn show_compact_week_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme) {
+    fn show_compact_week_card(
+        &self,
+        ui: &mut Ui,
+        stats: &Statistics,
+        theme: &Theme,
+        action: &mut Option<StatsAction>,
+    ) {
         Card::new().show(ui, theme, |ui| {
             let available = ui.available_width();
             ui.set_min_width(available);
 
             ui.horizontal(|ui| {
+                // Previous week
+                let prev_btn = ui.add(
+                    egui::Button::new(
+                        egui::RichText::new("<").size(12.0).color(theme.text_secondary),
+                    )
+                    .fill(egui::Color32::TRANSPARENT)
+                    .min_size(vec2(20.0, 20.0)),
+                );
+                if prev_btn.clicked() {
+                    *action = Some(StatsAction::ChangeWeek {
+                        offset: self.week_offset - 1,
+                    });
+                }
+
                 ui.label(
-                    egui::RichText::new(format!("{:.1}h total", stats.week_hours()))
+                    egui::RichText::new(self.week_label())
                         .size(11.0)
                         .color(theme.text_secondary),
                 );
+
+                if self.week_offset < 0 {
+                    let next_btn = ui.add(
+                        egui::Button::new(
+                            egui::RichText::new(">").size(12.0).color(theme.text_secondary),
+                        )
+                        .fill(egui::Color32::TRANSPARENT)
+                        .min_size(vec2(20.0, 20.0)),
+                    );
+                    if next_btn.clicked() {
+                        *action = Some(StatsAction::ChangeWeek {
+                            offset: self.week_offset + 1,
+                        });
+                    }
+                }
+
+                ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
+                    ui.label(
+                        egui::RichText::new(format!(
+                            "{:.1}h",
+                            self.displayed_week_total(stats)
+                        ))
+                        .size(11.0)
+                        .color(theme.text_muted),
+                    );
+                });
             });
 
             ui.add_space(8.0);
@@ -940,25 +1026,65 @@ impl StatsView {
             });
     }
 
-    fn show_week_activity_card(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
+    fn show_week_activity_card(
+        &self,
+        ui: &mut Ui,
+        stats: &Statistics,
+        theme: &Theme,
+        width: f32,
+        action: &mut Option<StatsAction>,
+    ) {
         let inner_width = width - 32.0; // Account for Card padding (16 * 2)
 
         Card::new().show(ui, theme, |ui| {
             ui.set_width(inner_width);
 
             ui.horizontal(|ui| {
+                // Previous week button
+                let prev_btn = ui.add(
+                    egui::Button::new(
+                        egui::RichText::new("<").size(14.0).color(theme.text_secondary),
+                    )
+                    .fill(egui::Color32::TRANSPARENT)
+                    .min_size(vec2(24.0, 24.0)),
+                );
+                if prev_btn.clicked() {
+                    *action = Some(StatsAction::ChangeWeek {
+                        offset: self.week_offset - 1,
+                    });
+                }
+
                 ui.label(
-                    egui::RichText::new("Week Activity")
+                    egui::RichText::new(self.week_label())
                         .size(13.0)
                         .strong()
                         .color(theme.text_primary),
                 );
 
+                // Next week button (only if not already on current week)
+                if self.week_offset < 0 {
+                    let next_btn = ui.add(
+                        egui::Button::new(
+                            egui::RichText::new(">").size(14.0).color(theme.text_secondary),
+                        )
+                        .fill(egui::Color32::TRANSPARENT)
+                        .min_size(vec2(24.0, 24.0)),
+                    );
+                    if next_btn.clicked() {
+                        *action = Some(StatsAction::ChangeWeek {
+                            offset: self.week_offset + 1,
+                        });
+                    }
+                }
+
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.label(
-                        egui::RichText::new(format!("{:.1}h total", stats.week_hours()))
-                            .size(11.0)
-                            .color(theme.text_secondary),
+                        egui::RichText::new(format!(
+                            "{:.1}h total",
+                            self.displayed_week_total(stats)
+                        ))
+                        .size(11.0)
+                        .color(theme.text_secondary),
                     );
                 });
             });
@@ -1036,7 +1162,7 @@ impl StatsView {
 
     fn draw_week_chart(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
         let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-        let values = &stats.week_daily_hours;
+        let values = self.displayed_week_hours(stats);
         let max_value = values.iter().cloned().fold(1.0_f32, f32::max);
 
         let chart_height = 60.0;

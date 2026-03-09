@@ -93,28 +93,7 @@ impl SettingsState {
 
     /// Check if the editing state differs from the given config
     pub fn differs_from(&self, config: &Config) -> bool {
-        self.work_duration.round() as u32 != config.timer.work_duration
-            || self.short_break.round() as u32 != config.timer.short_break
-            || self.long_break.round() as u32 != config.timer.long_break
-            || self.sessions_before_long.round() as u32 != config.timer.sessions_before_long
-            || self.volume.round() as u32 != config.sounds.volume
-            || self.notification_sound != config.sounds.notification_sound
-            || self.tick_enabled != config.sounds.tick_enabled
-            || self.auto_start_breaks != config.timer.auto_start_breaks
-            || self.auto_start_work != config.timer.auto_start_work
-            || self.start_with_windows != config.system.start_with_windows
-            || self.always_on_top != config.window.always_on_top
-            || self.theme_mode != config.appearance.theme_mode
-            || self.selected_accent != config.appearance.accent_color
-            || self.window_opacity.round() as u32 != config.appearance.window_opacity
-            || self.daily_goal.round() as u32 != config.goals.daily_target
-            || self.notify_on_goal != config.goals.notify_on_goal
-            || self.hotkeys_enabled != config.hotkeys.enabled
-            || self.hotkey_toggle != config.hotkeys.toggle
-            || self.hotkey_skip != config.hotkeys.skip
-            || self.hotkey_reset != config.hotkeys.reset
-            || self.high_contrast != config.accessibility.high_contrast
-            || self.reduced_motion != config.accessibility.reduced_motion
+        self.apply_to(config) != *config
     }
 
     /// Apply the editing state to a Config, returning a new Config
@@ -215,7 +194,7 @@ impl SettingsView {
                 ui.add_space(12.0);
 
                 ui.label(
-                    egui::RichText::new("Settings")
+                    egui::RichText::new("Настройки")
                         .font(theme.font_h2())
                         .color(theme.text_primary),
                 );
@@ -312,18 +291,14 @@ impl SettingsView {
                     ui.label(egui::RichText::new("Sound").color(theme.text_secondary));
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
-                        // Test button with explicit styling
-                        let play_btn = egui::Button::new(
-                            egui::RichText::new("\u{25B6}").color(theme.text_primary),
-                        )
-                        .fill(theme.bg_tertiary)
-                        .stroke(egui::Stroke::new(1.0, theme.border_subtle));
-
-                        if ui
-                            .add_sized(vec2(28.0, 22.0), play_btn)
-                            .on_hover_text("Test sound")
-                            .clicked()
-                        {
+                        // Test button with play icon
+                        let (btn_rect, btn_resp) =
+                            ui.allocate_exact_size(vec2(28.0, 22.0), egui::Sense::click());
+                        ui.painter().rect_filled(btn_rect, theme.rounding_sm, theme.bg_tertiary);
+                        ui.painter().rect_stroke(btn_rect, theme.rounding_sm, egui::Stroke::new(1.0, theme.border_subtle));
+                        let icon_rect = egui::Rect::from_center_size(btn_rect.center(), vec2(12.0, 12.0));
+                        draw_icon(ui, Icon::Play, icon_rect, theme.text_primary);
+                        if btn_resp.on_hover_text("Test sound").clicked() {
                             test_sound = true;
                         }
 

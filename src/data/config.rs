@@ -199,6 +199,32 @@ pub struct AccessibilityConfig {
     pub reduced_motion: bool,
 }
 
+/// Todo window configuration
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TodoConfig {
+    pub auto_open: bool,
+    pub window_width: f32,
+    pub window_height: f32,
+    pub window_x: Option<f32>,
+    pub window_y: Option<f32>,
+    pub show_completed: bool,
+    pub last_workspace_id: Option<i64>,
+}
+
+impl Default for TodoConfig {
+    fn default() -> Self {
+        Self {
+            auto_open: false,
+            window_width: 340.0,
+            window_height: 500.0,
+            window_x: None,
+            window_y: None,
+            show_completed: true,
+            last_workspace_id: None,
+        }
+    }
+}
+
 /// Main configuration struct
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct Config {
@@ -213,6 +239,8 @@ pub struct Config {
     pub hotkeys: HotkeysConfig,
     #[serde(default)]
     pub accessibility: AccessibilityConfig,
+    #[serde(default)]
+    pub todo: TodoConfig,
 }
 
 impl Config {
@@ -243,8 +271,9 @@ impl Config {
 
         match fs::read_to_string(&path) {
             Ok(content) => match toml::from_str(&content) {
-                Ok(config) => {
+                Ok(mut config) => {
                     tracing::info!("Loaded config from {:?}", path);
+                    Self::validate(&mut config);
                     config
                 }
                 Err(e) => {
@@ -281,6 +310,18 @@ impl Config {
 
         tracing::info!("Saved config to {:?}", path);
         Ok(())
+    }
+
+    /// Clamp all numeric fields to valid ranges.
+    /// Called after loading or applying settings to prevent invalid values.
+    pub fn validate(&mut self) {
+        self.timer.work_duration = self.timer.work_duration.clamp(1, 90);
+        self.timer.short_break = self.timer.short_break.clamp(1, 30);
+        self.timer.long_break = self.timer.long_break.clamp(5, 60);
+        self.timer.sessions_before_long = self.timer.sessions_before_long.clamp(2, 8);
+        self.sounds.volume = self.sounds.volume.clamp(0, 100);
+        self.appearance.window_opacity = self.appearance.window_opacity.clamp(30, 100);
+        self.goals.daily_target = self.goals.daily_target.clamp(1, 16);
     }
 
     /// Reset to defaults

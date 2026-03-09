@@ -26,7 +26,7 @@ use winreg::RegKey;
 
 use crate::error::PlatformError;
 
-use std::sync::OnceLock;
+use std::sync::{Mutex, OnceLock};
 
 /// Cached Windows build number (avoids repeated registry reads)
 static WINDOWS_BUILD: OnceLock<u32> = OnceLock::new();
@@ -212,24 +212,79 @@ pub fn flash_pomodorust_window(count: u32) -> bool {
 pub fn show_pomodorust_window() -> bool {
     use windows::core::PCWSTR;
     use windows::Win32::UI::WindowsAndMessaging::{
-        FindWindowW, SetForegroundWindow, ShowWindow, SW_RESTORE,
+        FindWindowW, SetForegroundWindow,
     };
 
     unsafe {
         let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();
         if let Ok(hwnd) = FindWindowW(PCWSTR::null(), PCWSTR(title.as_ptr())) {
             if !hwnd.is_invalid() {
-                // Restore window if minimized
-                let _ = ShowWindow(hwnd, SW_RESTORE);
-                // Bring to foreground
+                use windows::Win32::UI::WindowsAndMessaging::{
+                    SetWindowPos, HWND_TOPMOST, HWND_NOTOPMOST,
+                    SWP_NOSIZE, SWP_SHOWWINDOW,
+                };
+                // Restore saved position (or use 100,100 as fallback)
+                let (x, y) = SAVED_WINDOW_POS
+                    .lock()
+                    .ok()
+                    .and_then(|pos| *pos)
+                    .unwrap_or((100, 100));
+                let flags = SWP_NOSIZE | SWP_SHOWWINDOW;
+                // Move back to saved position + bring to front
+                let _ = SetWindowPos(hwnd, HWND_TOPMOST, x, y, 0, 0, flags);
+                let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, 0, 0, flags);
                 let _ = SetForegroundWindow(hwnd);
-                tracing::info!("Restored PomodoRust window");
+
+                tracing::info!("Restored PomodoRust window to ({}, {})", x, y);
                 return true;
             }
         }
     }
     tracing::warn!("Could not find PomodoRust window");
     false
+}
+
+/// Saved window position before hiding (to restore on show)
+static SAVED_WINDOW_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
+
+/// Hide the PomodoRust window by moving it off-screen.
+/// Unlike `ShowWindow(SW_HIDE)`, this keeps the window "visible" to Windows
+/// so `WM_PAINT` messages continue and eframe's `update()` keeps running.
+pub fn hide_pomodorust_window() {
+    use windows::core::PCWSTR;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        FindWindowW, GetWindowRect, SetWindowPos,
+        SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE,
+    };
+    use windows::Win32::Foundation::RECT;
+
+    unsafe {
+        let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();
+        if let Ok(hwnd) = FindWindowW(PCWSTR::null(), PCWSTR(title.as_ptr())) {
+            if !hwnd.is_invalid() {
+                // Save current position
+                let mut rect = RECT::default();
+                if GetWindowRect(hwnd, &mut rect).is_ok() {
+                    if let Ok(mut pos) = SAVED_WINDOW_POS.lock() {
+                        *pos = Some((rect.left, rect.top));
+                    }
+                }
+                // Move off-screen (window stays "visible" — WM_PAINT keeps working)
+                let _ = SetWindowPos(
+                    hwnd, HWND(std::ptr::null_mut()),
+                    -32000, -32000, 0, 0,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                );
+                tracing::info!("Hid window off-screen");
+            }
+        }
+    }
+}
+
+/// Force quit the application immediately.
+/// Used when the window is hidden and viewport commands don't work.
+pub fn force_quit_app() {
+    std::process::exit(0);
 }
 
 /// Check if Windows is configured to use light theme for apps

@@ -17,6 +17,7 @@ pub enum TitleBarButton {
 
 /// Minimal title bar component - shows controls on hover
 pub struct TitleBar {
+    id_prefix: &'static str,
     pin_state: InteractionState,
     minimize_state: InteractionState,
     maximize_state: InteractionState,
@@ -26,7 +27,12 @@ pub struct TitleBar {
 
 impl TitleBar {
     pub fn new() -> Self {
+        Self::with_id("main")
+    }
+
+    pub fn with_id(id_prefix: &'static str) -> Self {
         Self {
+            id_prefix,
             pin_state: InteractionState::new(),
             minimize_state: InteractionState::new(),
             maximize_state: InteractionState::new(),
@@ -119,7 +125,7 @@ impl TitleBar {
 
         let drag_response = ui.interact(
             drag_rect,
-            egui::Id::new("titlebar_drag_area"),
+            egui::Id::new(self.id_prefix).with("drag_area"),
             Sense::drag(),
         );
 
@@ -229,12 +235,12 @@ impl TitleBar {
         bar_hover_t: f32,
     ) -> Option<TitleBarButton> {
         let button_id = match button_type {
-            TitleBarButton::AlwaysOnTop => "titlebar_btn_pin",
-            TitleBarButton::Minimize => "titlebar_btn_minimize",
-            TitleBarButton::Maximize => "titlebar_btn_maximize",
-            TitleBarButton::Close => "titlebar_btn_close",
+            TitleBarButton::AlwaysOnTop => "btn_pin",
+            TitleBarButton::Minimize => "btn_minimize",
+            TitleBarButton::Maximize => "btn_maximize",
+            TitleBarButton::Close => "btn_close",
         };
-        let response = ui.interact(rect, egui::Id::new(button_id), Sense::click());
+        let response = ui.interact(rect, egui::Id::new(self.id_prefix).with(button_id), Sense::click());
 
         // Get the state for this button type
         let state = match button_type {
@@ -333,7 +339,7 @@ impl TitleBar {
         is_pinned: bool,
         bar_hover_t: f32,
     ) -> Option<TitleBarButton> {
-        let response = ui.interact(rect, egui::Id::new("titlebar_pin_button"), Sense::click());
+        let response = ui.interact(rect, egui::Id::new(self.id_prefix).with("pin_button"), Sense::click());
 
         self.pin_state
             .update(response.hovered(), response.is_pointer_button_down_on());
@@ -408,9 +414,9 @@ impl TitleBar {
                 ui.ctx(),
                 egui::LayerId::new(
                     egui::Order::Tooltip,
-                    egui::Id::new("titlebar_tooltip_layer"),
+                    egui::Id::new(self.id_prefix).with("tooltip_layer"),
                 ),
-                egui::Id::new("titlebar_pin_tooltip"),
+                egui::Id::new(self.id_prefix).with("pin_tooltip"),
                 |ui| {
                     ui.label(tooltip_text);
                 },
