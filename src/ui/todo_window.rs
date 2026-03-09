@@ -50,11 +50,12 @@ impl TodoWindow {
 
 /// Data flowing from main app → todo viewport.
 /// Main thread writes, deferred thread reads.
+/// Uses Arc for vectors so RenderCache can share without cloning.
 pub struct TodoData {
-    pub workspaces: Vec<Workspace>,
+    pub workspaces: Arc<Vec<Workspace>>,
     pub current_workspace_id: i64,
-    pub projects: Vec<Project>,
-    pub todos: Vec<TodoItem>,
+    pub projects: Arc<Vec<Project>>,
+    pub todos: Arc<Vec<TodoItem>>,
     pub queue: Vec<QueuedTask>,
     pub show_completed: bool,
     pub theme: Theme,
@@ -65,6 +66,19 @@ pub struct TodoData {
 }
 
 impl TodoData {
+    /// Get mutable access to workspaces, making a unique copy if shared.
+    pub fn workspaces_mut(&mut self) -> &mut Vec<Workspace> {
+        Arc::make_mut(&mut self.workspaces)
+    }
+    /// Get mutable access to projects, making a unique copy if shared.
+    pub fn projects_mut(&mut self) -> &mut Vec<Project> {
+        Arc::make_mut(&mut self.projects)
+    }
+    /// Get mutable access to todos, making a unique copy if shared.
+    pub fn todos_mut(&mut self) -> &mut Vec<TodoItem> {
+        Arc::make_mut(&mut self.todos)
+    }
+
     pub fn generation(&self) -> u64 {
         self.generation
     }
@@ -108,10 +122,10 @@ pub type SharedTodo = Arc<TodoBridge>;
 pub fn new_shared_todo(theme: Theme) -> SharedTodo {
     Arc::new(TodoBridge {
         data: RwLock::new(TodoData {
-            workspaces: Vec::new(),
+            workspaces: Arc::new(Vec::new()),
             current_workspace_id: 0,
-            projects: Vec::new(),
-            todos: Vec::new(),
+            projects: Arc::new(Vec::new()),
+            todos: Arc::new(Vec::new()),
             queue: Vec::new(),
             show_completed: true,
             theme,
@@ -133,12 +147,12 @@ struct ViewportUiState {
     titlebar: TitleBar,
 }
 
-/// Cached snapshot of todo data, cloned only when generation changes.
+/// Cached snapshot of todo data, shared via Arc (cheap clone on generation change).
 struct RenderCache {
     generation: u64,
-    workspaces: Vec<Workspace>,
-    projects: Vec<Project>,
-    todos: Vec<TodoItem>,
+    workspaces: Arc<Vec<Workspace>>,
+    projects: Arc<Vec<Project>>,
+    todos: Arc<Vec<TodoItem>>,
 }
 
 thread_local! {
@@ -169,9 +183,9 @@ pub fn render_todo_viewport(ctx: &egui::Context, bridge: &TodoBridge) {
             if cache.as_ref().map_or(true, |c| c.generation != gen) {
                 *cache = Some(RenderCache {
                     generation: gen,
-                    workspaces: data.workspaces.clone(),
-                    projects: data.projects.clone(),
-                    todos: data.todos.clone(),
+                    workspaces: Arc::clone(&data.workspaces),
+                    projects: Arc::clone(&data.projects),
+                    todos: Arc::clone(&data.todos),
                 });
             }
         });

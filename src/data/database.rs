@@ -59,6 +59,7 @@ impl Database {
             PRAGMA cache_size = 2000;
             PRAGMA temp_store = MEMORY;
             PRAGMA foreign_keys = ON;
+            PRAGMA busy_timeout = 5000;
             "#,
         )?;
 
@@ -967,35 +968,36 @@ impl Database {
 
     /// Move todo to a project and insert at a specific position, shifting others down
     pub fn reorder_todo_to(&self, id: i64, project_id: Option<i64>, new_position: i32) -> SqliteResult<()> {
+        let tx = self.conn.unchecked_transaction()?;
         // Update the project assignment
-        self.conn.execute(
+        tx.execute(
             "UPDATE todo_items SET project_id = ?1 WHERE id = ?2",
             params![project_id, id],
         )?;
         // Shift items at or after new_position down
         if let Some(pid) = project_id {
-            self.conn.execute(
+            tx.execute(
                 "UPDATE todo_items SET position = position + 1 WHERE project_id = ?1 AND position >= ?2 AND id != ?3",
                 params![pid, new_position, id],
             )?;
         } else {
             // For unassigned: workspace scope — get workspace_id from the todo
-            let ws_id: i64 = self.conn.query_row(
+            let ws_id: i64 = tx.query_row(
                 "SELECT workspace_id FROM todo_items WHERE id = ?1",
                 params![id],
                 |row| row.get(0),
             )?;
-            self.conn.execute(
+            tx.execute(
                 "UPDATE todo_items SET position = position + 1 WHERE workspace_id = ?1 AND project_id IS NULL AND position >= ?2 AND id != ?3",
                 params![ws_id, new_position, id],
             )?;
         }
         // Set the todo's position
-        self.conn.execute(
+        tx.execute(
             "UPDATE todo_items SET position = ?1 WHERE id = ?2",
             params![new_position, id],
         )?;
-        Ok(())
+        tx.commit()
     }
 
     pub fn set_todo_priority(&self, id: i64, priority: Priority) -> SqliteResult<()> {
