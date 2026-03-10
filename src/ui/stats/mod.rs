@@ -65,7 +65,7 @@ impl StatsView {
             - chrono::Duration::days(reference.weekday().num_days_from_monday() as i64);
         let end = start + chrono::Duration::days(6);
         if self.week_offset == 0 {
-            "This Week".to_string()
+            crate::i18n::tr().stats.this_week.to_string()
         } else {
             format!("{} — {}", start.format("%d %b"), end.format("%d %b"))
         }
@@ -133,7 +133,7 @@ impl StatsView {
                     ui.add_space(12.0);
 
                     ui.label(
-                        egui::RichText::new("Статистика")
+                        egui::RichText::new(crate::i18n::tr().stats.title)
                             .font(theme.font_h2())
                             .color(theme.text_primary),
                     );
@@ -168,7 +168,7 @@ impl StatsView {
                                 self.show_reset_confirmation = true;
                             }
 
-                            reset_response.on_hover_text("Reset all statistics");
+                            reset_response.on_hover_text(crate::i18n::tr().stats.reset_all_hover);
                         }
 
                         ui.add_space(8.0);
@@ -184,7 +184,7 @@ impl StatsView {
                                 action = Some(StatsAction::UndoLastSession);
                             }
 
-                            undo_response.on_hover_text("Undo last session");
+                            undo_response.on_hover_text(crate::i18n::tr().stats.undo_last_hover);
                         }
                     });
                 });
@@ -192,8 +192,10 @@ impl StatsView {
                 ui.add_space(theme.spacing_lg);
 
                 // Main content area with scroll
+                let scroll_max_h = ui.available_height();
                 ScrollArea::vertical()
                     .auto_shrink([false, false])
+                    .max_height(scroll_max_h)
                     .show(ui, |ui| {
                         if is_wide {
                             self.show_wide_layout(
@@ -246,7 +248,7 @@ impl StatsView {
 
         // Dialog window
         egui::Area::new(egui::Id::new("reset_confirmation_dialog"))
-            .fixed_pos(screen_rect.center() - vec2(140.0, 60.0))
+            .anchor(egui::Align2::CENTER_CENTER, vec2(0.0, 0.0))
             .order(egui::Order::Foreground)
             .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style())
@@ -267,7 +269,7 @@ impl StatsView {
                             ui.add_space(40.0);
 
                             ui.label(
-                                egui::RichText::new("Reset Statistics?")
+                                egui::RichText::new(crate::i18n::tr().stats.reset_title)
                                     .size(16.0)
                                     .strong()
                                     .color(theme.text_primary),
@@ -276,7 +278,7 @@ impl StatsView {
                             ui.add_space(8.0);
 
                             ui.label(
-                                egui::RichText::new("This will permanently delete all\nsession history and statistics.")
+                                egui::RichText::new(crate::i18n::tr().stats.reset_confirm)
                                     .size(13.0)
                                     .color(theme.text_secondary),
                             );
@@ -288,7 +290,7 @@ impl StatsView {
                                 let cancel_btn = ui.add_sized(
                                     vec2(100.0, 36.0),
                                     egui::Button::new(
-                                        egui::RichText::new("Cancel")
+                                        egui::RichText::new(crate::i18n::tr().common.cancel)
                                             .size(13.0)
                                             .color(theme.text_primary),
                                     )
@@ -306,7 +308,7 @@ impl StatsView {
                                 let confirm_btn = ui.add_sized(
                                     vec2(100.0, 36.0),
                                     egui::Button::new(
-                                        egui::RichText::new("Reset")
+                                        egui::RichText::new(crate::i18n::tr().common.reset)
                                             .size(13.0)
                                             .color(egui::Color32::WHITE),
                                     )
@@ -406,25 +408,25 @@ impl StatsView {
         action: &mut Option<StatsAction>,
     ) {
         // Current Session section
-        section_header(ui, theme, "Current Session");
+        section_header(ui, theme, crate::i18n::tr().stats.current_session);
         self.show_compact_timer_card(ui, session, theme, pulse);
 
         ui.add_space(spacing);
 
         // Statistics section
-        section_header(ui, theme, "Statistics");
+        section_header(ui, theme, crate::i18n::tr().stats.statistics);
         self.show_compact_stats_card(ui, stats, theme, daily_goal);
 
         ui.add_space(spacing);
 
         // Week Activity section
-        section_header(ui, theme, "Week Activity");
+        section_header(ui, theme, crate::i18n::tr().stats.week_activity);
         self.show_compact_week_card(ui, stats, theme, action);
 
         ui.add_space(spacing);
 
         // Quick Start section
-        section_header(ui, theme, "Quick Start");
+        section_header(ui, theme, crate::i18n::tr().stats.quick_start);
         self.show_compact_presets_card(ui, theme, action);
     }
 }

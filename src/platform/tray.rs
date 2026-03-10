@@ -41,10 +41,11 @@ impl SystemTray {
     pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let icon = load_tray_icon()?;
 
-        let toggle_item = MenuItem::new("Старт", true, None);
-        let skip_item = MenuItem::new("Пропустить", true, None);
-        let show_item = MenuItem::new("Показать окно", true, None);
-        let quit_item = MenuItem::new("Выход", true, None);
+        let t = crate::i18n::tr();
+        let toggle_item = MenuItem::new(t.tray.start, true, None);
+        let skip_item = MenuItem::new(t.timer.skip, true, None);
+        let show_item = MenuItem::new(t.tray.show_window, true, None);
+        let quit_item = MenuItem::new(t.tray.quit.trim(), true, None);
 
         let toggle_id = toggle_item.id().clone();
         let skip_id = skip_item.id().clone();
@@ -119,19 +120,12 @@ impl SystemTray {
                             None
                         };
                         if let Some(a) = action {
-                            // ShowWindow and Quit must be handled here directly
-                            // because eframe's Visible(false) blocks viewport commands,
-                            // making it impossible to show or close the window from
-                            // the main thread's update() loop.
+                            // ShowWindow must be handled here directly because
+                            // the main window is moved off-screen (not hidden),
+                            // and Win32 SetWindowPos is needed to restore it.
                             #[cfg(windows)]
-                            match a {
-                                TrayAction::ShowWindow => {
-                                    crate::platform::show_pomodorust_window();
-                                }
-                                TrayAction::Quit => {
-                                    crate::platform::force_quit_app();
-                                }
-                                _ => {}
+                            if let TrayAction::ShowWindow = a {
+                                crate::platform::show_pomodorust_window();
                             }
                             let _ = tx.send(a);
                             got_event = true;
@@ -165,12 +159,12 @@ impl SystemTray {
 
                     // Periodic wakeup when hidden (for timer/tooltip updates)
                     tick += 1;
-                    if tick >= 50 && periodic.load(Ordering::Relaxed) {
+                    if tick >= 10 && periodic.load(Ordering::Relaxed) {
                         tick = 0;
                         ctx.request_repaint();
                     }
 
-                    std::thread::sleep(std::time::Duration::from_millis(10));
+                    std::thread::sleep(std::time::Duration::from_millis(50));
                 }
             })
             .ok();

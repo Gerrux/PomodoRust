@@ -6,6 +6,7 @@ pub mod app;
 pub mod core;
 pub mod data;
 pub mod error;
+pub mod i18n;
 pub mod ipc;
 pub mod platform;
 pub mod ui;

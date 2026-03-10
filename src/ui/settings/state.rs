@@ -1,5 +1,6 @@
 use super::super::theme::{AccentColor, ThemeMode};
 use crate::data::{Config, NotificationSound};
+use crate::i18n::Language;
 
 /// Editable settings state - extracted from Config for UI editing
 ///
@@ -38,6 +39,8 @@ pub struct SettingsState {
     // Accessibility
     pub high_contrast: bool,
     pub reduced_motion: bool,
+    // Language
+    pub language: Language,
 }
 
 impl SettingsState {
@@ -66,6 +69,7 @@ impl SettingsState {
             hotkey_reset: config.hotkeys.reset.clone(),
             high_contrast: config.accessibility.high_contrast,
             reduced_motion: config.accessibility.reduced_motion,
+            language: config.appearance.language,
         }
     }
 
@@ -99,6 +103,7 @@ impl SettingsState {
         config.hotkeys.reset = self.hotkey_reset.clone();
         config.accessibility.high_contrast = self.high_contrast;
         config.accessibility.reduced_motion = self.reduced_motion;
+        config.appearance.language = self.language;
         config
     }
 }

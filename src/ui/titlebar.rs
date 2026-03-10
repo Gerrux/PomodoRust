@@ -72,12 +72,7 @@ impl TitleBar {
             (hover_t * 0.6 * 255.0) as u8
         };
         if bg_alpha > 0 {
-            // Use darker bg for light theme
-            let base_bg = if theme.is_light {
-                Color32::from_rgb(230, 230, 235)
-            } else {
-                theme.bg_secondary
-            };
+            let base_bg = theme.bg_secondary;
             let bg_color =
                 Color32::from_rgba_unmultiplied(base_bg.r(), base_bg.g(), base_bg.b(), bg_alpha);
 
@@ -231,26 +226,20 @@ impl TitleBar {
         // Background color - more visible hover for light theme
         let bg_color = if button_type == TitleBarButton::Close {
             if hover_t > 0.0 {
-                let red = Color32::from_rgb(220, 38, 38);
                 Color32::from_rgba_unmultiplied(
-                    red.r(),
-                    red.g(),
-                    red.b(),
+                    theme.error.r(),
+                    theme.error.g(),
+                    theme.error.b(),
                     (hover_t * base_alpha as f32) as u8,
                 )
             } else {
                 Color32::TRANSPARENT
             }
         } else {
-            let hover_bg = if theme.is_light {
-                Color32::from_rgb(200, 200, 210) // Darker hover for light theme
-            } else {
-                theme.bg_hover
-            };
             Color32::from_rgba_unmultiplied(
-                hover_bg.r(),
-                hover_bg.g(),
-                hover_bg.b(),
+                theme.bg_hover.r(),
+                theme.bg_hover.g(),
+                theme.bg_hover.b(),
                 (hover_t * base_alpha as f32) as u8,
             )
         };
@@ -258,16 +247,10 @@ impl TitleBar {
         // Draw background
         ui.painter().rect_filled(rect, 0.0, bg_color);
 
-        // Icon color with opacity - use dark icons for light theme
+        // Icon color with opacity
         let icon_alpha = base_alpha;
         let icon_color = if button_type == TitleBarButton::Close && hover_t > 0.0 {
             Color32::from_rgba_unmultiplied(255, 255, 255, icon_alpha)
-        } else if theme.is_light {
-            // Dark icons for light theme
-            let dark = Color32::from_rgb(60, 60, 70);
-            let darker = Color32::from_rgb(20, 20, 30);
-            let base = Theme::lerp_color(dark, darker, hover_t);
-            Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), icon_alpha)
         } else {
             let base = Theme::lerp_color(theme.text_muted, theme.text_primary, hover_t);
             Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), icon_alpha)
@@ -331,11 +314,7 @@ impl TitleBar {
                 ((0.3 + hover_t * 0.3) * base_alpha as f32) as u8,
             )
         } else {
-            let hover_bg = if theme.is_light {
-                Color32::from_rgb(200, 200, 210)
-            } else {
-                theme.bg_hover
-            };
+            let hover_bg = theme.bg_hover;
             Color32::from_rgba_unmultiplied(
                 hover_bg.r(),
                 hover_bg.g(),
@@ -355,12 +334,6 @@ impl TitleBar {
                 accent_color.b(),
                 base_alpha,
             )
-        } else if theme.is_light {
-            // Dark icons for light theme
-            let dark = Color32::from_rgb(60, 60, 70);
-            let darker = Color32::from_rgb(20, 20, 30);
-            let base = Theme::lerp_color(dark, darker, hover_t);
-            Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), base_alpha)
         } else {
             let base = Theme::lerp_color(theme.text_muted, theme.text_primary, hover_t);
             Color32::from_rgba_unmultiplied(base.r(), base.g(), base.b(), base_alpha)
@@ -377,10 +350,11 @@ impl TitleBar {
             ui.ctx().set_cursor_icon(CursorIcon::PointingHand);
 
             // Show tooltip
+            let t = crate::i18n::tr();
             let tooltip_text = if is_pinned {
-                "Unpin window (disable always on top)"
+                t.common.unpin_window
             } else {
-                "Pin window (always on top)"
+                t.common.pin_window
             };
             egui::show_tooltip_at_pointer(
                 ui.ctx(),

@@ -232,6 +232,13 @@ impl PomodoRustApp {
             .closable(true);
     }
 
+    /// Show an error toast notification
+    fn show_error(&mut self, message: impl Into<String>) {
+        self.toasts.error(message.into())
+            .duration(Some(TOAST_DURATION))
+            .closable(true);
+    }
+
     /// Centralized always-on-top toggle: updates config, main viewport, and todo bridge.
     fn set_always_on_top(&mut self, enabled: bool, ctx: &egui::Context) {
         self.config.window.always_on_top = enabled;

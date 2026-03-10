@@ -289,9 +289,6 @@ impl PomodoRustApp {
                     self.show_from_tray(ctx);
                 }
                 TrayAction::Quit => {
-                    // On Windows, the background tray thread already called
-                    // force_quit_app() before this message arrives.
-                    // On other platforms, use viewport command.
                     self.force_quit = true;
                     self.hidden_to_tray = false;
                     if let Some(ref tray) = self.system_tray {
@@ -309,10 +306,11 @@ impl PomodoRustApp {
             return;
         };
 
+        let t = crate::i18n::tr();
         let session_label = match self.session.session_type() {
-            SessionType::Work => "Фокус",
-            SessionType::ShortBreak => "Короткий перерыв",
-            SessionType::LongBreak => "Длинный перерыв",
+            SessionType::Work => t.tray.focus,
+            SessionType::ShortBreak => t.tray.short_break,
+            SessionType::LongBreak => t.tray.long_break,
         };
 
         let timer = self.session.timer();
@@ -324,22 +322,23 @@ impl PomodoRustApp {
             )
         } else if timer.is_paused() {
             format!(
-                "Пауза \u{2014} {} {}",
+                "{} \u{2014} {} {}",
+                t.tray.pause,
                 session_label,
                 timer.remaining_formatted()
             )
         } else {
-            "PomodoRust \u{2014} Готов".to_string()
+            format!("PomodoRust \u{2014} {}", t.tray.ready)
         };
 
         tray.update_tooltip(&tooltip);
 
         let toggle_label = if timer.is_running() {
-            "Пауза"
+            t.tray.pause
         } else if timer.is_paused() {
-            "Продолжить"
+            t.tray.continue_
         } else {
-            "Старт"
+            t.tray.start
         };
         tray.update_toggle_label(toggle_label);
     }
@@ -381,7 +380,7 @@ impl PomodoRustApp {
         let mut open = true;
         egui::Area::new(egui::Id::new("close_dialog_overlay"))
             .fixed_pos(egui::pos2(0.0, 0.0))
-            .order(egui::Order::Foreground)
+            .order(egui::Order::Middle)
             .interactable(true)
             .show(ctx, |ui| {
                 let screen = ui.ctx().screen_rect();
@@ -399,21 +398,22 @@ impl PomodoRustApp {
                 }
             });
 
-        egui::Window::new("Закрыть приложение?")
+        let t = crate::i18n::tr();
+        egui::Window::new(t.tray.close_app)
             .collapsible(false)
             .resizable(false)
             .anchor(egui::Align2::CENTER_CENTER, egui::vec2(0.0, 0.0))
             .order(egui::Order::Foreground)
             .show(ctx, |ui| {
                 ui.add_space(8.0);
-                ui.label("Что вы хотите сделать?");
+                ui.label(t.tray.what_to_do);
                 ui.add_space(12.0);
                 ui.horizontal(|ui| {
-                    if ui.button("  Свернуть в трей  ").clicked() {
+                    if ui.button(t.tray.minimize_to_tray).clicked() {
                         self.hide_to_tray(ui.ctx());
                         self.show_close_dialog = false;
                     }
-                    if ui.button("  Выход  ").clicked() {
+                    if ui.button(t.tray.quit).clicked() {
                         self.force_quit = true;
                         self.show_close_dialog = false;
                     }

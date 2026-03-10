@@ -9,12 +9,6 @@ use crate::ui::theme::Theme;
 
 pub use helpers::truncate_text;
 
-/// Payload carried during drag-and-drop of a todo item
-#[derive(Debug, Clone)]
-pub(super) struct DragTodo {
-    pub id: i64,
-}
-
 /// Actions produced by the todo UI
 #[derive(Debug, Clone)]
 pub enum TodoAction {
@@ -95,6 +89,9 @@ pub struct TodoView {
     renaming_project_id: Option<i64>,
     rename_project_buffer: String,
 
+    // Todo item popup (rendered outside DnD to avoid click conflicts)
+    popup_todo_id: Option<i64>,
+    popup_dots_rect: Option<egui::Rect>,
 }
 
 impl TodoView {
@@ -115,6 +112,8 @@ impl TodoView {
             rename_workspace_buffer: String::new(),
             renaming_project_id: None,
             rename_project_buffer: String::new(),
+            popup_todo_id: None,
+            popup_dots_rect: None,
         }
     }
 
@@ -130,6 +129,7 @@ impl TodoView {
         show_completed: bool,
     ) -> Vec<TodoAction> {
         let mut actions = Vec::new();
+        let t = crate::i18n::tr();
 
         // Workspace tabs (full width)
         actions.extend(self.render_workspace_tabs(ui, theme, workspaces, current_workspace_id));
@@ -140,51 +140,62 @@ impl TodoView {
         let max_content_width = 720.0;
         let available = ui.available_width();
         let side_margin = ((available - max_content_width) / 2.0).max(0.0);
+        let center_margin = egui::Margin { left: side_margin, right: side_margin, ..Default::default() };
 
+        // Filter bar (inside centering frame)
         egui::Frame::none()
-            .inner_margin(egui::Margin { left: side_margin, right: side_margin, ..Default::default() })
+            .inner_margin(center_margin)
             .show(ui, |ui| {
-
-        // Filter bar
-        ui.horizontal(|ui| {
-            let completed_count = todos.iter().filter(|t| t.completed).count();
-            if completed_count > 0 {
-                let resp = ui.horizontal(|ui| {
-                    let chevron = if show_completed {
-                        Icon::ChevronDown
-                    } else {
-                        Icon::ChevronRight
-                    };
-                    let (icon_rect, _) =
-                        ui.allocate_exact_size(Vec2::new(12.0, 12.0), Sense::hover());
-                    let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(10.0));
-                    draw_icon(ui, chevron, ir, theme.text_muted);
-                    ui.add(
-                        egui::Label::new(
-                            RichText::new(format!("Завершённые ({})", completed_count))
-                                .size(12.0)
-                                .color(theme.text_muted),
-                        )
-                        .sense(Sense::click()),
-                    )
+                ui.horizontal(|ui| {
+                    let completed_count = todos.iter().filter(|t| t.completed).count();
+                    if completed_count > 0 {
+                        let resp = ui.horizontal(|ui| {
+                            let chevron = if show_completed {
+                                Icon::ChevronDown
+                            } else {
+                                Icon::ChevronRight
+                            };
+                            let (icon_rect, _) =
+                                ui.allocate_exact_size(Vec2::new(12.0, 12.0), Sense::hover());
+                            let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(10.0));
+                            draw_icon(ui, chevron, ir, theme.text_muted);
+                            ui.add(
+                                egui::Label::new(
+                                    RichText::new(format!("{} ({})", t.todo.completed_label, completed_count))
+                                        .size(12.0)
+                                        .color(theme.text_muted),
+                                )
+                                .sense(Sense::click()),
+                            )
+                        });
+                        if resp.inner.clicked() || resp.response.clicked() {
+                            actions.push(TodoAction::ToggleShowCompleted);
+                        }
+                    }
                 });
-                if resp.inner.clicked() || resp.response.clicked() {
-                    actions.push(TodoAction::ToggleShowCompleted);
-                }
-            }
-        });
+            });
 
         ui.add_space(theme.spacing_sm);
 
-        // Task list
-        actions.extend(self.render_task_list(
-            ui,
-            theme,
-            projects,
-            todos,
-            current_workspace_id,
-            show_completed,
-        ));
+        // Task list — ScrollArea OUTSIDE centering Frame so available_height() is correct
+        let scroll_height = ui.available_height();
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, false])
+            .max_height(scroll_height)
+            .show(ui, |ui| {
+                egui::Frame::none()
+                    .inner_margin(center_margin)
+                    .show(ui, |ui| {
+                        actions.extend(self.render_task_list_content(
+                            ui,
+                            theme,
+                            projects,
+                            todos,
+                            current_workspace_id,
+                            show_completed,
+                        ));
+                    });
+            });
 
         // Hotkeys
         let any_text_focused = ui.ctx().memory(|m| m.focused().is_some());
@@ -208,8 +219,6 @@ impl TodoView {
             actions.extend(self.handle_clipboard_paste(ui.ctx(), current_workspace_id));
         }
 
-        }); // end centered frame
-
         actions
     }
 
@@ -226,6 +235,7 @@ impl TodoView {
             egui::ScrollArea::horizontal()
                 .max_width(ui.available_width() - 30.0)
                 .scroll_bar_visibility(egui::scroll_area::ScrollBarVisibility::AlwaysHidden)
+                .enable_scrolling(false)
                 .show(ui, |ui| {
                     for ws in workspaces {
                         // Renaming mode
@@ -276,13 +286,13 @@ impl TodoView {
                         }
 
                         response.context_menu(|ui| {
-                            if ui.button("Переименовать").clicked() {
+                            if ui.button(crate::i18n::tr().todo.rename).clicked() {
                                 self.renaming_workspace_id = Some(ws.id);
                                 self.rename_workspace_buffer = ws.name.clone();
                                 ui.close_menu();
                             }
                             if workspaces.len() > 1 {
-                                if ui.button("Удалить").clicked() {
+                                if ui.button(crate::i18n::tr().todo.delete).clicked() {
                                     actions.push(TodoAction::DeleteWorkspace { id: ws.id });
                                     ui.close_menu();
                                 }
@@ -298,7 +308,7 @@ impl TodoView {
                 let response =
                     ui.add(egui::TextEdit::singleline(&mut self.new_workspace_name)
                         .desired_width(80.0)
-                        .hint_text("Название...")
+                        .hint_text(crate::i18n::tr().todo.name_hint)
                         .font(egui::FontId::proportional(13.0)));
                 if response.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     let name = self.new_workspace_name.trim().to_string();
@@ -316,14 +326,16 @@ impl TodoView {
                 if plus_resp.clicked() {
                     self.adding_workspace = true;
                 }
-                plus_resp.on_hover_text("Новый workspace");
+                plus_resp.on_hover_text(crate::i18n::tr().todo.new_workspace);
             }
         });
 
         actions
     }
 
-    fn render_task_list(
+    /// Render task list content (projects, unassigned todos, new task input).
+    /// Called inside a ScrollArea — do NOT add another ScrollArea here.
+    fn render_task_list_content(
         &mut self,
         ui: &mut egui::Ui,
         theme: &Theme,
@@ -333,151 +345,188 @@ impl TodoView {
         show_completed: bool,
     ) -> Vec<TodoAction> {
         let mut actions = Vec::new();
+        let t = crate::i18n::tr();
 
-        egui::ScrollArea::vertical()
-            .auto_shrink([false, false])
-            .show(ui, |ui| {
-                // Projects with their todos
-                for project in projects {
-                    actions.extend(self.render_project(ui, theme, project, todos, projects, show_completed));
-                }
+        // Projects with their todos
+        for project in projects {
+            actions.extend(self.render_project(ui, theme, project, todos, projects, show_completed));
+        }
 
-                // Unassigned todos
-                let unassigned: Vec<&TodoItem> = todos
-                    .iter()
-                    .filter(|t| t.project_id.is_none())
-                    .filter(|t| show_completed || !t.completed)
-                    .collect();
+        // Unassigned todos
+        let unassigned: Vec<&TodoItem> = todos
+            .iter()
+            .filter(|todo| todo.project_id.is_none())
+            .filter(|todo| show_completed || !todo.completed)
+            .collect();
 
-                if !unassigned.is_empty() || projects.is_empty() {
-                    let is_dragging = egui::DragAndDrop::has_payload_of_type::<DragTodo>(ui.ctx());
+        if !unassigned.is_empty() || projects.is_empty() {
+            if !projects.is_empty() && !unassigned.is_empty() {
+                ui.add_space(theme.spacing_md);
+                ui.horizontal(|ui| {
+                    let line_color = theme.border_subtle;
+                    let rect = ui.available_rect_before_wrap();
+                    let y = rect.center().y;
+                    let text_response = ui.label(
+                        RichText::new(t.todo.miscellaneous)
+                            .size(13.0)
+                            .color(theme.text_muted),
+                    );
+                    let after_text = text_response.rect.right() + 8.0;
+                    ui.painter().line_segment(
+                        [
+                            egui::pos2(after_text, y),
+                            egui::pos2(rect.right(), y),
+                        ],
+                        egui::Stroke::new(1.0, line_color),
+                    );
+                });
+                ui.add_space(6.0);
+            }
 
-                    if !projects.is_empty() && !unassigned.is_empty() {
-                        ui.add_space(theme.spacing_md);
-                        ui.horizontal(|ui| {
-                            let line_color = theme.border_subtle;
-                            let rect = ui.available_rect_before_wrap();
-                            let y = rect.center().y;
-                            let text_response = ui.label(
-                                RichText::new("Разное")
-                                    .size(13.0)
-                                    .color(theme.text_muted),
-                            );
-                            let after_text = text_response.rect.right() + 8.0;
-                            ui.painter().line_segment(
-                                [
-                                    egui::pos2(after_text, y),
-                                    egui::pos2(rect.right(), y),
-                                ],
-                                egui::Stroke::new(1.0, line_color),
-                            );
-                        });
-                        ui.add_space(6.0);
-                    }
-
-                    if !unassigned.is_empty() {
-                        for todo in &unassigned {
-                            // Drop indicator before this item
-                            if is_dragging {
-                                actions.extend(self.render_drop_indicator(
-                                    ui, theme, None, todo.position,
-                                ));
-                            }
-                            actions.extend(self.render_todo_item(ui, theme, todo, projects));
-                        }
-
-                        // Drop indicator after last item
-                        if is_dragging {
-                            let last_pos = unassigned.last().unwrap().position;
-                            actions.extend(self.render_drop_indicator(
-                                ui, theme, None, last_pos + 1,
-                            ));
-                        }
-                    }
-
-                    // Drop on empty unassigned area
-                    if is_dragging && unassigned.is_empty() && !projects.is_empty() {
-                        actions.extend(self.render_drop_indicator(ui, theme, None, 0));
-                    }
-                }
-
-                // Empty state
-                if todos.is_empty() && projects.is_empty() {
-                    ui.add_space(theme.spacing_xl);
-                    ui.vertical_centered(|ui| {
-                        ui.label(
-                            RichText::new("Нет задач")
-                                .size(16.0)
-                                .color(theme.text_muted),
-                        );
-                        ui.add_space(theme.spacing_sm);
-                        ui.label(
-                            RichText::new("Создайте первую задачу ниже")
-                                .size(13.0)
-                                .color(theme.text_muted),
-                        );
-                    });
-                }
-
-                ui.add_space(theme.spacing_sm);
-
-                // New task input
-                actions.extend(self.render_new_task_input(
-                    ui,
-                    theme,
-                    current_workspace_id,
-                    None,
+            if !unassigned.is_empty() {
+                // DnD for unassigned todos
+                actions.extend(self.render_dnd_todo_list(
+                    ui, theme, &unassigned, projects, None,
                 ));
+            }
+        }
 
-                ui.add_space(theme.spacing_xs);
+        // Empty state
+        if todos.is_empty() && projects.is_empty() {
+            ui.add_space(theme.spacing_xl);
+            ui.vertical_centered(|ui| {
+                ui.label(
+                    RichText::new(t.todo.no_tasks)
+                        .size(16.0)
+                        .color(theme.text_muted),
+                );
+                ui.add_space(theme.spacing_sm);
+                ui.label(
+                    RichText::new(t.todo.create_first_task)
+                        .size(13.0)
+                        .color(theme.text_muted),
+                );
+            });
+        }
 
-                // Add project button
-                if self.adding_project_workspace == Some(current_workspace_id) {
-                    ui.horizontal(|ui| {
-                        ui.label(
-                            RichText::new("+").size(14.0).color(theme.text_muted),
-                        );
-                        let response = ui.add(
-                            egui::TextEdit::singleline(&mut self.new_project_name)
-                                .hint_text("Название проекта...")
-                                .desired_width(ui.available_width() - 10.0)
-                                .font(egui::FontId::proportional(13.0))
-                                .frame(false),
-                        );
-                        if response.lost_focus()
-                            || ui.input(|i| i.key_pressed(egui::Key::Enter))
-                        {
-                            let name = self.new_project_name.trim().to_string();
-                            if !name.is_empty() {
-                                actions.push(TodoAction::CreateProject {
-                                    workspace_id: current_workspace_id,
-                                    name,
-                                });
-                            }
-                            self.new_project_name.clear();
-                            self.adding_project_workspace = None;
-                        }
-                    });
-                } else {
-                    let resp = ui.horizontal(|ui| {
-                        let (icon_rect, _) =
-                            ui.allocate_exact_size(Vec2::new(16.0, 18.0), Sense::hover());
-                        let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(12.0));
-                        draw_icon(ui, Icon::CirclePlus, ir, theme.text_muted);
-                        ui.add(
-                            egui::Label::new(
-                                RichText::new("Проект")
-                                    .size(13.0)
-                                    .color(theme.text_muted),
-                            )
-                            .sense(Sense::click()),
-                        )
-                    });
-                    if resp.inner.clicked() || resp.response.clicked() {
-                        self.adding_project_workspace = Some(current_workspace_id);
+        ui.add_space(theme.spacing_sm);
+
+        // New task input
+        actions.extend(self.render_new_task_input(
+            ui,
+            theme,
+            current_workspace_id,
+            None,
+        ));
+
+        ui.add_space(theme.spacing_xs);
+
+        // Add project button
+        if self.adding_project_workspace == Some(current_workspace_id) {
+            ui.horizontal(|ui| {
+                ui.label(
+                    RichText::new("+").size(14.0).color(theme.text_muted),
+                );
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut self.new_project_name)
+                        .hint_text(crate::i18n::tr().todo.project_name_hint)
+                        .desired_width(ui.available_width() - 10.0)
+                        .font(egui::FontId::proportional(13.0))
+                        .frame(false),
+                );
+                if response.lost_focus()
+                    || ui.input(|i| i.key_pressed(egui::Key::Enter))
+                {
+                    let name = self.new_project_name.trim().to_string();
+                    if !name.is_empty() {
+                        actions.push(TodoAction::CreateProject {
+                            workspace_id: current_workspace_id,
+                            name,
+                        });
                     }
+                    self.new_project_name.clear();
+                    self.adding_project_workspace = None;
                 }
             });
+        } else {
+            let resp = ui.horizontal(|ui| {
+                let (icon_rect, _) =
+                    ui.allocate_exact_size(Vec2::new(16.0, 18.0), Sense::hover());
+                let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(12.0));
+                draw_icon(ui, Icon::CirclePlus, ir, theme.text_muted);
+                ui.add(
+                    egui::Label::new(
+                        RichText::new(t.todo.project)
+                            .size(13.0)
+                            .color(theme.text_muted),
+                    )
+                    .sense(Sense::click()),
+                )
+            });
+            if resp.inner.clicked() || resp.response.clicked() {
+                self.adding_project_workspace = Some(current_workspace_id);
+            }
+        }
+
+        actions
+    }
+
+    /// Render a sortable list of todos using egui_dnd.
+    /// `project_id` is None for unassigned todos.
+    fn render_dnd_todo_list(
+        &mut self,
+        ui: &mut egui::Ui,
+        theme: &Theme,
+        todo_list: &[&TodoItem],
+        projects: &[Project],
+        project_id: Option<i64>,
+    ) -> Vec<TodoAction> {
+        let mut actions = Vec::new();
+
+        // Build lightweight DnD items with stable ids
+        let mut dnd_items: Vec<DndTodoItem> = todo_list
+            .iter()
+            .map(|t| DndTodoItem {
+                todo_id: t.id,
+                position: t.position,
+            })
+            .collect();
+
+        let dnd_id = match project_id {
+            Some(pid) => ("todo_dnd_project", pid),
+            None => ("todo_dnd_unassigned", 0),
+        };
+
+        let response = egui_dnd::dnd(ui, dnd_id)
+            .show_vec(&mut dnd_items, |ui, dnd_item, handle, _state| {
+                // Find the full todo item for rendering
+                if let Some(todo) = todo_list.iter().find(|t| t.id == dnd_item.todo_id) {
+                    actions.extend(self.render_todo_item(ui, theme, todo, projects, handle));
+                }
+            });
+
+        // On drag finished, emit reorder actions
+        if response.final_update().is_some() {
+            for (new_pos, dnd_item) in dnd_items.iter().enumerate() {
+                let original = todo_list.iter().find(|t| t.id == dnd_item.todo_id);
+                if let Some(todo) = original {
+                    if new_pos as i32 != todo.position {
+                        actions.push(TodoAction::ReorderTodo {
+                            id: dnd_item.todo_id,
+                            project_id,
+                            new_position: new_pos as i32,
+                        });
+                    }
+                }
+            }
+        }
+
+        // Render todo popup OUTSIDE DnD to avoid click conflicts
+        if let Some(popup_id) = self.popup_todo_id {
+            if let Some(todo) = todo_list.iter().find(|t| t.id == popup_id) {
+                self.render_todo_popup_area(ui, theme, todo, projects, &mut actions);
+            }
+        }
 
         actions
     }
@@ -491,92 +540,55 @@ impl TodoView {
     ) -> Vec<TodoAction> {
         let mut actions = Vec::new();
 
-        ui.horizontal(|ui| {
-            // Plus icon
-            let (icon_rect, _) = ui.allocate_exact_size(Vec2::new(18.0, 22.0), Sense::hover());
-            let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(14.0));
-            draw_icon(ui, Icon::Plus, ir, theme.accent.solid());
+        // Subtle dashed-border card for new task input
+        egui::Frame::none()
+            .inner_margin(egui::Margin::symmetric(4.0, 3.0))
+            .rounding(theme.rounding_sm)
+            .stroke(egui::Stroke::new(1.0, theme.border_subtle))
+            .show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    // Plus icon
+                    let (icon_rect, _) = ui.allocate_exact_size(Vec2::new(14.0, 20.0), Sense::hover());
+                    let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(11.0));
+                    draw_icon(ui, Icon::Plus, ir, theme.accent.solid().linear_multiply(0.7));
 
-            let response = ui.add(
-                egui::TextEdit::singleline(&mut self.new_task_title)
-                    .hint_text("Новая задача...")
-                    .desired_width(ui.available_width())
-                    .font(egui::FontId::proportional(14.0))
-                    .frame(false),
-            );
+                    let response = ui.add(
+                        egui::TextEdit::singleline(&mut self.new_task_title)
+                            .hint_text(crate::i18n::tr().todo.new_task_hint)
+                            .desired_width(ui.available_width())
+                            .font(egui::FontId::proportional(13.0))
+                            .frame(false),
+                    );
 
-            if self.focus_new_task {
-                response.request_focus();
-                self.focus_new_task = false;
-            }
+                    if self.focus_new_task {
+                        response.request_focus();
+                        self.focus_new_task = false;
+                    }
 
-            // Singleline TextEdit loses focus on Enter
-            let submitted = response.lost_focus()
-                && ui.input(|i| i.key_pressed(egui::Key::Enter));
-            if submitted {
-                let title = self.new_task_title.trim().to_string();
-                if !title.is_empty() {
-                    actions.push(TodoAction::CreateTodo {
-                        workspace_id,
-                        project_id,
-                        title,
-                    });
-                    self.new_task_title.clear();
-                    response.request_focus();
-                }
-            }
-        });
-
-        actions
-    }
-
-    /// Render a drop indicator line between todo items. Returns action if dropped here.
-    fn render_drop_indicator(
-        &self,
-        ui: &mut egui::Ui,
-        theme: &Theme,
-        target_project_id: Option<i64>,
-        target_position: i32,
-    ) -> Vec<TodoAction> {
-        let mut actions = Vec::new();
-
-        if !egui::DragAndDrop::has_payload_of_type::<DragTodo>(ui.ctx()) {
-            return actions;
-        }
-
-        // Allocate a thin drop zone
-        let (rect, _) = ui.allocate_exact_size(
-            Vec2::new(ui.available_width(), 6.0),
-            Sense::hover(),
-        );
-
-        let is_hovered = ui.ctx().pointer_latest_pos()
-            .map_or(false, |pos| rect.contains(pos));
-
-        if is_hovered {
-            // Draw accent line
-            let y = rect.center().y;
-            ui.painter().line_segment(
-                [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
-                egui::Stroke::new(2.0, theme.accent.solid()),
-            );
-            // Draw small circles at ends
-            ui.painter().circle_filled(egui::pos2(rect.left() + 3.0, y), 3.0, theme.accent.solid());
-            ui.painter().circle_filled(egui::pos2(rect.right() - 3.0, y), 3.0, theme.accent.solid());
-
-            let pointer_released = ui.input(|i| i.pointer.any_released());
-            if pointer_released {
-                if let Some(payload) = egui::DragAndDrop::take_payload::<DragTodo>(ui.ctx()) {
-                    let drag = payload.as_ref();
-                    actions.push(TodoAction::ReorderTodo {
-                        id: drag.id,
-                        project_id: target_project_id,
-                        new_position: target_position,
-                    });
-                }
-            }
-        }
+                    let submitted = response.lost_focus()
+                        && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    if submitted {
+                        let title = self.new_task_title.trim().to_string();
+                        if !title.is_empty() {
+                            actions.push(TodoAction::CreateTodo {
+                                workspace_id,
+                                project_id,
+                                title,
+                            });
+                            self.new_task_title.clear();
+                            response.request_focus();
+                        }
+                    }
+                });
+            });
 
         actions
     }
+}
+
+/// Lightweight struct for DnD tracking — only needs id + position for reorder.
+#[derive(Hash)]
+struct DndTodoItem {
+    todo_id: i64,
+    position: i32,
 }

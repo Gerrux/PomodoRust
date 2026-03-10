@@ -10,6 +10,28 @@ pub(super) enum QueueViewAction {
     Reorder(Vec<i64>),
 }
 
+/// Wrapper for DnD: implements DragDropItem via unique queue id.
+#[derive(Hash)]
+struct DndQueueItem {
+    id: i64,
+    todo_id: i64,
+    title: String,
+    completed_pomodoros: u32,
+    planned_pomodoros: u32,
+}
+
+impl DndQueueItem {
+    fn from_task(task: &QueuedTask) -> Self {
+        Self {
+            id: task.id,
+            todo_id: task.todo_id,
+            title: task.title.clone(),
+            completed_pomodoros: task.completed_pomodoros,
+            planned_pomodoros: task.planned_pomodoros,
+        }
+    }
+}
+
 /// Render the queue page inside the main pomodoro window.
 pub(super) fn render_queue_view(
     ui: &mut egui::Ui,
@@ -17,8 +39,9 @@ pub(super) fn render_queue_view(
     queue: &[QueuedTask],
 ) -> Vec<QueueViewAction> {
     let mut actions = Vec::new();
+    let t = crate::i18n::tr();
 
-    // Back button
+    // Header
     ui.horizontal(|ui| {
         let (arrow_rect, arrow_resp) =
             ui.allocate_exact_size(egui::vec2(18.0, 18.0), egui::Sense::click());
@@ -29,7 +52,7 @@ pub(super) fn render_queue_view(
         }
 
         ui.label(
-            egui::RichText::new("Очередь")
+            egui::RichText::new(t.queue.title)
                 .size(14.0)
                 .strong()
                 .color(theme.text_primary),
@@ -56,13 +79,13 @@ pub(super) fn render_queue_view(
         ui.add_space(theme.spacing_xl);
         ui.vertical_centered(|ui| {
             ui.label(
-                egui::RichText::new("Очередь пуста")
+                egui::RichText::new(t.queue.empty)
                     .size(16.0)
                     .color(theme.text_muted),
             );
             ui.add_space(theme.spacing_sm);
             ui.label(
-                egui::RichText::new("Добавляйте задачи через меню \u{22EE} в списке задач")
+                egui::RichText::new(t.queue.empty_hint)
                     .size(13.0)
                     .color(theme.text_muted),
             );
@@ -70,163 +93,136 @@ pub(super) fn render_queue_view(
         return actions;
     }
 
-    // Drag & drop state
-    let dnd_id = ui.id().with("queue_dnd");
-    let dragged_idx: Option<usize> = ui.data(|d| d.get_temp(dnd_id));
-    let mut drop_target_idx: Option<usize> = None;
+    let mut items: Vec<DndQueueItem> = queue.iter().map(DndQueueItem::from_task).collect();
+
+    let hover_bg = if theme.is_light {
+        egui::Color32::from_rgba_unmultiplied(0, 0, 0, 12)
+    } else {
+        egui::Color32::from_rgba_unmultiplied(255, 255, 255, 8)
+    };
 
     let available_height = ui.available_height();
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .max_height(available_height)
         .show(ui, |ui| {
-            for (i, task) in queue.iter().enumerate() {
-                let _item_id = ui.id().with(("queue_item", task.id));
-                let is_being_dragged = dragged_idx == Some(i);
+            let response = egui_dnd::dnd(ui, "queue_dnd")
+                .show_vec(&mut items, |ui, item, handle, state| {
+                    let i = state.index;
+                    let is_current = i == 0 && !state.dragged;
 
-                // Drag handle + row
-                let row_resp = ui.scope(|ui| {
-                    // Make the whole row semi-transparent when being dragged
-                    if is_being_dragged {
-                        ui.set_opacity(0.4);
-                    }
+                    // Item card frame
+                    let item_resp = egui::Frame::none()
+                        .inner_margin(egui::Margin::symmetric(4.0, 4.0))
+                        .rounding(theme.rounding_sm)
+                        .show(ui, |ui| {
+                            ui.horizontal(|ui| {
+                                // Drag handle
+                                handle.ui(ui, |ui| {
+                                    let (handle_rect, _) = ui.allocate_exact_size(
+                                        egui::vec2(12.0, 18.0),
+                                        egui::Sense::hover(),
+                                    );
+                                    let ir = egui::Rect::from_center_size(
+                                        handle_rect.center(),
+                                        egui::vec2(10.0, 10.0),
+                                    );
+                                    draw_icon(ui, Icon::GripVertical, ir,
+                                        theme.text_muted.linear_multiply(0.4));
+                                });
 
-                    // Top row: drag handle, indicator, progress, remove button
-                    ui.horizontal(|ui| {
-                        // Drag handle
-                        let (handle_rect, handle_resp) = ui.allocate_exact_size(
-                            egui::vec2(14.0, 18.0),
-                            egui::Sense::drag(),
-                        );
-                        let handle_color = if handle_resp.hovered() || handle_resp.dragged() {
-                            theme.text_primary
-                        } else {
-                            theme.text_muted
-                        };
-                        ui.painter().text(
-                            handle_rect.center(),
-                            egui::Align2::CENTER_CENTER,
-                            "⠿",
-                            egui::FontId::proportional(12.0),
-                            handle_color,
-                        );
-
-                        if handle_resp.drag_started() {
-                            ui.data_mut(|d| d.insert_temp(dnd_id, i));
-                        }
-
-                        // Current indicator
-                        let (icon_rect, _) =
-                            ui.allocate_exact_size(egui::vec2(14.0, 18.0), egui::Sense::hover());
-                        if i == 0 && !is_being_dragged {
-                            let ir = egui::Rect::from_center_size(
-                                icon_rect.center(),
-                                egui::vec2(10.0, 10.0),
-                            );
-                            draw_icon(ui, Icon::ChevronRight, ir, theme.accent.solid());
-                        }
-
-                        // Right side: progress + remove
-                        ui.with_layout(
-                            egui::Layout::right_to_left(egui::Align::Center),
-                            |ui| {
-                                let (x_rect, x_resp) = ui.allocate_exact_size(
-                                    egui::vec2(18.0, 18.0),
-                                    egui::Sense::click(),
-                                );
-                                let x_ir = egui::Rect::from_center_size(
-                                    x_rect.center(),
-                                    egui::vec2(10.0, 10.0),
-                                );
-                                let x_color = if x_resp.hovered() {
-                                    theme.error
-                                } else {
-                                    theme.text_muted
-                                };
-                                draw_icon(ui, Icon::X, x_ir, x_color);
-                                if x_resp.clicked() {
-                                    actions.push(QueueViewAction::Remove(task.id));
+                                // Current indicator
+                                if is_current {
+                                    let (icon_rect, _) =
+                                        ui.allocate_exact_size(egui::vec2(12.0, 18.0), egui::Sense::hover());
+                                    let ir = egui::Rect::from_center_size(
+                                        icon_rect.center(),
+                                        egui::vec2(9.0, 9.0),
+                                    );
+                                    draw_icon(ui, Icon::ChevronRight, ir, theme.accent.solid());
                                 }
 
-                                ui.label(
-                                    egui::RichText::new(format!(
-                                        "{}/{}",
-                                        task.completed_pomodoros, task.planned_pomodoros
-                                    ))
-                                    .size(12.0)
-                                    .color(theme.text_muted),
-                                );
-                            },
-                        );
-                    });
+                                // Title
+                                let title_color = if is_current { theme.text_primary } else { theme.text_secondary };
+                                let mut title_text = egui::RichText::new(&item.title)
+                                    .size(13.0)
+                                    .color(title_color);
+                                if is_current {
+                                    title_text = title_text.strong();
+                                }
+                                ui.add(egui::Label::new(title_text).wrap());
 
-                    // Title below, with left indent matching handle+icon width
-                    ui.horizontal(|ui| {
-                        ui.add_space(28.0); // 14 + 14 for handle + icon
-                        let color = if i == 0 {
-                            theme.text_primary
-                        } else {
-                            theme.text_secondary
-                        };
-                        let mut title_text =
-                            egui::RichText::new(&task.title).size(13.0).color(color);
-                        if i == 0 {
-                            title_text = title_text.strong();
-                        }
-                        ui.add(egui::Label::new(title_text).wrap());
-                    });
+                                // Right side: progress + remove
+                                ui.with_layout(
+                                    egui::Layout::right_to_left(egui::Align::Center),
+                                    |ui| {
+                                        // Remove button
+                                        let (x_rect, x_resp) = ui.allocate_exact_size(
+                                            egui::vec2(16.0, 18.0),
+                                            egui::Sense::click(),
+                                        );
+                                        let x_ir = egui::Rect::from_center_size(
+                                            x_rect.center(),
+                                            egui::vec2(9.0, 9.0),
+                                        );
+                                        let x_color = if x_resp.hovered() {
+                                            theme.error
+                                        } else {
+                                            theme.text_muted.linear_multiply(0.5)
+                                        };
+                                        draw_icon(ui, Icon::X, x_ir, x_color);
+                                        if x_resp.clicked() {
+                                            actions.push(QueueViewAction::Remove(item.id));
+                                        }
+
+                                        // Progress badge
+                                        let badge_bg = if theme.is_light {
+                                            egui::Color32::from_rgba_unmultiplied(0, 0, 0, 25)
+                                        } else {
+                                            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 25)
+                                        };
+                                        egui::Frame::none()
+                                            .inner_margin(egui::Margin::symmetric(6.0, 2.0))
+                                            .rounding(theme.rounding_sm)
+                                            .fill(badge_bg)
+                                            .show(ui, |ui| {
+                                                ui.label(
+                                                    egui::RichText::new(format!(
+                                                        "{}/{}",
+                                                        item.completed_pomodoros, item.planned_pomodoros
+                                                    ))
+                                                    .size(11.0)
+                                                    .color(theme.text_secondary),
+                                                );
+                                            });
+                                    },
+                                );
+                            });
+                        });
+
+                    let item_rect = item_resp.response.rect;
+
+                    // Hover bg
+                    if ui.rect_contains_pointer(item_rect) {
+                        ui.painter().rect_filled(item_rect, theme.rounding_sm, hover_bg);
+                    }
+
+                    // Current item accent stripe
+                    if is_current {
+                        ui.painter().line_segment(
+                            [
+                                egui::pos2(item_rect.left() + 1.0, item_rect.top() + 3.0),
+                                egui::pos2(item_rect.left() + 1.0, item_rect.bottom() - 3.0),
+                            ],
+                            egui::Stroke::new(2.5, theme.accent.solid()),
+                        );
+                    }
                 });
 
-                let row_rect = row_resp.response.rect;
-
-                // Drop target detection
-                if dragged_idx.is_some() && dragged_idx != Some(i) {
-                    if let Some(pointer) = ui.ctx().pointer_hover_pos() {
-                        if row_rect.contains(pointer) {
-                            drop_target_idx = Some(i);
-                            // Draw drop indicator line
-                            let line_y = if pointer.y < row_rect.center().y {
-                                row_rect.top()
-                            } else {
-                                row_rect.bottom()
-                            };
-                            ui.painter().line_segment(
-                                [
-                                    egui::pos2(row_rect.left(), line_y),
-                                    egui::pos2(row_rect.right(), line_y),
-                                ],
-                                egui::Stroke::new(2.0, theme.accent.solid()),
-                            );
-                        }
-                    }
-                }
-
-                // Hover bg (only when not dragging)
-                if dragged_idx.is_none() && ui.rect_contains_pointer(row_rect) {
-                    let hover_bg = if theme.is_light {
-                        egui::Color32::from_rgba_unmultiplied(0, 0, 0, 10)
-                    } else {
-                        egui::Color32::from_rgba_unmultiplied(255, 255, 255, 8)
-                    };
-                    ui.painter()
-                        .rect_filled(row_rect, theme.rounding_sm, hover_bg);
-                }
-            }
-
-            // Handle drop
-            if let Some(from) = dragged_idx {
-                if !ui.ctx().input(|i| i.pointer.any_down()) {
-                    // Drag ended
-                    ui.data_mut(|d| d.remove_temp::<usize>(dnd_id));
-                    if let Some(to) = drop_target_idx {
-                        if from != to {
-                            let mut ids: Vec<i64> = queue.iter().map(|t| t.id).collect();
-                            let item = ids.remove(from);
-                            ids.insert(if to > from { to } else { to }, item);
-                            actions.push(QueueViewAction::Reorder(ids));
-                        }
-                    }
-                }
+            // Reorder
+            if response.final_update().is_some() {
+                let ids: Vec<i64> = items.iter().map(|item| item.id).collect();
+                actions.push(QueueViewAction::Reorder(ids));
             }
 
             // Clear all
@@ -236,7 +232,7 @@ pub(super) fn render_queue_view(
                 ui.add_space(theme.spacing_xs);
                 let btn = ui.add(
                     egui::Label::new(
-                        egui::RichText::new("Очистить очередь")
+                        egui::RichText::new(t.queue.clear)
                             .size(12.0)
                             .color(theme.error),
                     )

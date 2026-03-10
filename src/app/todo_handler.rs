@@ -47,11 +47,15 @@ impl PomodoRustApp {
     pub(super) fn handle_todo_action(&mut self, action: TodoAction) -> bool {
         let Some(db) = &self.database else { return false };
 
-        // Helper macro to log DB errors instead of silently ignoring them
+        // Collect DB errors to show as toasts after releasing borrows
+        let mut db_errors: Vec<String> = Vec::new();
+
+        // Helper macro to log DB errors and collect for toast
         macro_rules! db_op {
             ($expr:expr, $op:literal) => {
                 if let Err(e) = $expr {
                     tracing::warn!("DB {}: {e}", $op);
+                    db_errors.push(format!("Error: {}", $op));
                 }
             };
         }
@@ -62,13 +66,14 @@ impl PomodoRustApp {
                     Ok(v) => Some(v),
                     Err(e) => {
                         tracing::warn!("DB {}: {e}", $op);
+                        db_errors.push(format!("Error: {}", $op));
                         None
                     }
                 }
             };
         }
 
-        match action {
+        let result = match action {
             // ── Fast-path: no refresh needed ──────────────────────────
 
             TodoAction::ToggleShowCompleted => {
@@ -363,7 +368,14 @@ impl PomodoRustApp {
                 db_op!(self.config.save(), "save_config");
                 true // need to load projects/todos for new workspace
             }
+        };
+
+        // Show collected DB errors as toasts
+        for err in db_errors {
+            self.show_error(err);
         }
+
+        result
     }
 
     /// Show the todo as a separate OS window using show_viewport_deferred.
@@ -416,8 +428,16 @@ impl PomodoRustApp {
         }
 
         // ── 4. Handle AOT toggle from todo viewport ──────────────
+        // Only update config and shared data — don't change the main window's
+        // z-order, which would bring it to the foreground and cover the todo window.
         if aot_toggled {
-            self.set_always_on_top(!todo_pinned, ctx);
+            let new_value = !todo_pinned;
+            self.config.window.always_on_top = new_value;
+            if let Ok(mut data) = self.shared_todo.data.write() {
+                data.is_always_on_top = new_value;
+            }
+            let _ = self.config.save();
+            ctx.request_repaint();
         }
 
         // Process pending actions (batch: single refresh for all structural actions)

@@ -309,7 +309,9 @@ pub fn render_todo_viewport(ctx: &egui::Context, bridge: &TodoBridge) {
                 // Content
                 let actions = RENDER_CACHE.with(|cache| {
                     let cache = cache.borrow();
-                    let c = cache.as_ref().unwrap();
+                    let Some(c) = cache.as_ref() else {
+                        return Vec::new();
+                    };
                     let mut actions = Vec::new();
                     egui::Frame::none()
                         .inner_margin(egui::Margin::symmetric(

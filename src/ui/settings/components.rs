@@ -1,4 +1,4 @@
-use egui::{vec2, Color32, Layout, Rect, Ui};
+use egui::{vec2, Layout, Rect, Ui};
 
 use super::super::components::{draw_icon, Icon};
 use super::super::theme::{AccentColor, Theme};
@@ -131,16 +131,10 @@ pub(super) fn color_picker_row(
                     .circle_filled(rect.center(), size / 2.0 - 2.0, color);
 
                 if is_selected {
-                    // Use contrasting color for selection ring based on theme
-                    let ring_color = if theme.is_light {
-                        Color32::from_rgb(10, 10, 10) // Dark ring on light bg
-                    } else {
-                        Color32::WHITE // White ring on dark bg
-                    };
                     ui.painter().circle_stroke(
                         rect.center(),
                         size / 2.0,
-                        egui::Stroke::new(2.0, ring_color),
+                        egui::Stroke::new(2.0, theme.text_primary),
                     );
                 }
 

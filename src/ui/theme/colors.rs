@@ -270,25 +270,46 @@ impl Theme {
         style.visuals.code_bg_color = self.bg_tertiary;
 
         // Widget visuals
+        let rounding = self.button_rounding();
+
         style.visuals.widgets.noninteractive.bg_fill = self.bg_secondary;
+        style.visuals.widgets.noninteractive.weak_bg_fill = self.bg_secondary;
         style.visuals.widgets.noninteractive.fg_stroke = Stroke::new(1.0, self.text_secondary);
-        style.visuals.widgets.noninteractive.rounding = self.button_rounding();
+        style.visuals.widgets.noninteractive.bg_stroke = Stroke::new(1.0, self.border_subtle);
+        style.visuals.widgets.noninteractive.rounding = rounding;
 
         style.visuals.widgets.inactive.bg_fill = self.bg_tertiary;
+        style.visuals.widgets.inactive.weak_bg_fill = self.bg_tertiary;
         style.visuals.widgets.inactive.fg_stroke = Stroke::new(1.0, self.text_primary);
-        style.visuals.widgets.inactive.rounding = self.button_rounding();
+        style.visuals.widgets.inactive.bg_stroke = Stroke::new(1.0, self.border_subtle);
+        style.visuals.widgets.inactive.rounding = rounding;
 
         style.visuals.widgets.hovered.bg_fill = self.bg_hover;
+        style.visuals.widgets.hovered.weak_bg_fill = self.bg_hover;
         style.visuals.widgets.hovered.fg_stroke = Stroke::new(1.0, self.text_primary);
-        style.visuals.widgets.hovered.rounding = self.button_rounding();
+        style.visuals.widgets.hovered.bg_stroke = Stroke::new(1.0, self.border_default);
+        style.visuals.widgets.hovered.rounding = rounding;
 
         style.visuals.widgets.active.bg_fill = self.bg_active;
+        style.visuals.widgets.active.weak_bg_fill = self.bg_active;
         style.visuals.widgets.active.fg_stroke = Stroke::new(1.0, self.text_primary);
-        style.visuals.widgets.active.rounding = self.button_rounding();
+        style.visuals.widgets.active.bg_stroke = Stroke::new(1.0, self.border_strong);
+        style.visuals.widgets.active.rounding = rounding;
+
+        style.visuals.widgets.open.bg_fill = self.bg_tertiary;
+        style.visuals.widgets.open.weak_bg_fill = self.bg_tertiary;
+        style.visuals.widgets.open.fg_stroke = Stroke::new(1.0, self.text_primary);
+        style.visuals.widgets.open.bg_stroke = Stroke::new(1.0, self.border_default);
+        style.visuals.widgets.open.rounding = rounding;
 
         // Selection
-        style.visuals.selection.bg_fill = Self::with_alpha(self.accent.solid(), 100);
-        style.visuals.selection.stroke = Stroke::new(1.0, self.accent.solid());
+        let accent_solid = if self.is_light {
+            self.accent.solid_light()
+        } else {
+            self.accent.solid()
+        };
+        style.visuals.selection.bg_fill = Self::with_alpha(accent_solid, 100);
+        style.visuals.selection.stroke = Stroke::new(1.0, accent_solid);
 
         // Window
         style.visuals.window_rounding = self.window_rounding();

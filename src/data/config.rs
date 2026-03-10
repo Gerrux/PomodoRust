@@ -9,6 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 
 use crate::error::ConfigError;
+use crate::i18n::Language;
 use crate::ui::theme::{AccentColor, ThemeMode};
 
 /// Available notification sounds
@@ -92,6 +93,8 @@ pub struct AppearanceConfig {
     pub accent_color: AccentColor,
     pub compact_mode: bool,
     pub window_opacity: u32,
+    #[serde(default)]
+    pub language: Language,
 }
 
 impl Default for AppearanceConfig {
@@ -101,6 +104,7 @@ impl Default for AppearanceConfig {
             accent_color: AccentColor::Blue,
             compact_mode: false,
             window_opacity: 100,
+            language: Language::Auto,
         }
     }
 }

@@ -44,6 +44,7 @@ impl SettingsView {
     }
 
     pub fn show(&mut self, ui: &mut Ui, config: &Config, theme: &Theme) -> Option<SettingsAction> {
+        let t = crate::i18n::tr();
         let mut action = None;
 
         // Sync always_on_top from config (may be changed externally via titlebar)
@@ -57,7 +58,10 @@ impl SettingsView {
         let content_width = available_width.min(max_content_width);
         let horizontal_margin = ((available_width - content_width) / 2.0).max(0.0);
 
-        egui::ScrollArea::vertical().show(ui, |ui| {
+        let scroll_max_h = ui.available_height();
+        egui::ScrollArea::vertical()
+            .max_height(scroll_max_h)
+            .show(ui, |ui| {
             // Apply horizontal margins for centering
             let margin = egui::Margin {
                 left: horizontal_margin,
@@ -99,7 +103,7 @@ impl SettingsView {
                 ui.add_space(12.0);
 
                 ui.label(
-                    egui::RichText::new("Настройки")
+                    egui::RichText::new(t.settings.title)
                         .font(theme.font_h2())
                         .color(theme.text_primary),
                 );
@@ -108,14 +112,14 @@ impl SettingsView {
             ui.add_space(theme.spacing_lg);
 
             // Timer section
-            section_header(ui, theme, "Timer");
+            section_header(ui, theme, t.settings.timer);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 duration_row(
                     ui,
                     theme,
-                    "Focus Duration",
+                    t.settings.focus_duration,
                     &mut self.state.work_duration,
                     1.0,
                     90.0,
@@ -123,7 +127,7 @@ impl SettingsView {
                 duration_row(
                     ui,
                     theme,
-                    "Short Break",
+                    t.settings.short_break,
                     &mut self.state.short_break,
                     1.0,
                     30.0,
@@ -131,7 +135,7 @@ impl SettingsView {
                 duration_row(
                     ui,
                     theme,
-                    "Long Break",
+                    t.settings.long_break,
                     &mut self.state.long_break,
                     5.0,
                     60.0,
@@ -139,7 +143,7 @@ impl SettingsView {
                 duration_row_with_unit(
                     ui,
                     theme,
-                    "Sessions before long break",
+                    t.settings.sessions_before_long,
                     &mut self.state.sessions_before_long,
                     2.0,
                     8.0,
@@ -151,13 +155,13 @@ impl SettingsView {
                 toggle_row(
                     ui,
                     theme,
-                    "Auto-start breaks",
+                    t.settings.auto_start_breaks,
                     &mut self.state.auto_start_breaks,
                 );
                 toggle_row(
                     ui,
                     theme,
-                    "Auto-start pomodoros",
+                    t.settings.auto_start_pomodoros,
                     &mut self.state.auto_start_work,
                 );
             });
@@ -165,12 +169,12 @@ impl SettingsView {
             ui.add_space(theme.spacing_md);
 
             // Sounds section
-            section_header(ui, theme, "Sounds");
+            section_header(ui, theme, t.settings.sounds);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Volume").color(theme.text_secondary));
+                    ui.label(egui::RichText::new(t.settings.volume).color(theme.text_secondary));
 
                     // Use right-to-left layout for proper alignment
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
@@ -193,7 +197,7 @@ impl SettingsView {
                 // Sound selection with test button
                 let mut test_sound = false;
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Sound").color(theme.text_secondary));
+                    ui.label(egui::RichText::new(t.settings.sound).color(theme.text_secondary));
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         // Test button with play icon
@@ -203,7 +207,7 @@ impl SettingsView {
                         ui.painter().rect_stroke(btn_rect, theme.rounding_sm, egui::Stroke::new(1.0, theme.border_subtle));
                         let icon_rect = egui::Rect::from_center_size(btn_rect.center(), vec2(12.0, 12.0));
                         draw_icon(ui, Icon::Play, icon_rect, theme.text_primary);
-                        if btn_resp.on_hover_text("Test sound").clicked() {
+                        if btn_resp.on_hover_text(t.settings.test_sound).clicked() {
                             test_sound = true;
                         }
 
@@ -247,7 +251,7 @@ impl SettingsView {
                 toggle_row(
                     ui,
                     theme,
-                    "Tick sound",
+                    t.settings.tick_sound,
                     &mut self.state.tick_enabled,
                 );
             });
@@ -255,13 +259,13 @@ impl SettingsView {
             ui.add_space(theme.spacing_md);
 
             // Appearance section
-            section_header(ui, theme, "Appearance");
+            section_header(ui, theme, t.settings.appearance);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 // Theme mode selector
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Theme").color(theme.text_secondary));
+                    ui.label(egui::RichText::new(t.settings.theme).color(theme.text_secondary));
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         // Apply dark theme styles for ComboBox button
@@ -279,7 +283,7 @@ impl SettingsView {
                                 egui::RichText::new(self.state.theme_mode.name())
                                     .color(theme.text_primary),
                             )
-                            .width(100.0)
+                            .width(150.0)
                             .show_ui(ui, |ui| {
                                 ui.style_mut().visuals.widgets.inactive.bg_fill = theme.bg_secondary;
                                 ui.style_mut().visuals.widgets.hovered.bg_fill = theme.bg_hover;
@@ -307,7 +311,7 @@ impl SettingsView {
                 color_picker_row(
                     ui,
                     theme,
-                    "Accent Color",
+                    t.settings.accent_color,
                     &standard_colors,
                     &mut self.state.selected_accent,
                 );
@@ -317,7 +321,7 @@ impl SettingsView {
                 color_picker_row(
                     ui,
                     theme,
-                    "Retro Themes",
+                    t.settings.retro_themes,
                     &retro_colors,
                     &mut self.state.selected_accent,
                 );
@@ -326,7 +330,7 @@ impl SettingsView {
 
                 // Window opacity slider
                 ui.horizontal(|ui| {
-                    ui.label(egui::RichText::new("Window Opacity").color(theme.text_secondary));
+                    ui.label(egui::RichText::new(t.settings.window_opacity).color(theme.text_secondary));
 
                     ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
                         ui.label(
@@ -346,21 +350,62 @@ impl SettingsView {
 
             ui.add_space(theme.spacing_md);
 
+            // Language section
+            section_header(ui, theme, t.settings.language);
+            Card::new().show(ui, theme, |ui| {
+                ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
+
+                ui.horizontal(|ui| {
+                    ui.label(egui::RichText::new(t.settings.language).color(theme.text_secondary));
+
+                    ui.with_layout(Layout::right_to_left(egui::Align::Center), |ui| {
+                        ui.style_mut().visuals.widgets.inactive.bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.inactive.weak_bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.hovered.bg_fill = theme.bg_hover;
+                        ui.style_mut().visuals.widgets.hovered.weak_bg_fill = theme.bg_hover;
+                        ui.style_mut().visuals.widgets.active.bg_fill = theme.bg_active;
+                        ui.style_mut().visuals.widgets.active.weak_bg_fill = theme.bg_active;
+                        ui.style_mut().visuals.widgets.open.bg_fill = theme.bg_tertiary;
+                        ui.style_mut().visuals.widgets.open.weak_bg_fill = theme.bg_tertiary;
+
+                        egui::ComboBox::from_id_salt("language")
+                            .selected_text(
+                                egui::RichText::new(self.state.language.display_name())
+                                    .color(theme.text_primary),
+                            )
+                            .width(150.0)
+                            .show_ui(ui, |ui| {
+                                ui.style_mut().visuals.widgets.inactive.bg_fill = theme.bg_secondary;
+                                ui.style_mut().visuals.widgets.hovered.bg_fill = theme.bg_hover;
+                                for lang in crate::i18n::Language::all() {
+                                    ui.selectable_value(
+                                        &mut self.state.language,
+                                        *lang,
+                                        egui::RichText::new(lang.display_name()).color(theme.text_primary),
+                                    );
+                                }
+                            });
+                    });
+                });
+            });
+
+            ui.add_space(theme.spacing_md);
+
             // Accessibility section
-            section_header(ui, theme, "Accessibility");
+            section_header(ui, theme, t.settings.accessibility);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 toggle_row(
                     ui,
                     theme,
-                    "High contrast mode",
+                    t.settings.high_contrast,
                     &mut self.state.high_contrast,
                 );
                 toggle_row(
                     ui,
                     theme,
-                    "Reduced motion",
+                    t.settings.reduced_motion,
                     &mut self.state.reduced_motion,
                 );
             });
@@ -368,40 +413,40 @@ impl SettingsView {
             ui.add_space(theme.spacing_md);
 
             // System section
-            section_header(ui, theme, "System");
+            section_header(ui, theme, t.settings.system);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 toggle_row(
                     ui,
                     theme,
-                    "Start with Windows",
+                    t.settings.start_with_windows,
                     &mut self.state.start_with_windows,
                 );
-                toggle_row(ui, theme, "Always on top", &mut self.state.always_on_top);
+                toggle_row(ui, theme, t.settings.always_on_top, &mut self.state.always_on_top);
             });
 
             ui.add_space(theme.spacing_md);
 
             // Goals section
-            section_header(ui, theme, "Goals");
+            section_header(ui, theme, t.settings.goals);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 duration_row_with_unit(
                     ui,
                     theme,
-                    "Daily goal",
+                    t.settings.daily_goal,
                     &mut self.state.daily_goal,
                     1.0,
                     16.0,
-                    "pomodoros",
+                    t.settings.pomodoros,
                 );
 
                 toggle_row(
                     ui,
                     theme,
-                    "Notify when goal reached",
+                    t.settings.notify_goal_reached,
                     &mut self.state.notify_on_goal,
                 );
             });
@@ -409,14 +454,14 @@ impl SettingsView {
             ui.add_space(theme.spacing_md);
 
             // Hotkeys section
-            section_header(ui, theme, "Global Hotkeys");
+            section_header(ui, theme, t.settings.global_hotkeys);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 toggle_row(
                     ui,
                     theme,
-                    "Enable global hotkeys",
+                    t.settings.enable_hotkeys,
                     &mut self.state.hotkeys_enabled,
                 );
 
@@ -424,13 +469,13 @@ impl SettingsView {
                     ui.add_space(theme.spacing_xs);
 
                     // Show current hotkey bindings (read-only for now)
-                    hotkey_row(ui, theme, "Toggle (start/pause)", &self.state.hotkey_toggle);
-                    hotkey_row(ui, theme, "Skip session", &self.state.hotkey_skip);
-                    hotkey_row(ui, theme, "Reset timer", &self.state.hotkey_reset);
+                    hotkey_row(ui, theme, t.settings.toggle_start_pause, &self.state.hotkey_toggle);
+                    hotkey_row(ui, theme, t.settings.skip_session, &self.state.hotkey_skip);
+                    hotkey_row(ui, theme, t.settings.reset_timer, &self.state.hotkey_reset);
 
                     ui.add_space(theme.spacing_xs);
                     ui.label(
-                        egui::RichText::new("Restart app to apply hotkey changes")
+                        egui::RichText::new(t.settings.restart_for_hotkeys)
                             .color(theme.text_muted)
                             .small(),
                     );
@@ -440,12 +485,12 @@ impl SettingsView {
             ui.add_space(theme.spacing_md);
 
             // CLI Setup section
-            section_header(ui, theme, "Command Line");
+            section_header(ui, theme, t.settings.command_line);
             Card::new().show(ui, theme, |ui| {
                 ui.set_min_width(ui.available_width() - theme.spacing_md * 2.0);
 
                 ui.label(
-                    egui::RichText::new("Control timer from terminal:")
+                    egui::RichText::new(t.settings.control_from_terminal)
                         .color(theme.text_secondary),
                 );
                 ui.add_space(theme.spacing_xs);
@@ -473,14 +518,14 @@ impl SettingsView {
                 );
 
                 let copy_btn = egui::Button::new(
-                    egui::RichText::new("Copy PATH command").color(theme.text_primary),
+                    egui::RichText::new(t.settings.copy_path_command).color(theme.text_primary),
                 )
                 .fill(theme.bg_tertiary)
                 .stroke(egui::Stroke::new(1.0, theme.border_subtle));
 
                 if ui
                     .add_sized(vec2(ui.available_width(), 32.0), copy_btn)
-                    .on_hover_text("Copy PowerShell command to add pomodorust to PATH")
+                    .on_hover_text(t.settings.copy_path_tooltip)
                     .clicked()
                 {
                     ui.ctx().copy_text(powershell_cmd);
@@ -488,7 +533,7 @@ impl SettingsView {
 
                 ui.add_space(theme.spacing_xs);
                 ui.label(
-                    egui::RichText::new("Run copied command in PowerShell, then restart terminal")
+                    egui::RichText::new(t.settings.run_copied_command)
                         .color(theme.text_muted)
                         .small(),
                 );
@@ -497,16 +542,16 @@ impl SettingsView {
             ui.add_space(theme.spacing_md);
 
             // Presets section
-            section_header(ui, theme, "Presets");
+            section_header(ui, theme, t.settings.presets);
             let mut preset_clicked: Option<usize> = None;
             Card::new().show(ui, theme, |ui| {
                 let card_width = ui.available_width();
                 ui.set_min_width(card_width - theme.spacing_md * 2.0);
 
                 let presets = [
-                    ("Classic", "25/5/15"),
-                    ("Short", "15/3/10"),
-                    ("Long", "50/10/30"),
+                    (t.settings.preset_classic, "25/5/15"),
+                    (t.settings.preset_short, "15/3/10"),
+                    (t.settings.preset_long, "50/10/30"),
                 ];
 
                 let button_width = (card_width - theme.spacing_sm * 2.0) / 3.0;
@@ -541,7 +586,7 @@ impl SettingsView {
                 ui.add_space((ui.available_width() - 150.0) / 2.0);
 
                 let reset_btn = egui::Button::new(
-                    egui::RichText::new("Reset to Defaults").color(theme.text_primary),
+                    egui::RichText::new(t.settings.reset_to_defaults).color(theme.text_primary),
                 )
                 .fill(theme.bg_tertiary)
                 .stroke(egui::Stroke::new(1.0, theme.border_subtle));

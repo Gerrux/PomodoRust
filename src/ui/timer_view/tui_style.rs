@@ -1,7 +1,7 @@
 use egui::{vec2, Align, FontId, Layout, Ui};
 
 use super::{TimerAction, TimerView};
-use crate::core::{Session, SessionType};
+use crate::core::Session;
 use crate::data::todo::QueuedTask;
 use crate::ui::components::{AsciiProgressBar, AsciiSpinner, AsciiTime};
 use crate::ui::theme::Theme;
@@ -17,6 +17,7 @@ impl TimerView {
         current_task: Option<&QueuedTask>,
         queue: &[QueuedTask],
     ) -> Option<TimerAction> {
+        let t = crate::i18n::tr();
         let mut action = None;
 
         let available = ui.available_size();
@@ -59,11 +60,7 @@ impl TimerView {
                 "○"
             };
 
-            let session_label = match session.session_type() {
-                SessionType::Work => "FOCUS",
-                SessionType::ShortBreak => "SHORT BREAK",
-                SessionType::LongBreak => "LONG BREAK",
-            };
+            let session_label = t.session_label(session.session_type());
 
             ui.label(
                 egui::RichText::new(format!("{} {}", spinner, session_label))
@@ -144,7 +141,8 @@ impl TimerView {
             // Session counter
             ui.label(
                 egui::RichText::new(format!(
-                    "Session {}/{}",
+                    "{} {}/{}",
+                    t.timer.session,
                     session.current_session_in_cycle(),
                     session.total_sessions_in_cycle()
                 ))
@@ -167,14 +165,14 @@ impl TimerView {
                     Layout::right_to_left(Align::Center),
                     |ui| {
                         let play_text = if is_running {
-                            "[ ■ PAUSE ]"
+                            format!("[ \u{25A0} {} ]", t.timer.pause)
                         } else {
-                            "[ ► START ]"
+                            format!("[ \u{25BA} {} ]", t.timer.start)
                         };
 
                         let play_btn = ui.add(
                             egui::Button::new(
-                                egui::RichText::new(play_text)
+                                egui::RichText::new(&play_text)
                                     .font(FontId::monospace(btn_font_size))
                                     .color(gray),
                             )
@@ -198,7 +196,7 @@ impl TimerView {
                             ui.painter().text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
-                                play_text,
+                                &play_text,
                                 FontId::monospace(btn_font_size),
                                 color,
                             );
@@ -215,9 +213,10 @@ impl TimerView {
                     vec2(half_width - btn_gap, btn_height),
                     Layout::left_to_right(Align::Center),
                     |ui| {
+                        let skip_text = format!("[ \u{00BB} {} ]", t.timer.skip);
                         let skip_btn = ui.add(
                             egui::Button::new(
-                                egui::RichText::new("[ » SKIP ]")
+                                egui::RichText::new(&skip_text)
                                     .font(FontId::monospace(btn_font_size))
                                     .color(gray),
                             )
@@ -240,7 +239,7 @@ impl TimerView {
                             ui.painter().text(
                                 rect.center(),
                                 egui::Align2::CENTER_CENTER,
-                                "[ » SKIP ]",
+                                &skip_text,
                                 FontId::monospace(btn_font_size),
                                 accent,
                             );
@@ -307,7 +306,7 @@ impl TimerView {
                         |ui| {
                             let dash_btn = ui.add(
                                 egui::Button::new(
-                                    egui::RichText::new("[ Статистика ]")
+                                    egui::RichText::new(format!("[ {} ]", t.nav.statistics))
                                         .font(FontId::monospace(btn_font_size))
                                         .color(fade(theme.text_secondary)),
                                 )
@@ -326,7 +325,7 @@ impl TimerView {
                         |ui| {
                             let settings_btn = ui.add(
                                 egui::Button::new(
-                                    egui::RichText::new("[ Настройки ]")
+                                    egui::RichText::new(format!("[ {} ]", t.nav.settings))
                                         .font(FontId::monospace(btn_font_size))
                                         .color(fade(theme.text_secondary)),
                                 )
@@ -347,7 +346,7 @@ impl TimerView {
                         |ui| {
                             let todo_btn = ui.add(
                                 egui::Button::new(
-                                    egui::RichText::new("[ Задачи ]")
+                                    egui::RichText::new(format!("[ {} ]", t.nav.tasks))
                                         .font(FontId::monospace(btn_font_size))
                                         .color(fade(theme.text_secondary)),
                                 )
@@ -365,9 +364,9 @@ impl TimerView {
                         Layout::left_to_right(Align::Center),
                         |ui| {
                             let queue_text = if queue.is_empty() {
-                                "[ Очередь ]".to_string()
+                                format!("[ {} ]", t.nav.queue)
                             } else {
-                                format!("[ Очередь {} ]", queue.len())
+                                format!("[ {} {} ]", t.nav.queue, queue.len())
                             };
                             let queue_btn = ui.add(
                                 egui::Button::new(

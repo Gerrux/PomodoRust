@@ -284,24 +284,26 @@ pub fn flash_pomodorust_window(count: u32) -> bool {
 pub fn show_pomodorust_window() -> bool {
     use windows::core::PCWSTR;
     use windows::Win32::UI::WindowsAndMessaging::{
-        FindWindowW, SetForegroundWindow,
+        FindWindowW, SetForegroundWindow, GetWindowLongPtrW, SetWindowLongPtrW,
+        SetWindowPos, HWND_TOPMOST, HWND_NOTOPMOST,
+        SWP_NOSIZE, SWP_SHOWWINDOW, SWP_FRAMECHANGED,
+        GWL_EXSTYLE, WS_EX_TOOLWINDOW,
     };
 
     unsafe {
         let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();
         if let Ok(hwnd) = FindWindowW(PCWSTR::null(), PCWSTR(title.as_ptr())) {
             if !hwnd.is_invalid() {
-                use windows::Win32::UI::WindowsAndMessaging::{
-                    SetWindowPos, HWND_TOPMOST, HWND_NOTOPMOST,
-                    SWP_NOSIZE, SWP_SHOWWINDOW,
-                };
+                // Remove WS_EX_TOOLWINDOW to restore taskbar entry
+                let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style & !(WS_EX_TOOLWINDOW.0 as isize));
                 // Restore saved position (or use 100,100 as fallback)
                 let (x, y) = SAVED_WINDOW_POS
                     .lock()
                     .ok()
                     .and_then(|pos| *pos)
                     .unwrap_or((100, 100));
-                let flags = SWP_NOSIZE | SWP_SHOWWINDOW;
+                let flags = SWP_NOSIZE | SWP_SHOWWINDOW | SWP_FRAMECHANGED;
                 // Move back to saved position + bring to front
                 let _ = SetWindowPos(hwnd, HWND_TOPMOST, x, y, 0, 0, flags);
                 let _ = SetWindowPos(hwnd, HWND_NOTOPMOST, x, y, 0, 0, flags);
@@ -325,8 +327,9 @@ static SAVED_WINDOW_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 pub fn hide_pomodorust_window() {
     use windows::core::PCWSTR;
     use windows::Win32::UI::WindowsAndMessaging::{
-        FindWindowW, GetWindowRect, SetWindowPos,
-        SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE,
+        FindWindowW, GetWindowRect, SetWindowPos, GetWindowLongPtrW, SetWindowLongPtrW,
+        SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE, SWP_FRAMECHANGED,
+        GWL_EXSTYLE, WS_EX_TOOLWINDOW,
     };
     use windows::Win32::Foundation::RECT;
 
@@ -341,23 +344,21 @@ pub fn hide_pomodorust_window() {
                         *pos = Some((rect.left, rect.top));
                     }
                 }
+                // Add WS_EX_TOOLWINDOW to hide from taskbar
+                let ex_style = GetWindowLongPtrW(hwnd, GWL_EXSTYLE);
+                SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_TOOLWINDOW.0 as isize);
                 // Move off-screen (window stays "visible" — WM_PAINT keeps working)
                 let _ = SetWindowPos(
                     hwnd, HWND(std::ptr::null_mut()),
                     -32000, -32000, 0, 0,
-                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                    SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
                 );
-                tracing::info!("Hid window off-screen");
+                tracing::info!("Hid window off-screen (removed from taskbar)");
             }
         }
     }
 }
 
-/// Force quit the application immediately.
-/// Used when the window is hidden and viewport commands don't work.
-pub fn force_quit_app() {
-    std::process::exit(0);
-}
 
 /// Check if Windows is configured to use light theme for apps
 /// Reads from registry: HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize

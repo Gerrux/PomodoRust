@@ -249,6 +249,9 @@ fn run_gui() {
     // Load config early to apply window settings
     let config = Config::load();
 
+    // Initialize language from config
+    pomodorust::i18n::set_language(config.appearance.language);
+
     let mut viewport = egui::ViewportBuilder::default()
         .with_inner_size([config.window.width, config.window.height])
         .with_min_inner_size([320.0, 375.0])

@@ -60,8 +60,9 @@ impl StatsView {
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.label(
                         egui::RichText::new(format!(
-                            "{:.1}h total",
-                            self.displayed_week_total(stats)
+                            "{:.1}h {}",
+                            self.displayed_week_total(stats),
+                            crate::i18n::tr().stats.total_label
                         ))
                         .size(11.0)
                         .color(theme.text_secondary),
@@ -92,7 +93,7 @@ impl StatsView {
                 .show(ui, theme, |ui| {
                     ui.vertical(|ui| {
                         ui.label(
-                            egui::RichText::new("Best Streak")
+                            egui::RichText::new(crate::i18n::tr().stats.best_streak)
                                 .size(11.0)
                                 .color(theme.text_secondary),
                         );
@@ -104,7 +105,7 @@ impl StatsView {
                                     .color(theme.success),
                             );
                             ui.label(
-                                egui::RichText::new("days")
+                                egui::RichText::new(crate::i18n::tr().stats.days)
                                     .size(12.0)
                                     .color(theme.text_muted),
                             );
@@ -118,7 +119,7 @@ impl StatsView {
                 .show(ui, theme, |ui| {
                     ui.vertical(|ui| {
                         ui.label(
-                            egui::RichText::new("Total Sessions")
+                            egui::RichText::new(crate::i18n::tr().stats.total_sessions)
                                 .size(11.0)
                                 .color(theme.text_secondary),
                         );
@@ -130,7 +131,7 @@ impl StatsView {
                                     .color(theme.accent.solid()),
                             );
                             ui.label(
-                                egui::RichText::new("completed")
+                                egui::RichText::new(crate::i18n::tr().stats.completed_label)
                                     .size(12.0)
                                     .color(theme.text_muted),
                             );
@@ -141,7 +142,7 @@ impl StatsView {
     }
 
     pub(crate) fn draw_week_chart(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
-        let days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+        let days = crate::i18n::tr().days_of_week();
         let values = self.displayed_week_hours(stats);
         let max_value = values.iter().cloned().fold(1.0_f32, f32::max);
 
@@ -220,7 +221,7 @@ impl StatsView {
 
         // Show tooltip
         if is_hovered && !self.export_dropdown_open {
-            button_response.on_hover_text("Export statistics");
+            button_response.on_hover_text(crate::i18n::tr().stats.export_hover);
         }
 
         // Dropdown menu
@@ -240,7 +241,7 @@ impl StatsView {
                             ui.set_min_width(120.0);
 
                             ui.label(
-                                egui::RichText::new("Export as")
+                                egui::RichText::new(crate::i18n::tr().stats.export_as)
                                     .size(11.0)
                                     .color(theme.text_muted),
                             );
@@ -314,6 +315,11 @@ impl StatsView {
                             }
                         });
                 });
+
+            // Close dropdown on Escape
+            if ui.input(|i| i.key_pressed(egui::Key::Escape)) {
+                self.export_dropdown_open = false;
+            }
 
             // Close dropdown when clicking outside
             if ui.input(|i| i.pointer.any_click()) && !is_hovered {

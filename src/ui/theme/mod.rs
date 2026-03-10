@@ -14,19 +14,28 @@ pub enum ThemeMode {
     System,
     Light,
     Dark,
+    // Catppuccin flavors
+    CatppuccinLatte,
+    CatppuccinFrappe,
+    CatppuccinMacchiato,
+    CatppuccinMocha,
 }
 
 impl ThemeMode {
     pub fn all() -> &'static [ThemeMode] {
-        &[ThemeMode::System, ThemeMode::Light, ThemeMode::Dark]
+        &[
+            ThemeMode::System,
+            ThemeMode::Light,
+            ThemeMode::Dark,
+            ThemeMode::CatppuccinLatte,
+            ThemeMode::CatppuccinFrappe,
+            ThemeMode::CatppuccinMacchiato,
+            ThemeMode::CatppuccinMocha,
+        ]
     }
 
     pub fn name(&self) -> &'static str {
-        match self {
-            ThemeMode::System => "System",
-            ThemeMode::Light => "Light",
-            ThemeMode::Dark => "Dark",
-        }
+        crate::i18n::tr().theme_name(*self)
     }
 }
 
@@ -62,17 +71,7 @@ impl AccentColor {
     }
 
     pub fn name(&self) -> &'static str {
-        match self {
-            AccentColor::Blue => "Blue",
-            AccentColor::Purple => "Purple",
-            AccentColor::Rose => "Rose",
-            AccentColor::Emerald => "Emerald",
-            AccentColor::Amber => "Amber",
-            AccentColor::Cyan => "Cyan",
-            AccentColor::Matrix => "Matrix",
-            AccentColor::RetroAmber => "Retro Amber",
-            AccentColor::Synthwave => "Synthwave",
-        }
+        crate::i18n::tr().accent_name(*self)
     }
 
     pub fn gradient(&self) -> (Color32, Color32) {
@@ -345,14 +344,14 @@ impl Theme {
     /// Uses high-contrast light palette for readability
     pub fn new_light(accent: AccentColor) -> Self {
         Self {
-            // Backgrounds - high contrast for visibility
+            // Backgrounds - subtle layering on light base
             bg_base: Color32::from_rgb(255, 255, 255), // Pure white
             bg_primary: Color32::from_rgb(250, 250, 250), // #FAFAFA - main bg
-            bg_secondary: Color32::from_rgb(241, 241, 241), // #F1F1F1
-            bg_tertiary: Color32::from_rgb(212, 212, 216), // #D4D4D8 - buttons (zinc-300)
+            bg_secondary: Color32::from_rgb(244, 244, 245), // #F4F4F5 zinc-100
+            bg_tertiary: Color32::from_rgb(228, 228, 231), // #E4E4E7 zinc-200 - buttons
             bg_elevated: Color32::from_rgb(255, 255, 255), // White for elevated
-            bg_hover: Color32::from_rgb(161, 161, 170), // #A1A1AA - hover (zinc-400)
-            bg_active: Color32::from_rgb(113, 113, 122), // #71717A - active (zinc-500)
+            bg_hover: Color32::from_rgb(212, 212, 216), // #D4D4D8 zinc-300 - hover
+            bg_active: Color32::from_rgb(161, 161, 170), // #A1A1AA zinc-400 - active
 
             // Borders - visible
             border_subtle: Color32::from_rgb(212, 212, 216), // #D4D4D8 zinc-300
@@ -418,18 +417,127 @@ impl Theme {
         }
     }
 
+    /// Create a theme from a Catppuccin flavor
+    fn from_catppuccin(flavor: catppuccin_egui::Theme, accent: AccentColor, is_light: bool) -> Self {
+        // For light flavors (Latte): layers go darker from base
+        // For dark flavors: layers go lighter from base
+        let (bg_tertiary, bg_hover, bg_active, bg_elevated) = if is_light {
+            (flavor.surface0, flavor.surface1, flavor.surface2, flavor.base)
+        } else {
+            (flavor.surface0, flavor.surface1, flavor.surface2, flavor.surface1)
+        };
+
+        Self {
+            // Backgrounds
+            bg_base: flavor.crust,
+            bg_primary: flavor.base,
+            bg_secondary: flavor.mantle,
+            bg_tertiary,
+            bg_elevated,
+            bg_hover,
+            bg_active,
+
+            // Borders
+            border_subtle: if is_light { flavor.surface1 } else { flavor.surface1 },
+            border_default: if is_light { flavor.surface2 } else { flavor.surface2 },
+            border_strong: flavor.overlay0,
+
+            // Text
+            text_primary: flavor.text,
+            text_secondary: flavor.subtext1,
+            text_muted: flavor.subtext0,
+            text_disabled: flavor.overlay1,
+
+            // Accent
+            accent,
+
+            // Semantic
+            success: flavor.green,
+            success_muted: if is_light {
+                Color32::from_rgba_unmultiplied(flavor.green.r(), flavor.green.g(), flavor.green.b(), 40)
+            } else {
+                Color32::from_rgba_unmultiplied(flavor.green.r(), flavor.green.g(), flavor.green.b(), 30)
+            },
+            warning: flavor.yellow,
+            warning_muted: if is_light {
+                Color32::from_rgba_unmultiplied(flavor.yellow.r(), flavor.yellow.g(), flavor.yellow.b(), 40)
+            } else {
+                Color32::from_rgba_unmultiplied(flavor.yellow.r(), flavor.yellow.g(), flavor.yellow.b(), 30)
+            },
+            error: flavor.red,
+            error_muted: if is_light {
+                Color32::from_rgba_unmultiplied(flavor.red.r(), flavor.red.g(), flavor.red.b(), 40)
+            } else {
+                Color32::from_rgba_unmultiplied(flavor.red.r(), flavor.red.g(), flavor.red.b(), 30)
+            },
+
+            // Session colors
+            work_start: flavor.red,
+            work_end: flavor.maroon,
+            break_start: flavor.green,
+            break_end: flavor.teal,
+            long_break_start: flavor.blue,
+            long_break_end: flavor.lavender,
+
+            // Spacing
+            spacing_xs: 4.0,
+            spacing_sm: 8.0,
+            spacing_md: 16.0,
+            spacing_lg: 24.0,
+            spacing_xl: 32.0,
+            spacing_2xl: 48.0,
+
+            // Rounding
+            rounding_none: 0.0,
+            rounding_sm: if is_windows_11() { 4.0 } else { 0.0 },
+            rounding_md: if is_windows_11() { 8.0 } else { 0.0 },
+            rounding_lg: if is_windows_11() { 12.0 } else { 0.0 },
+            rounding_xl: if is_windows_11() { 16.0 } else { 0.0 },
+            rounding_full: 9999.0,
+
+            // Shadows
+            shadow_sm: if is_light { 10 } else { 20 },
+            shadow_md: if is_light { 20 } else { 40 },
+            shadow_lg: if is_light { 30 } else { 60 },
+
+            // Animations
+            anim_fast: 0.15,
+            anim_normal: 0.3,
+            anim_slow: 0.5,
+
+            // Accessibility
+            reduced_motion: false,
+
+            // Mode tracking
+            is_light,
+        }
+    }
+
     /// Create a theme from mode and accent color
     /// System mode auto-detects from OS settings
     pub fn from_mode(mode: ThemeMode, accent: AccentColor) -> Self {
-        let is_light = match mode {
-            ThemeMode::Light => true,
-            ThemeMode::Dark => false,
-            ThemeMode::System => crate::platform::system_uses_light_theme(),
-        };
-        if is_light {
-            Self::new_light(accent)
-        } else {
-            Self::new(accent)
+        match mode {
+            ThemeMode::Light => Self::new_light(accent),
+            ThemeMode::Dark => Self::new(accent),
+            ThemeMode::System => {
+                if crate::platform::system_uses_light_theme() {
+                    Self::new_light(accent)
+                } else {
+                    Self::new(accent)
+                }
+            }
+            ThemeMode::CatppuccinLatte => {
+                Self::from_catppuccin(catppuccin_egui::LATTE, accent, true)
+            }
+            ThemeMode::CatppuccinFrappe => {
+                Self::from_catppuccin(catppuccin_egui::FRAPPE, accent, false)
+            }
+            ThemeMode::CatppuccinMacchiato => {
+                Self::from_catppuccin(catppuccin_egui::MACCHIATO, accent, false)
+            }
+            ThemeMode::CatppuccinMocha => {
+                Self::from_catppuccin(catppuccin_egui::MOCHA, accent, false)
+            }
         }
     }
 

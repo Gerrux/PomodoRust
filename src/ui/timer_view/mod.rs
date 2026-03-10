@@ -82,6 +82,7 @@ impl TimerView {
         current_task: Option<&QueuedTask>,
         queue: &[QueuedTask],
     ) -> Option<TimerAction> {
+        let t = crate::i18n::tr();
         let mut action = None;
 
         // Get available size for responsive calculations
@@ -151,7 +152,7 @@ impl TimerView {
                             base_label_color
                         };
                         ui.label(
-                            egui::RichText::new(session.session_type().label())
+                            egui::RichText::new(t.session_label(session.session_type()))
                                 .size(label_font_size)
                                 .color(label_color),
                         );
@@ -274,7 +275,7 @@ impl TimerView {
                         Layout::right_to_left(Align::Center),
                         |ui| {
                             let btn = egui::Button::new(
-                                RichText::new("Статистика").size(label_font_size * 0.85).color(fade(theme.text_primary)),
+                                RichText::new(t.nav.statistics).size(label_font_size * 0.85).color(fade(theme.text_primary)),
                             )
                             .fill(nav_btn_fill)
                             .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
@@ -292,7 +293,7 @@ impl TimerView {
                         Layout::left_to_right(Align::Center),
                         |ui| {
                             let btn = egui::Button::new(
-                                RichText::new("Настройки").size(label_font_size * 0.85).color(fade(theme.text_primary)),
+                                RichText::new(t.nav.settings).size(label_font_size * 0.85).color(fade(theme.text_primary)),
                             )
                             .fill(nav_btn_fill)
                             .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
@@ -314,7 +315,7 @@ impl TimerView {
                         Layout::right_to_left(Align::Center),
                         |ui| {
                             let btn = egui::Button::new(
-                                RichText::new("Задачи").size(label_font_size * 0.85).color(fade(theme.text_primary)),
+                                RichText::new(t.nav.tasks).size(label_font_size * 0.85).color(fade(theme.text_primary)),
                             )
                             .fill(nav_btn_fill)
                             .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
@@ -332,9 +333,9 @@ impl TimerView {
                         Layout::left_to_right(Align::Center),
                         |ui| {
                             let queue_text = if queue.is_empty() {
-                                "Очередь".to_string()
+                                t.nav.queue.to_string()
                             } else {
-                                format!("Очередь ({})", queue.len())
+                                format!("{} ({})", t.nav.queue, queue.len())
                             };
                             let btn = egui::Button::new(
                                 RichText::new(&queue_text).size(label_font_size * 0.85).color(fade(theme.text_primary)),
@@ -436,9 +437,11 @@ impl TimerView {
             theme.text_muted
         };
 
+        let t = crate::i18n::tr();
         ui.label(
             egui::RichText::new(format!(
-                "Session {}/{}",
+                "{} {}/{}",
+                t.timer.session,
                 session.current_session_in_cycle(),
                 session.total_sessions_in_cycle()
             ))

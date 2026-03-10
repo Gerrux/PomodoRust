@@ -182,23 +182,19 @@ impl IconButton {
 
         // Background and icon color
         let icon_color = if self.is_light_mode {
-            // Light mode: beige background, black border, black icon
-            let beige = Color32::from_rgb(250, 247, 240);
-            let beige_hover = Color32::from_rgb(245, 241, 232);
-            let bg_color = Theme::lerp_color(beige, beige_hover, hover_t);
+            // Light mode: theme-based background, visible border, dark icon
+            let bg_color = Theme::lerp_color(theme.bg_secondary, theme.bg_tertiary, hover_t);
             ui.painter()
                 .rect_filled(scaled_rect, scaled_size / 2.0, bg_color);
 
-            // Black border
-            let border_color = Color32::from_rgb(60, 60, 60);
+            let border_color = Theme::lerp_color(theme.border_default, theme.border_strong, hover_t);
             ui.painter().rect_stroke(
                 scaled_rect,
                 scaled_size / 2.0,
                 Stroke::new(1.5, border_color),
             );
 
-            // Black icon
-            Color32::from_rgb(20, 20, 20)
+            theme.text_primary
         } else if self.filled {
             let (start, end) = self
                 .custom_gradient

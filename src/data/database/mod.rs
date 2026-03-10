@@ -194,7 +194,7 @@ impl Database {
         if count == 0 {
             self.conn.execute(
                 "INSERT INTO workspaces (name, icon, position) VALUES (?1, ?2, 0)",
-                params!["Задачи", Option::<String>::None],
+                params![crate::i18n::tr().todo.tasks_default_workspace, Option::<String>::None],
             )?;
         }
 

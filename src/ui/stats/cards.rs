@@ -8,6 +8,7 @@ use crate::data::Statistics;
 
 impl StatsView {
     pub(crate) fn show_compact_timer_card(&self, ui: &mut Ui, session: &Session, theme: &Theme, pulse: f32) {
+        let t = crate::i18n::tr();
         let (start_color, end_color) = theme.session_gradient(session.session_type());
         let badge_color = Theme::lerp_color(start_color, end_color, 0.5);
 
@@ -42,18 +43,18 @@ impl StatsView {
 
                 ui.vertical(|ui| {
                     ui.label(
-                        egui::RichText::new(session.session_type().label())
+                        egui::RichText::new(t.session_label(session.session_type()))
                             .size(14.0)
                             .strong()
                             .color(badge_color),
                     );
 
                     let status = if session.timer().is_running() {
-                        "Running"
+                        t.stats.running
                     } else if session.timer().is_completed() {
-                        "Completed"
+                        t.stats.completed
                     } else {
-                        "Paused"
+                        t.stats.paused
                     };
                     ui.label(
                         egui::RichText::new(status)
@@ -72,6 +73,7 @@ impl StatsView {
         theme: &Theme,
         daily_goal: u32,
     ) {
+        let t = crate::i18n::tr();
         let goal_reached = stats.is_daily_goal_reached(daily_goal);
 
         Card::new().show(ui, theme, |ui| {
@@ -79,11 +81,11 @@ impl StatsView {
 
             // Daily goal row
             let goal_value = if goal_reached {
-                format!("{}/{} Done!", stats.today_pomodoros, daily_goal)
+                format!("{}/{} {}", stats.today_pomodoros, daily_goal, t.stats.done)
             } else {
                 format!("{}/{}", stats.today_pomodoros, daily_goal)
             };
-            stat_row(ui, theme, Icon::Target, "Daily Goal", &goal_value);
+            stat_row(ui, theme, Icon::Target, t.stats.daily_goal, &goal_value);
 
             ui.add_space(theme.spacing_xs);
 
@@ -92,7 +94,7 @@ impl StatsView {
                 ui,
                 theme,
                 Icon::Calendar,
-                "Today",
+                t.stats.today,
                 &format!("{:.1}h", stats.today_hours()),
             );
 
@@ -103,7 +105,7 @@ impl StatsView {
                 ui,
                 theme,
                 Icon::BarChart3,
-                "This Week",
+                t.stats.this_week,
                 &format!("{:.1}h", stats.week_hours()),
             );
 
@@ -114,8 +116,8 @@ impl StatsView {
                 ui,
                 theme,
                 Icon::Flame,
-                "Current Streak",
-                &format!("{} days", stats.current_streak),
+                t.stats.current_streak,
+                &format!("{} {}", stats.current_streak, t.stats.days),
             );
 
             ui.add_space(theme.spacing_xs);
@@ -125,11 +127,12 @@ impl StatsView {
                 ui,
                 theme,
                 Icon::Timer,
-                "Total",
+                t.stats.total,
                 &format!(
-                    "{}h ({} sessions)",
+                    "{}h ({} {})",
                     stats.total_hours(),
-                    stats.total_pomodoros
+                    stats.total_pomodoros,
+                    t.stats.sessions
                 ),
             );
         });
@@ -207,13 +210,15 @@ impl StatsView {
     ) {
         use crate::core::SessionType;
 
+        let t = crate::i18n::tr();
+
         Card::new().show(ui, theme, |ui| {
             ui.set_min_width(ui.available_width());
 
             for (icon, label, mins, session_type) in [
-                (Icon::Coffee, "5 min break", 5, SessionType::ShortBreak),
-                (Icon::Target, "25 min focus", 25, SessionType::Work),
-                (Icon::Timer, "50 min deep work", 50, SessionType::Work),
+                (Icon::Coffee, t.stats.min_break, 5, SessionType::ShortBreak),
+                (Icon::Target, t.stats.min_focus, 25, SessionType::Work),
+                (Icon::Timer, t.stats.min_deep_work, 50, SessionType::Work),
             ] {
                 let btn_response =
                     ui.allocate_response(vec2(ui.available_width(), 32.0), egui::Sense::click());
@@ -276,6 +281,7 @@ impl StatsView {
         width: f32,
         pulse: f32,
     ) {
+        let t = crate::i18n::tr();
         let (start_color, end_color) = theme.session_gradient(session.session_type());
         let radius = (width * 0.2).clamp(30.0, 50.0);
 
@@ -309,18 +315,18 @@ impl StatsView {
                 // Session type badge
                 let badge_color = Theme::lerp_color(start_color, end_color, 0.5);
                 ui.label(
-                    egui::RichText::new(session.session_type().label())
+                    egui::RichText::new(t.session_label(session.session_type()))
                         .size(11.0)
                         .color(badge_color),
                 );
 
                 // Status
                 let status = if session.timer().is_running() {
-                    "Running"
+                    t.stats.running
                 } else if session.timer().is_completed() {
-                    "Completed"
+                    t.stats.completed
                 } else {
-                    "Paused"
+                    t.stats.paused
                 };
                 ui.label(
                     egui::RichText::new(status)
@@ -340,6 +346,7 @@ impl StatsView {
     ) {
         use crate::core::SessionType;
 
+        let t = crate::i18n::tr();
         let inner_width = width - 32.0;
 
         Card::new().show(ui, theme, |ui| {
@@ -351,7 +358,7 @@ impl StatsView {
                 draw_icon(ui, Icon::Zap, icon_rect, theme.text_secondary);
                 ui.add_space(20.0);
                 ui.label(
-                    egui::RichText::new("Quick Start")
+                    egui::RichText::new(t.stats.quick_start)
                         .size(13.0)
                         .strong()
                         .color(theme.text_primary),
@@ -361,9 +368,9 @@ impl StatsView {
             ui.add_space(8.0);
 
             for (icon, label, mins, session_type) in [
-                (Icon::Coffee, "5 min break", 5, SessionType::ShortBreak),
-                (Icon::Target, "25 min focus", 25, SessionType::Work),
-                (Icon::Timer, "50 min deep work", 50, SessionType::Work),
+                (Icon::Coffee, t.stats.min_break, 5, SessionType::ShortBreak),
+                (Icon::Target, t.stats.min_focus, 25, SessionType::Work),
+                (Icon::Timer, t.stats.min_deep_work, 50, SessionType::Work),
             ] {
                 let btn_width = width - 40.0;
                 let btn_response =
@@ -425,6 +432,7 @@ impl StatsView {
         width: f32,
         daily_goal: u32,
     ) {
+        let t = crate::i18n::tr();
         let (accent_start, accent_end) = theme.accent_gradient();
         let inner_width = width - 32.0;
         let goal_progress = stats.daily_goal_progress(daily_goal);
@@ -434,7 +442,7 @@ impl StatsView {
             ui.set_width(inner_width);
 
             ui.label(
-                egui::RichText::new("Today's Focus")
+                egui::RichText::new(t.stats.todays_focus)
                     .size(12.0)
                     .color(theme.text_secondary),
             );
@@ -449,7 +457,7 @@ impl StatsView {
                         .color(Theme::lerp_color(accent_start, accent_end, 0.5)),
                 );
                 ui.label(
-                    egui::RichText::new("hours")
+                    egui::RichText::new(t.stats.hours)
                         .size(14.0)
                         .color(theme.text_muted),
                 );
@@ -460,9 +468,9 @@ impl StatsView {
             // Daily goal progress
             ui.horizontal(|ui| {
                 let goal_text = if goal_reached {
-                    format!("{}/{} Goal reached!", stats.today_pomodoros, daily_goal)
+                    format!("{}/{} {}", stats.today_pomodoros, daily_goal, t.stats.goal_reached)
                 } else {
-                    format!("{}/{} pomodoros", stats.today_pomodoros, daily_goal)
+                    format!("{}/{} {}", stats.today_pomodoros, daily_goal, crate::i18n::tr().settings.pomodoros)
                 };
                 let text_color = if goal_reached {
                     theme.success
@@ -505,6 +513,7 @@ impl StatsView {
         width: f32,
         spacing: f32,
     ) {
+        let t = crate::i18n::tr();
         let card_width = ((width - spacing) / 2.0).floor();
         let card_height = 90.0;
 
@@ -514,9 +523,9 @@ impl StatsView {
             self.stat_card_large(
                 ui,
                 theme,
-                "Today",
+                t.stats.today,
                 &format!("{:.1}h", stats.today_hours()),
-                Some("focus time"),
+                Some(t.stats.focus_time),
                 Icon::Calendar,
                 card_width,
                 card_height,
@@ -524,9 +533,9 @@ impl StatsView {
             self.stat_card_large(
                 ui,
                 theme,
-                "This Week",
+                t.stats.this_week,
                 &format!("{:.1}h", stats.week_hours()),
-                Some("total"),
+                Some(t.stats.total_label),
                 Icon::BarChart3,
                 card_width,
                 card_height,
@@ -541,9 +550,9 @@ impl StatsView {
             self.stat_card_large(
                 ui,
                 theme,
-                "Current Streak",
-                &format!("{} days", stats.current_streak),
-                Some(&format!("Best: {}", stats.longest_streak)),
+                t.stats.current_streak,
+                &format!("{} {}", stats.current_streak, t.stats.days),
+                Some(&format!("{}: {}", t.stats.best, stats.longest_streak)),
                 Icon::Flame,
                 card_width,
                 card_height,
@@ -551,9 +560,9 @@ impl StatsView {
             self.stat_card_large(
                 ui,
                 theme,
-                "All Time",
+                t.stats.all_time,
                 &format!("{}h", stats.total_hours()),
-                Some(&format!("{} sessions", stats.total_pomodoros)),
+                Some(&format!("{} {}", stats.total_pomodoros, t.stats.sessions)),
                 Icon::Timer,
                 card_width,
                 card_height,

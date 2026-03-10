@@ -58,22 +58,20 @@ impl PomodoRustApp {
 
         // Show notification
         if self.config.system.notifications_enabled {
+            let t = crate::i18n::tr();
             let (title, body): (&str, String) = if goal_just_reached
                 && self.config.goals.notify_on_goal
             {
                 (
-                    "Daily Goal Reached!",
-                    format!(
-                        "You completed {} pomodoros today!",
-                        self.config.goals.daily_target
-                    ),
+                    t.notif.daily_goal_reached,
+                    format!("{} {}", self.config.goals.daily_target, t.settings.pomodoros),
                 )
             } else {
                 match session_type {
-                    SessionType::Work => ("Focus Complete!", "Time for a break.".to_string()),
-                    SessionType::ShortBreak => ("Break Over", "Ready to focus again?".to_string()),
+                    SessionType::Work => (t.notif.focus_complete, t.notif.time_for_break.to_string()),
+                    SessionType::ShortBreak => (t.notif.break_over, t.notif.ready_to_focus.to_string()),
                     SessionType::LongBreak => {
-                        ("Long Break Over", "Let's get back to work!".to_string())
+                        (t.notif.long_break_over, t.notif.back_to_work.to_string())
                     }
                 }
             };
@@ -204,8 +202,8 @@ impl PomodoRustApp {
                 self.statistics = Statistics::load(db);
                 // Show notification
                 crate::platform::show_notification(
-                    "Statistics Reset",
-                    "All statistics have been cleared.",
+                    crate::i18n::tr().notif.stats_reset,
+                    crate::i18n::tr().notif.stats_cleared,
                 );
             }
             Err(e) => {
@@ -228,8 +226,8 @@ impl PomodoRustApp {
                 self.statistics = Statistics::load(db);
                 // Show notification
                 crate::platform::show_notification(
-                    "Session Undone",
-                    "Last pomodoro session has been removed from statistics.",
+                    crate::i18n::tr().notif.session_undone,
+                    crate::i18n::tr().notif.session_removed,
                 );
             }
             Ok(None) => {
@@ -254,7 +252,7 @@ impl PomodoRustApp {
         let filter_ext = format.extension();
 
         let file_dialog = rfd::FileDialog::new()
-            .set_title("Export Statistics")
+            .set_title(crate::i18n::tr().notif.export_statistics)
             .set_file_name(&default_filename)
             .add_filter(filter_name, &[filter_ext]);
 
@@ -265,13 +263,13 @@ impl PomodoRustApp {
                     tracing::info!("Statistics exported to {:?}", path);
                     // Show success notification
                     crate::platform::show_notification(
-                        "Export Complete",
+                        crate::i18n::tr().notif.export_complete,
                         &format!("Statistics saved to {}", path.display()),
                     );
                 }
                 Err(e) => {
                     tracing::error!("Failed to export statistics: {}", e);
-                    crate::platform::show_notification("Export Failed", &format!("Error: {}", e));
+                    crate::platform::show_notification(crate::i18n::tr().notif.export_failed, &format!("Error: {}", e));
                 }
             }
         }
@@ -289,7 +287,8 @@ impl PomodoRustApp {
             }
             SettingsAction::SelectPreset(index) => {
                 let presets = [Preset::classic(), Preset::short(), Preset::long()];
-                let preset_names = ["Classic", "Short", "Long"];
+                let t = crate::i18n::tr();
+                let preset_names = [t.settings.preset_classic, t.settings.preset_short, t.settings.preset_long];
                 if let Some(preset) = presets.get(index) {
                     self.config.apply_preset(preset);
                     self.session.set_preset(preset.clone());
@@ -298,7 +297,7 @@ impl PomodoRustApp {
                     if let Some(ref mut sv) = self.settings_view {
                         sv.reset_from_config(&self.config);
                     }
-                    self.show_status(format!("{} preset applied", preset_names[index]));
+                    self.show_status(format!("{} {}", preset_names[index], t.settings.preset_applied));
                 }
             }
             SettingsAction::ResetDefaults => {
@@ -318,13 +317,16 @@ impl PomodoRustApp {
                 }
                 self.todo_theme_dirty = true;
 
+                // Reset language to auto
+                crate::i18n::set_language(self.config.appearance.language);
+
                 // Reset always on top to default (false)
                 self.set_always_on_top(false, ctx);
 
                 if let Some(ref mut sv) = self.settings_view {
                     sv.reset_from_config(&self.config);
                 }
-                self.show_status("Defaults restored");
+                self.show_status(crate::i18n::tr().notif.defaults_restored);
             }
             SettingsAction::SetAlwaysOnTop(enabled) => {
                 self.set_always_on_top(enabled, ctx);
@@ -339,6 +341,11 @@ impl PomodoRustApp {
 
     /// Apply new configuration
     fn apply_config(&mut self, new_config: Config, ctx: &egui::Context) {
+        // Check if language changed
+        if new_config.appearance.language != self.config.appearance.language {
+            crate::i18n::set_language(new_config.appearance.language);
+        }
+
         // Check if theme changed
         if new_config.appearance.theme_mode != self.config.appearance.theme_mode
             || new_config.appearance.accent_color != self.config.appearance.accent_color
@@ -407,6 +414,6 @@ impl PomodoRustApp {
 
         self.config = new_config;
         let _ = self.config.save();
-        self.show_status("Settings saved");
+        self.show_status(crate::i18n::tr().notif.settings_saved);
     }
 }

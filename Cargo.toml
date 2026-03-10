@@ -14,6 +14,9 @@ eframe = { version = "0.29", default-features = false, features = ["glow", "pers
 egui = "0.29"
 egui-phosphor = { version = "0.7", default-features = true }
 egui-notify = "0.17"
+catppuccin-egui = { version = "5.4", default-features = false, features = ["egui29"] }
+egui_extras = { version = "0.29", default-features = false }
+egui_dnd = "0.10"
 
 # Data & Serialization
 rusqlite = { version = "0.32", features = ["bundled"] }
@@ -25,6 +28,7 @@ toml = "0.8"
 rodio = { version = "0.19", default-features = false, features = ["mp3"] }
 
 # System & Utils
+sys-locale = "0.3"
 directories = "5.0"
 chrono = { version = "0.4", features = ["serde"] }
 image = { version = "0.25", default-features = false, features = ["png"] }
