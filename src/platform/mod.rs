@@ -27,9 +27,9 @@ pub use tray::{SystemTray, TrayAction};
 
 #[cfg(windows)]
 pub use windows::{
-    apply_window_effects, flash_pomodorust_window, flash_window, force_quit_app,
-    hide_pomodorust_window, is_windows_11, remove_autostart, set_autostart, show_notification,
-    show_pomodorust_window, stop_flash_window, system_uses_light_theme,
+    apply_window_effects, ensure_notification_shortcut, flash_pomodorust_window, flash_window,
+    force_quit_app, hide_pomodorust_window, is_windows_11, remove_autostart, set_autostart,
+    show_notification, show_pomodorust_window, stop_flash_window, system_uses_light_theme,
 };
 
 #[cfg(windows)]

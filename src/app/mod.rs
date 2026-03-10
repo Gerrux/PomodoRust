@@ -76,9 +76,8 @@ pub struct PomodoRustApp {
     last_window_size: Option<egui::Vec2>,
     last_window_maximized: bool,
 
-    // Status message for titlebar (e.g., "Settings saved")
-    status_message: Option<String>,
-    status_time: Option<std::time::Instant>,
+    // Toast notifications
+    toasts: egui_notify::Toasts,
 
     // Todo
     todo_window: TodoWindow,
@@ -94,8 +93,8 @@ pub struct PomodoRustApp {
     force_quit: bool,
 }
 
-/// Duration to show status message in titlebar
-const STATUS_MESSAGE_DURATION: std::time::Duration = std::time::Duration::from_secs(2);
+/// Duration to show toast notifications
+const TOAST_DURATION: std::time::Duration = std::time::Duration::from_secs(2);
 
 impl PomodoRustApp {
     /// Create a new application instance with the given config and optional tray
@@ -113,6 +112,10 @@ impl PomodoRustApp {
     fn init(cc: &eframe::CreationContext<'_>, config: Config, system_tray: Option<SystemTray>) -> Self {
         // Setup fonts with emoji fallback
         Self::setup_fonts(&cc.egui_ctx);
+
+        // Ensure Start Menu shortcut for Windows toast notifications
+        #[cfg(windows)]
+        crate::platform::ensure_notification_shortcut();
 
         // Create theme from config
         let mut theme =
@@ -195,8 +198,9 @@ impl PomodoRustApp {
             last_window_pos: None,
             last_window_size: None,
             last_window_maximized: false,
-            status_message: None,
-            status_time: None,
+            toasts: egui_notify::Toasts::default()
+                .with_anchor(egui_notify::Anchor::BottomRight)
+                .with_margin(egui::vec2(10.0, 10.0)),
             todo_window: TodoWindow::new(),
             shared_todo,
             todo_theme_dirty: true,
@@ -221,21 +225,11 @@ impl PomodoRustApp {
         app
     }
 
-    /// Show a status message in the titlebar
+    /// Show a success toast notification
     fn show_status(&mut self, message: impl Into<String>) {
-        self.status_message = Some(message.into());
-        self.status_time = Some(std::time::Instant::now());
-    }
-
-    /// Get current status message if still valid
-    fn current_status(&mut self) -> Option<&str> {
-        if let Some(time) = self.status_time {
-            if time.elapsed() > STATUS_MESSAGE_DURATION {
-                self.status_message = None;
-                self.status_time = None;
-            }
-        }
-        self.status_message.as_deref()
+        self.toasts.success(message.into())
+            .duration(Some(TOAST_DURATION))
+            .closable(true);
     }
 
     /// Centralized always-on-top toggle: updates config, main viewport, and todo bridge.
@@ -337,16 +331,8 @@ impl eframe::App for PomodoRustApp {
         // Collect settings action to handle after UI
         let mut settings_action: Option<SettingsAction> = None;
 
-        // Get current status message for titlebar (only show in settings view)
-        let status_for_titlebar = if self.current_view == View::Settings {
-            let status = self.current_status().map(|s| s.to_string());
-            if status.is_some() {
-                ctx.request_repaint(); // Repaint to update/hide status
-            }
-            status
-        } else {
-            None
-        };
+        // Show toast notifications
+        self.toasts.show(ctx);
 
         // Calculate background color with opacity
         let bg_alpha = (self.config.appearance.window_opacity as f32 / 100.0 * 255.0) as u8;
@@ -370,12 +356,11 @@ impl eframe::App for PomodoRustApp {
             )
             .show(ctx, |ui| {
                 // Title bar
-                let (should_drag, button) = self.titlebar.show_with_status(
+                let (should_drag, button) = self.titlebar.show(
                     ui,
                     &self.theme,
                     is_maximized,
                     self.config.window.always_on_top,
-                    status_for_titlebar.as_deref(),
                 );
 
                 if should_drag {

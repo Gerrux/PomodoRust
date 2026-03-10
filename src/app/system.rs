@@ -8,9 +8,12 @@ use crate::ui::timer_view::TimerAction;
 use super::PomodoRustApp;
 
 impl PomodoRustApp {
-    /// Load system fallback fonts for Unicode symbols and emoji
+    /// Load system fallback fonts for Unicode symbols, emoji, and Phosphor icons
     pub(super) fn setup_fonts(ctx: &egui::Context) {
         let mut fonts = egui::FontDefinitions::default();
+
+        // Add Phosphor icons font
+        egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
         // Fallback fonts: symbols (box-drawing, math, etc.) + emoji
         let fallbacks: &[(&str, &[&str])] = &[

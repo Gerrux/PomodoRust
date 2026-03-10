@@ -28,6 +28,9 @@ use crate::error::PlatformError;
 
 use std::sync::{Mutex, OnceLock};
 
+/// App User Model ID for Windows toast notifications
+const APP_USER_MODEL_ID: &str = "Gerrux.PomodoRust";
+
 /// Cached Windows build number (avoids repeated registry reads)
 static WINDOWS_BUILD: OnceLock<u32> = OnceLock::new();
 
@@ -140,12 +143,81 @@ pub fn apply_window_effects(hwnd: isize) {
     }
 }
 
+/// Ensure a Start Menu shortcut exists with the proper AppUserModelID.
+/// Windows requires this for toast notifications to show under the app name.
+pub fn ensure_notification_shortcut() {
+    use std::path::PathBuf;
+    use windows::core::{Interface, PROPVARIANT, HSTRING};
+    use windows::Win32::System::Com::{
+        CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
+    };
+    use windows::Win32::UI::Shell::{
+        IShellLinkW, ShellLink,
+        PropertiesSystem::IPropertyStore,
+    };
+    use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
+    use windows::Win32::System::Com::IPersistFile;
+
+    let start_menu: PathBuf = match env::var("APPDATA") {
+        Ok(appdata) => PathBuf::from(appdata)
+            .join("Microsoft")
+            .join("Windows")
+            .join("Start Menu")
+            .join("Programs"),
+        Err(_) => return,
+    };
+
+    let shortcut_path = start_menu.join("PomodoRust.lnk");
+    if shortcut_path.exists() {
+        return;
+    }
+
+    let exe_path = match env::current_exe() {
+        Ok(p) => p,
+        Err(_) => return,
+    };
+
+    unsafe {
+        let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
+
+        let shell_link: IShellLinkW = match CoCreateInstance(&ShellLink, None, CLSCTX_INPROC_SERVER)
+        {
+            Ok(sl) => sl,
+            Err(_) => return,
+        };
+
+        let _ = shell_link.SetPath(&HSTRING::from(exe_path.to_string_lossy().as_ref()));
+        let _ = shell_link.SetDescription(&HSTRING::from("PomodoRust Timer"));
+
+        // Set AppUserModelID via property store
+        if let Ok(prop_store) = shell_link.cast::<IPropertyStore>() {
+            let aumid = PROPVARIANT::from(APP_USER_MODEL_ID);
+            let _ = prop_store.SetValue(&PKEY_AppUserModel_ID, &aumid);
+            let _ = prop_store.Commit();
+        }
+
+        if let Ok(persist) = shell_link.cast::<IPersistFile>() {
+            let wide_path: Vec<u16> = shortcut_path
+                .to_string_lossy()
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
+            let _ = persist.Save(
+                windows::core::PCWSTR(wide_path.as_ptr()),
+                true,
+            );
+            tracing::info!("Created Start Menu shortcut for notifications");
+        }
+    }
+}
+
 /// Show a Windows toast notification
 pub fn show_notification(title: &str, body: &str) {
     if let Err(e) = notify_rust::Notification::new()
         .summary(title)
         .body(body)
         .appname("PomodoRust")
+        .app_id(APP_USER_MODEL_ID)
         .timeout(notify_rust::Timeout::Milliseconds(5000))
         .show()
     {
