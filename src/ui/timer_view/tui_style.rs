@@ -48,6 +48,9 @@ impl TimerView {
         let progress = session.timer().progress();
         let is_running = session.timer().is_running();
 
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
             ui.add_space(spacing * 0.3);
 
@@ -92,7 +95,7 @@ impl TimerView {
 
             ui.add_space(spacing * 0.5);
 
-            // ASCII session dots with colors - centered using LayoutJob
+            // ASCII session dots with colors - centered using LayoutJob (hide in very compact)
             let total = session.total_sessions_in_cycle();
             let current_idx = session.current_session_in_cycle().saturating_sub(1);
 
@@ -392,6 +395,7 @@ impl TimerView {
                 }
             }
         });
+        }); // ScrollArea
 
         // Request continuous repaint for animations
         if is_running {

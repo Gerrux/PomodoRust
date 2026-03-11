@@ -96,7 +96,7 @@ impl CircularProgress {
 
         // Center content area
         let content_rect =
-            Rect::from_center_size(center, vec2(inner_radius * 1.6, inner_radius * 1.6));
+            Rect::from_center_size(center, vec2(inner_radius * 1.85, inner_radius * 1.6));
         ui.allocate_new_ui(egui::UiBuilder::new().max_rect(content_rect), |ui| {
             ui.with_layout(
                 egui::Layout::centered_and_justified(egui::Direction::TopDown),

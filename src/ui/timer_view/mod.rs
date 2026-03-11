@@ -26,7 +26,7 @@ const RADIUS_FACTOR: f32 = 0.28;
 const THICKNESS_RATIO: f32 = 0.08;
 const CONTROL_BTN_FACTOR: f32 = 0.11;
 const SPACING_FACTOR: f32 = 0.04;
-const TIMER_FONT_RATIO: f32 = 0.55;
+const TIMER_FONT_RATIO: f32 = 0.38;
 const LABEL_FONT_RATIO: f32 = 0.16;
 const NAV_BTN_WIDTH_FACTOR: f32 = 0.35;
 const NAV_BTN_HEIGHT_FACTOR: f32 = 0.08;
@@ -96,10 +96,14 @@ impl TimerView {
         let spacing = (min_dim * SPACING_FACTOR).clamp(8.0, 24.0);
 
         // Responsive font sizes - larger timer text
-        let timer_font_size = (timer_radius * TIMER_FONT_RATIO).clamp(28.0, 64.0);
+        let timer_font_size = (timer_radius * TIMER_FONT_RATIO).clamp(24.0, 46.0);
         let label_font_size = (timer_radius * LABEL_FONT_RATIO).clamp(11.0, 18.0);
+        let modern_font = |size: f32| egui::FontId::new(size, egui::FontFamily::Name("Modern".into()));
 
-        // Use centered vertical layout
+        // Scrollable centered layout — nothing gets clipped at any window size
+        egui::ScrollArea::vertical()
+            .auto_shrink([false, true])
+            .show(ui, |ui| {
         ui.with_layout(Layout::top_down(Align::Center), |ui| {
             ui.add_space(spacing);
 
@@ -131,19 +135,10 @@ impl TimerView {
                 })
                 .show(ui, |ui| {
                     ui.vertical_centered(|ui| {
-                        // Push content down slightly within the circle
-                        ui.add_space(timer_radius * 0.15);
+                        // Push content down within the circle
+                        ui.add_space(timer_radius * 0.18);
 
-                        // Timer display
-                        ui.label(
-                            egui::RichText::new(session.timer().remaining_formatted())
-                                .size(timer_font_size)
-                                .color(theme.text_primary),
-                        );
-
-                        ui.add_space(2.0);
-
-                        // Session type label - darken to black as opacity decreases (light mode)
+                        // Session type label (above timer) - darken to black as opacity decreases (light mode)
                         let base_label_color = Theme::lerp_color(start_color, end_color, 0.5);
                         let label_color = if theme.is_light {
                             let black = egui::Color32::from_rgb(10, 10, 10);
@@ -153,61 +148,90 @@ impl TimerView {
                         };
                         ui.label(
                             egui::RichText::new(t.session_label(session.session_type()))
-                                .size(label_font_size)
+                                .font(modern_font(label_font_size))
                                 .color(label_color),
+                        );
+
+                        ui.add_space(2.0);
+
+                        // Timer display (Unbounded Black)
+                        ui.label(
+                            egui::RichText::new(session.timer().remaining_formatted())
+                                .font(egui::FontId::new(timer_font_size, egui::FontFamily::Name("Timer".into())))
+                                .color(theme.text_primary),
                         );
                     });
                 });
 
             ui.add_space(spacing * 0.5);
 
-            // Control buttons - centered with spacing in the middle
-            let btn_spacing = spacing * 0.75;
-            let half_width = ui.available_width() / 2.0;
-            let btn_gap = btn_spacing / 2.0;
-
-            ui.horizontal(|ui| {
-                // Left half - play/pause aligned to right
-                ui.allocate_ui_with_layout(
-                    vec2(half_width - btn_gap, control_btn_size),
-                    Layout::right_to_left(Align::Center),
-                    |ui| {
-                        let is_running = session.timer().is_running();
-                        let play_icon = if is_running { Icon::Pause } else { Icon::Play };
-
-                        if IconButton::new(play_icon)
-                            .with_size(control_btn_size)
-                            .with_icon_scale(0.45)
-                            .filled(false)
-                            .with_gradient(start_color, end_color)
-                            .light_mode(theme.is_light)
-                            .show(ui, theme)
-                            .clicked()
-                        {
-                            action = Some(TimerAction::Toggle);
-                        }
-                    },
-                );
-
-                // Right half - skip aligned to left
-                ui.allocate_ui_with_layout(
-                    vec2(half_width - btn_gap, control_btn_size),
-                    Layout::left_to_right(Align::Center),
-                    |ui| {
-                        if IconButton::new(Icon::SkipForward)
-                            .with_size(control_btn_size)
-                            .with_icon_scale(0.45)
-                            .filled(false)
-                            .with_gradient(start_color, end_color)
-                            .light_mode(theme.is_light)
-                            .show(ui, theme)
-                            .clicked()
-                        {
-                            action = Some(TimerAction::Skip);
-                        }
-                    },
-                );
+            // Hover detection for control + nav buttons
+            let is_hovered = ui.ctx().input(|i| {
+                i.pointer.hover_pos()
+                    .map(|pos| ui.max_rect().contains(pos))
+                    .unwrap_or(false)
             });
+            let hover_alpha = ui.ctx().animate_bool_with_time(
+                ui.id().with("modern_hover_fade"),
+                is_hovered,
+                0.25,
+            );
+
+            // Control buttons - always rendered, fade with hover
+            {
+                let btn_spacing = spacing * 0.75;
+                let half_width = ui.available_width() / 2.0;
+                let btn_gap = btn_spacing / 2.0;
+
+                ui.horizontal(|ui| {
+                    // Left half - play/pause aligned to right
+                    ui.allocate_ui_with_layout(
+                        vec2(half_width - btn_gap, control_btn_size),
+                        Layout::right_to_left(Align::Center),
+                        |ui| {
+                            let is_running = session.timer().is_running();
+                            let play_icon = if is_running { Icon::Pause } else { Icon::Play };
+
+                            if IconButton::new(play_icon)
+                                .with_size(control_btn_size)
+                                .with_icon_scale(0.45)
+                                .filled(false)
+                                .with_gradient(start_color, end_color)
+                                .with_opacity(hover_alpha)
+                                .light_mode(theme.is_light)
+                                .show(ui, theme)
+                                .clicked()
+                            {
+                                action = Some(TimerAction::Toggle);
+                            }
+                        },
+                    );
+
+                    // Right half - skip aligned to left
+                    ui.allocate_ui_with_layout(
+                        vec2(half_width - btn_gap, control_btn_size),
+                        Layout::left_to_right(Align::Center),
+                        |ui| {
+                            if IconButton::new(Icon::SkipForward)
+                                .with_size(control_btn_size)
+                                .with_icon_scale(0.45)
+                                .filled(false)
+                                .with_gradient(start_color, end_color)
+                                .with_opacity(hover_alpha)
+                                .light_mode(theme.is_light)
+                                .show(ui, theme)
+                                .clicked()
+                            {
+                                action = Some(TimerAction::Skip);
+                            }
+                        },
+                    );
+                });
+
+                if hover_alpha > 0.0 && hover_alpha < 1.0 {
+                    ui.ctx().request_repaint();
+                }
+            }
 
             ui.add_space(spacing * 1.5);
 
@@ -218,42 +242,34 @@ impl TimerView {
 
             // Current task display (if pinned)
             if let Some(task) = current_task {
-                ui.horizontal(|ui| {
-                    ui.label(
-                        RichText::new(">")
-                            .size(11.0)
-                            .color(theme.accent.solid()),
-                    );
-                    let max_chars = ((ui.available_width() - 50.0) / (12.0 * 0.5)) as usize;
-                    let title = crate::ui::todo_view::truncate_text(&task.title, max_chars.max(10));
-                    ui.label(
-                        RichText::new(&title)
-                            .size(12.0)
-                            .color(theme.text_secondary),
-                    );
-                    ui.label(
-                        RichText::new(format!("{}/{}", task.completed_pomodoros, task.planned_pomodoros))
-                            .size(11.0)
-                            .color(theme.text_muted),
-                    );
+                let max_chars = ((available.x * 0.7) / 7.0) as usize;
+                let title = crate::ui::todo_view::truncate_text(&task.title, max_chars.max(10));
+                let counter = format!("{}/{}", task.completed_pomodoros, task.planned_pomodoros);
+
+                let mut job = egui::text::LayoutJob::default();
+                job.halign = Align::Center;
+                job.append("> ", 0.0, egui::TextFormat {
+                    font_id: modern_font(11.0),
+                    color: theme.accent.solid(),
+                    ..Default::default()
                 });
+                job.append(&title, 0.0, egui::TextFormat {
+                    font_id: modern_font(12.0),
+                    color: theme.text_secondary,
+                    ..Default::default()
+                });
+                job.append(&format!(" {}", counter), 0.0, egui::TextFormat {
+                    font_id: modern_font(11.0),
+                    color: theme.text_muted,
+                    ..Default::default()
+                });
+                ui.label(job);
             }
 
-            // Navigation buttons - fade in/out on hover
-            let is_hovered = ui.ctx().input(|i| {
-                i.pointer.hover_pos()
-                    .map(|pos| ui.max_rect().contains(pos))
-                    .unwrap_or(false)
-            });
-            let nav_alpha = ui.ctx().animate_bool_with_time(
-                ui.id().with("modern_nav_fade"),
-                is_hovered,
-                0.25,
-            );
-
-            if nav_alpha > 0.0 {
+            // Navigation buttons - reuse hover fade
+            if hover_alpha > 0.0 {
                 let fade = |c: egui::Color32| -> egui::Color32 {
-                    egui::Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (c.a() as f32 * nav_alpha) as u8)
+                    egui::Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (c.a() as f32 * hover_alpha) as u8)
                 };
 
                 ui.add_space(spacing * 0.25);
@@ -275,7 +291,7 @@ impl TimerView {
                         Layout::right_to_left(Align::Center),
                         |ui| {
                             let btn = egui::Button::new(
-                                RichText::new(t.nav.statistics).size(label_font_size * 0.85).color(fade(theme.text_primary)),
+                                RichText::new(t.nav.statistics).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
                             )
                             .fill(nav_btn_fill)
                             .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
@@ -293,7 +309,7 @@ impl TimerView {
                         Layout::left_to_right(Align::Center),
                         |ui| {
                             let btn = egui::Button::new(
-                                RichText::new(t.nav.settings).size(label_font_size * 0.85).color(fade(theme.text_primary)),
+                                RichText::new(t.nav.settings).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
                             )
                             .fill(nav_btn_fill)
                             .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
@@ -315,7 +331,7 @@ impl TimerView {
                         Layout::right_to_left(Align::Center),
                         |ui| {
                             let btn = egui::Button::new(
-                                RichText::new(t.nav.tasks).size(label_font_size * 0.85).color(fade(theme.text_primary)),
+                                RichText::new(t.nav.tasks).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
                             )
                             .fill(nav_btn_fill)
                             .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
@@ -338,7 +354,7 @@ impl TimerView {
                                 format!("{} ({})", t.nav.queue, queue.len())
                             };
                             let btn = egui::Button::new(
-                                RichText::new(&queue_text).size(label_font_size * 0.85).color(fade(theme.text_primary)),
+                                RichText::new(&queue_text).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
                             )
                             .fill(nav_btn_fill)
                             .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
@@ -351,14 +367,15 @@ impl TimerView {
                     );
                 });
 
-                ui.add_space(spacing * 0.5);
+                ui.add_space(spacing * 0.25);
 
                 // Request repaint during animation
-                if nav_alpha < 1.0 {
+                if hover_alpha < 1.0 {
                     ui.ctx().request_repaint();
                 }
             }
         });
+        }); // ScrollArea
 
         action
     }
@@ -438,6 +455,7 @@ impl TimerView {
         };
 
         let t = crate::i18n::tr();
+        let modern_font = |size: f32| egui::FontId::new(size, egui::FontFamily::Name("Modern".into()));
         ui.label(
             egui::RichText::new(format!(
                 "{} {}/{}",
@@ -445,7 +463,7 @@ impl TimerView {
                 session.current_session_in_cycle(),
                 session.total_sessions_in_cycle()
             ))
-            .size(caption_size)
+            .font(modern_font(caption_size))
             .color(text_color),
         );
     }

@@ -15,6 +15,26 @@ impl PomodoRustApp {
         // Add Phosphor icons font
         egui_phosphor::add_to_fonts(&mut fonts, egui_phosphor::Variant::Regular);
 
+        // Embed Unbounded fonts for modern style
+        fonts.font_data.insert(
+            "Unbounded-Black".to_string(),
+            egui::FontData::from_static(include_bytes!("../../assets/fonts/Unbounded-Black.ttf")),
+        );
+        fonts.font_data.insert(
+            "Unbounded-Regular".to_string(),
+            egui::FontData::from_static(include_bytes!("../../assets/fonts/Unbounded-Regular.ttf")),
+        );
+        // Timer digits: Unbounded Black
+        fonts.families.insert(
+            egui::FontFamily::Name("Timer".into()),
+            vec!["Unbounded-Black".to_string()],
+        );
+        // Modern UI text: Unbounded Regular (fallback to default proportional fonts)
+        fonts.families.insert(
+            egui::FontFamily::Name("Modern".into()),
+            vec!["Unbounded-Regular".to_string()],
+        );
+
         // Fallback fonts: symbols (box-drawing, math, etc.) + emoji
         let fallbacks: &[(&str, &[&str])] = &[
             #[cfg(windows)]
