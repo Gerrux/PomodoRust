@@ -13,16 +13,35 @@ pub use helpers::truncate_text;
 #[derive(Debug, Clone)]
 pub enum TodoAction {
     // Workspaces
-    CreateWorkspace { name: String },
-    RenameWorkspace { id: i64, name: String },
-    DeleteWorkspace { id: i64 },
-    SwitchWorkspace { id: i64 },
+    CreateWorkspace {
+        name: String,
+    },
+    RenameWorkspace {
+        id: i64,
+        name: String,
+    },
+    DeleteWorkspace {
+        id: i64,
+    },
+    SwitchWorkspace {
+        id: i64,
+    },
 
     // Projects
-    CreateProject { workspace_id: i64, name: String },
-    RenameProject { id: i64, name: String },
-    DeleteProject { id: i64 },
-    ToggleProjectCollapse { id: i64 },
+    CreateProject {
+        workspace_id: i64,
+        name: String,
+    },
+    RenameProject {
+        id: i64,
+        name: String,
+    },
+    DeleteProject {
+        id: i64,
+    },
+    ToggleProjectCollapse {
+        id: i64,
+    },
 
     // Todos
     CreateTodo {
@@ -41,16 +60,37 @@ pub enum TodoAction {
         title: String,
         body: Option<String>,
     },
-    ToggleComplete { id: i64 },
-    ToggleCollapse { id: i64 },
-    DeleteTodo { id: i64 },
-    MoveTodo { id: i64, project_id: Option<i64> },
-    ReorderTodo { id: i64, project_id: Option<i64>, new_position: i32 },
-    SetPriority { id: i64, priority: Priority },
+    ToggleComplete {
+        id: i64,
+    },
+    ToggleCollapse {
+        id: i64,
+    },
+    DeleteTodo {
+        id: i64,
+    },
+    MoveTodo {
+        id: i64,
+        project_id: Option<i64>,
+    },
+    ReorderTodo {
+        id: i64,
+        project_id: Option<i64>,
+        new_position: i32,
+    },
+    SetPriority {
+        id: i64,
+        priority: Priority,
+    },
 
     // Queue
-    AddToQueue { todo_id: i64, planned_pomodoros: u32 },
-    RemoveFromQueue { id: i64 },
+    AddToQueue {
+        todo_id: i64,
+        planned_pomodoros: u32,
+    },
+    RemoveFromQueue {
+        id: i64,
+    },
     ClearQueue,
 
     // Settings
@@ -94,6 +134,12 @@ pub struct TodoView {
     popup_dots_rect: Option<egui::Rect>,
 }
 
+impl Default for TodoView {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TodoView {
     pub fn new() -> Self {
         Self {
@@ -118,6 +164,7 @@ impl TodoView {
     }
 
     /// Show the todo content inside an egui::Window (no titlebar/CentralPanel needed)
+    #[allow(clippy::too_many_arguments)]
     pub fn show_inner(
         &mut self,
         ui: &mut egui::Ui,
@@ -140,7 +187,11 @@ impl TodoView {
         let max_content_width = 720.0;
         let available = ui.available_width();
         let side_margin = ((available - max_content_width) / 2.0).max(0.0);
-        let center_margin = egui::Margin { left: side_margin, right: side_margin, ..Default::default() };
+        let center_margin = egui::Margin {
+            left: side_margin,
+            right: side_margin,
+            ..Default::default()
+        };
 
         // Filter bar (inside centering frame)
         egui::Frame::none()
@@ -157,13 +208,17 @@ impl TodoView {
                             };
                             let (icon_rect, _) =
                                 ui.allocate_exact_size(Vec2::new(12.0, 12.0), Sense::hover());
-                            let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(10.0));
+                            let ir =
+                                egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(10.0));
                             draw_icon(ui, chevron, ir, theme.text_muted);
                             ui.add(
                                 egui::Label::new(
-                                    RichText::new(format!("{} ({})", t.todo.completed_label, completed_count))
-                                        .size(12.0)
-                                        .color(theme.text_muted),
+                                    RichText::new(format!(
+                                        "{} ({})",
+                                        t.todo.completed_label, completed_count
+                                    ))
+                                    .size(12.0)
+                                    .color(theme.text_muted),
                                 )
                                 .sense(Sense::click()),
                             )
@@ -240,10 +295,11 @@ impl TodoView {
                     for ws in workspaces {
                         // Renaming mode
                         if self.renaming_workspace_id == Some(ws.id) {
-                            let response =
-                                ui.add(egui::TextEdit::singleline(&mut self.rename_workspace_buffer)
+                            let response = ui.add(
+                                egui::TextEdit::singleline(&mut self.rename_workspace_buffer)
                                     .desired_width(80.0)
-                                    .font(egui::FontId::proportional(13.0)));
+                                    .font(egui::FontId::proportional(13.0)),
+                            );
                             if response.lost_focus()
                                 || ui.input(|i| i.key_pressed(egui::Key::Enter))
                             {
@@ -259,13 +315,11 @@ impl TodoView {
                         let is_active = ws.id == current_id;
                         let label = ws.name.clone();
 
-                        let text = RichText::new(&label)
-                            .size(14.0)
-                            .color(if is_active {
-                                theme.text_primary
-                            } else {
-                                theme.text_muted
-                            });
+                        let text = RichText::new(&label).size(14.0).color(if is_active {
+                            theme.text_primary
+                        } else {
+                            theme.text_muted
+                        });
 
                         let response = ui.add(egui::Label::new(text).sense(Sense::click()));
 
@@ -291,11 +345,11 @@ impl TodoView {
                                 self.rename_workspace_buffer = ws.name.clone();
                                 ui.close_menu();
                             }
-                            if workspaces.len() > 1 {
-                                if ui.button(crate::i18n::tr().todo.delete).clicked() {
-                                    actions.push(TodoAction::DeleteWorkspace { id: ws.id });
-                                    ui.close_menu();
-                                }
+                            if workspaces.len() > 1
+                                && ui.button(crate::i18n::tr().todo.delete).clicked()
+                            {
+                                actions.push(TodoAction::DeleteWorkspace { id: ws.id });
+                                ui.close_menu();
                             }
                         });
 
@@ -305,11 +359,12 @@ impl TodoView {
 
             // Add workspace button / input
             if self.adding_workspace {
-                let response =
-                    ui.add(egui::TextEdit::singleline(&mut self.new_workspace_name)
+                let response = ui.add(
+                    egui::TextEdit::singleline(&mut self.new_workspace_name)
                         .desired_width(80.0)
                         .hint_text(crate::i18n::tr().todo.name_hint)
-                        .font(egui::FontId::proportional(13.0)));
+                        .font(egui::FontId::proportional(13.0)),
+                );
                 if response.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     let name = self.new_workspace_name.trim().to_string();
                     if !name.is_empty() {
@@ -349,7 +404,14 @@ impl TodoView {
 
         // Projects with their todos
         for project in projects {
-            actions.extend(self.render_project(ui, theme, project, todos, projects, show_completed));
+            actions.extend(self.render_project(
+                ui,
+                theme,
+                project,
+                todos,
+                projects,
+                show_completed,
+            ));
         }
 
         // Unassigned todos
@@ -373,10 +435,7 @@ impl TodoView {
                     );
                     let after_text = text_response.rect.right() + 8.0;
                     ui.painter().line_segment(
-                        [
-                            egui::pos2(after_text, y),
-                            egui::pos2(rect.right(), y),
-                        ],
+                        [egui::pos2(after_text, y), egui::pos2(rect.right(), y)],
                         egui::Stroke::new(1.0, line_color),
                     );
                 });
@@ -385,9 +444,7 @@ impl TodoView {
 
             if !unassigned.is_empty() {
                 // DnD for unassigned todos
-                actions.extend(self.render_dnd_todo_list(
-                    ui, theme, &unassigned, projects, None,
-                ));
+                actions.extend(self.render_dnd_todo_list(ui, theme, &unassigned, projects, None));
             }
         }
 
@@ -412,21 +469,14 @@ impl TodoView {
         ui.add_space(theme.spacing_sm);
 
         // New task input
-        actions.extend(self.render_new_task_input(
-            ui,
-            theme,
-            current_workspace_id,
-            None,
-        ));
+        actions.extend(self.render_new_task_input(ui, theme, current_workspace_id, None));
 
         ui.add_space(theme.spacing_xs);
 
         // Add project button
         if self.adding_project_workspace == Some(current_workspace_id) {
             ui.horizontal(|ui| {
-                ui.label(
-                    RichText::new("+").size(14.0).color(theme.text_muted),
-                );
+                ui.label(RichText::new("+").size(14.0).color(theme.text_muted));
                 let response = ui.add(
                     egui::TextEdit::singleline(&mut self.new_project_name)
                         .hint_text(crate::i18n::tr().todo.project_name_hint)
@@ -434,9 +484,7 @@ impl TodoView {
                         .font(egui::FontId::proportional(13.0))
                         .frame(false),
                 );
-                if response.lost_focus()
-                    || ui.input(|i| i.key_pressed(egui::Key::Enter))
-                {
+                if response.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
                     let name = self.new_project_name.trim().to_string();
                     if !name.is_empty() {
                         actions.push(TodoAction::CreateProject {
@@ -450,8 +498,7 @@ impl TodoView {
             });
         } else {
             let resp = ui.horizontal(|ui| {
-                let (icon_rect, _) =
-                    ui.allocate_exact_size(Vec2::new(16.0, 18.0), Sense::hover());
+                let (icon_rect, _) = ui.allocate_exact_size(Vec2::new(16.0, 18.0), Sense::hover());
                 let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(12.0));
                 draw_icon(ui, Icon::CirclePlus, ir, theme.text_muted);
                 ui.add(
@@ -497,8 +544,8 @@ impl TodoView {
             None => ("todo_dnd_unassigned", 0),
         };
 
-        let response = egui_dnd::dnd(ui, dnd_id)
-            .show_vec(&mut dnd_items, |ui, dnd_item, handle, _state| {
+        let response =
+            egui_dnd::dnd(ui, dnd_id).show_vec(&mut dnd_items, |ui, dnd_item, handle, _state| {
                 // Find the full todo item for rendering
                 if let Some(todo) = todo_list.iter().find(|t| t.id == dnd_item.todo_id) {
                     actions.extend(self.render_todo_item(ui, theme, todo, projects, handle));
@@ -548,9 +595,15 @@ impl TodoView {
             .show(ui, |ui| {
                 ui.horizontal(|ui| {
                     // Plus icon
-                    let (icon_rect, _) = ui.allocate_exact_size(Vec2::new(14.0, 20.0), Sense::hover());
+                    let (icon_rect, _) =
+                        ui.allocate_exact_size(Vec2::new(14.0, 20.0), Sense::hover());
                     let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(11.0));
-                    draw_icon(ui, Icon::Plus, ir, theme.accent.solid().linear_multiply(0.7));
+                    draw_icon(
+                        ui,
+                        Icon::Plus,
+                        ir,
+                        theme.accent.solid().linear_multiply(0.7),
+                    );
 
                     let response = ui.add(
                         egui::TextEdit::singleline(&mut self.new_task_title)
@@ -565,8 +618,8 @@ impl TodoView {
                         self.focus_new_task = false;
                     }
 
-                    let submitted = response.lost_focus()
-                        && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                    let submitted =
+                        response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                     if submitted {
                         let title = self.new_task_title.trim().to_string();
                         if !title.is_empty() {

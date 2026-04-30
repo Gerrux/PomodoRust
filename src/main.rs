@@ -315,7 +315,13 @@ fn run_gui() {
     let _ = eframe::run_native(
         "PomodoRust",
         options,
-        Box::new(move |cc| Ok(Box::new(PomodoRustApp::with_config(cc, config, system_tray)))),
+        Box::new(move |cc| {
+            Ok(Box::new(PomodoRustApp::with_config(
+                cc,
+                config,
+                system_tray,
+            )))
+        }),
     );
 }
 

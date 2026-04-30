@@ -14,7 +14,14 @@ pub(super) fn section_header(ui: &mut Ui, theme: &Theme, title: &str) {
 }
 
 /// Draw a duration row with +/- buttons and unit label
-pub(super) fn duration_row(ui: &mut Ui, theme: &Theme, label: &str, value: &mut f32, min: f32, max: f32) {
+pub(super) fn duration_row(
+    ui: &mut Ui,
+    theme: &Theme,
+    label: &str,
+    value: &mut f32,
+    min: f32,
+    max: f32,
+) {
     duration_row_with_unit(ui, theme, label, value, min, max, "min");
 }
 

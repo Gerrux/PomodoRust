@@ -147,16 +147,13 @@ pub fn apply_window_effects(hwnd: isize) {
 /// Windows requires this for toast notifications to show under the app name.
 pub fn ensure_notification_shortcut() {
     use std::path::PathBuf;
-    use windows::core::{Interface, PROPVARIANT, HSTRING};
+    use windows::core::{Interface, HSTRING, PROPVARIANT};
+    use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
+    use windows::Win32::System::Com::IPersistFile;
     use windows::Win32::System::Com::{
         CoCreateInstance, CoInitializeEx, CLSCTX_INPROC_SERVER, COINIT_APARTMENTTHREADED,
     };
-    use windows::Win32::UI::Shell::{
-        IShellLinkW, ShellLink,
-        PropertiesSystem::IPropertyStore,
-    };
-    use windows::Win32::Storage::EnhancedStorage::PKEY_AppUserModel_ID;
-    use windows::Win32::System::Com::IPersistFile;
+    use windows::Win32::UI::Shell::{IShellLinkW, PropertiesSystem::IPropertyStore, ShellLink};
 
     let start_menu: PathBuf = match env::var("APPDATA") {
         Ok(appdata) => PathBuf::from(appdata)
@@ -202,10 +199,7 @@ pub fn ensure_notification_shortcut() {
                 .encode_utf16()
                 .chain(std::iter::once(0))
                 .collect();
-            let _ = persist.Save(
-                windows::core::PCWSTR(wide_path.as_ptr()),
-                true,
-            );
+            let _ = persist.Save(windows::core::PCWSTR(wide_path.as_ptr()), true);
             tracing::info!("Created Start Menu shortcut for notifications");
         }
     }
@@ -284,10 +278,9 @@ pub fn flash_pomodorust_window(count: u32) -> bool {
 pub fn show_pomodorust_window() -> bool {
     use windows::core::PCWSTR;
     use windows::Win32::UI::WindowsAndMessaging::{
-        FindWindowW, SetForegroundWindow, GetWindowLongPtrW, SetWindowLongPtrW,
-        SetWindowPos, HWND_TOPMOST, HWND_NOTOPMOST,
-        SWP_NOSIZE, SWP_SHOWWINDOW, SWP_FRAMECHANGED,
-        GWL_EXSTYLE, WS_EX_TOOLWINDOW,
+        FindWindowW, GetWindowLongPtrW, SetForegroundWindow, SetWindowLongPtrW, SetWindowPos,
+        GWL_EXSTYLE, HWND_NOTOPMOST, HWND_TOPMOST, SWP_FRAMECHANGED, SWP_NOSIZE, SWP_SHOWWINDOW,
+        WS_EX_TOOLWINDOW,
     };
 
     unsafe {
@@ -326,12 +319,11 @@ static SAVED_WINDOW_POS: Mutex<Option<(i32, i32)>> = Mutex::new(None);
 /// so `WM_PAINT` messages continue and eframe's `update()` keeps running.
 pub fn hide_pomodorust_window() {
     use windows::core::PCWSTR;
-    use windows::Win32::UI::WindowsAndMessaging::{
-        FindWindowW, GetWindowRect, SetWindowPos, GetWindowLongPtrW, SetWindowLongPtrW,
-        SWP_NOSIZE, SWP_NOZORDER, SWP_NOACTIVATE, SWP_FRAMECHANGED,
-        GWL_EXSTYLE, WS_EX_TOOLWINDOW,
-    };
     use windows::Win32::Foundation::RECT;
+    use windows::Win32::UI::WindowsAndMessaging::{
+        FindWindowW, GetWindowLongPtrW, GetWindowRect, SetWindowLongPtrW, SetWindowPos,
+        GWL_EXSTYLE, SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOSIZE, SWP_NOZORDER, WS_EX_TOOLWINDOW,
+    };
 
     unsafe {
         let title: Vec<u16> = "PomodoRust\0".encode_utf16().collect();
@@ -349,8 +341,12 @@ pub fn hide_pomodorust_window() {
                 SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_TOOLWINDOW.0 as isize);
                 // Move off-screen (window stays "visible" — WM_PAINT keeps working)
                 let _ = SetWindowPos(
-                    hwnd, HWND(std::ptr::null_mut()),
-                    -32000, -32000, 0, 0,
+                    hwnd,
+                    HWND(std::ptr::null_mut()),
+                    -32000,
+                    -32000,
+                    0,
+                    0,
                     SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED,
                 );
                 tracing::info!("Hid window off-screen (removed from taskbar)");
@@ -358,7 +354,6 @@ pub fn hide_pomodorust_window() {
         }
     }
 }
-
 
 /// Check if Windows is configured to use light theme for apps
 /// Reads from registry: HKCU\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize

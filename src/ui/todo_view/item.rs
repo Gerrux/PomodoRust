@@ -1,10 +1,10 @@
 use egui::{self, RichText, Sense, Vec2};
 
+use super::helpers::{parse_hex_color, priority_color, render_markdown_simple};
+use super::{TodoAction, TodoView};
 use crate::data::todo::{Priority, Project, TodoItem};
 use crate::ui::components::{draw_icon, Icon};
 use crate::ui::theme::Theme;
-use super::{TodoAction, TodoView};
-use super::helpers::{parse_hex_color, priority_color, render_markdown_simple};
 
 /// Shared hover background color
 fn hover_bg(theme: &Theme) -> egui::Color32 {
@@ -41,106 +41,116 @@ impl TodoView {
             .inner_margin(egui::Margin::symmetric(4.0, 3.0))
             .rounding(theme.rounding_sm)
             .show(ui, |ui| {
-            let resp = ui.horizontal(|ui| {
-                // Collapse arrow
-                let arrow_icon = if project.collapsed { Icon::ChevronRight } else { Icon::ChevronDown };
-                let (arrow_rect, arrow_resp) =
-                    ui.allocate_exact_size(Vec2::new(16.0, 20.0), Sense::click());
-                let icon_rect = egui::Rect::from_center_size(arrow_rect.center(), Vec2::splat(11.0));
-                draw_icon(ui, arrow_icon, icon_rect, theme.text_secondary);
-                if arrow_resp.clicked() {
-                    actions.push(TodoAction::ToggleProjectCollapse { id: project.id });
-                }
-
-                // Color dot
-                if let Some(color_str) = &project.color {
-                    if let Some(color) = parse_hex_color(color_str) {
-                        let (dot_rect, _) =
-                            ui.allocate_exact_size(Vec2::new(8.0, 8.0), Sense::hover());
-                        ui.painter()
-                            .circle_filled(dot_rect.center(), 4.0, color);
-                        ui.add_space(2.0);
-                    }
-                }
-
-                // Renaming
-                if self.renaming_project_id == Some(project.id) {
-                    let response = ui.add(
-                        egui::TextEdit::singleline(&mut self.rename_project_buffer)
-                            .desired_width(140.0)
-                            .font(egui::FontId::proportional(14.0)),
-                    );
-                    if response.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
-                        let name = self.rename_project_buffer.trim().to_string();
-                        if !name.is_empty() {
-                            actions.push(TodoAction::RenameProject {
-                                id: project.id,
-                                name,
-                            });
-                        }
-                        self.renaming_project_id = None;
-                    }
-                } else {
-                    let name_resp = ui.add(
-                        egui::Label::new(
-                            RichText::new(&project.name)
-                                .size(14.0)
-                                .color(theme.text_primary)
-                                .strong(),
-                        )
-                        .sense(Sense::click()),
-                    );
-                    if name_resp.clicked() {
+                let resp = ui.horizontal(|ui| {
+                    // Collapse arrow
+                    let arrow_icon = if project.collapsed {
+                        Icon::ChevronRight
+                    } else {
+                        Icon::ChevronDown
+                    };
+                    let (arrow_rect, arrow_resp) =
+                        ui.allocate_exact_size(Vec2::new(16.0, 20.0), Sense::click());
+                    let icon_rect =
+                        egui::Rect::from_center_size(arrow_rect.center(), Vec2::splat(11.0));
+                    draw_icon(ui, arrow_icon, icon_rect, theme.text_secondary);
+                    if arrow_resp.clicked() {
                         actions.push(TodoAction::ToggleProjectCollapse { id: project.id });
                     }
-                }
 
-                // Active count badge
-                if active_count > 0 {
-                    let badge_text = format!("{}", active_count);
-                    let badge_bg = if theme.is_light {
-                        egui::Color32::from_rgba_unmultiplied(0, 0, 0, 25)
-                    } else {
-                        egui::Color32::from_rgba_unmultiplied(255, 255, 255, 25)
-                    };
-                    egui::Frame::none()
-                        .inner_margin(egui::Margin::symmetric(6.0, 2.0))
-                        .rounding(theme.rounding_full)
-                        .fill(badge_bg)
-                        .show(ui, |ui| {
-                            ui.label(
-                                RichText::new(badge_text)
-                                    .size(11.0)
-                                    .color(theme.text_secondary),
-                            );
-                        });
-                }
-
-                // Push dots menu to the right (popup rendered outside frame)
-                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                    let (dots_rect, dots_resp) =
-                        ui.allocate_exact_size(Vec2::new(18.0, 20.0), Sense::click());
-                    let dots_icon_rect = egui::Rect::from_center_size(dots_rect.center(), Vec2::splat(13.0));
-                    let dots_color = if dots_resp.hovered() { theme.text_primary } else { theme.text_muted };
-                    draw_icon(ui, Icon::MoreVertical, dots_icon_rect, dots_color);
-                    if dots_resp.clicked() {
-                        if self.popup_todo_id == Some(-project.id) {
-                            self.popup_todo_id = None;
-                            self.popup_dots_rect = None;
-                        } else {
-                            self.popup_todo_id = Some(-project.id);
-                            self.popup_dots_rect = Some(dots_rect);
+                    // Color dot
+                    if let Some(color_str) = &project.color {
+                        if let Some(color) = parse_hex_color(color_str) {
+                            let (dot_rect, _) =
+                                ui.allocate_exact_size(Vec2::new(8.0, 8.0), Sense::hover());
+                            ui.painter().circle_filled(dot_rect.center(), 4.0, color);
+                            ui.add_space(2.0);
                         }
                     }
+
+                    // Renaming
+                    if self.renaming_project_id == Some(project.id) {
+                        let response = ui.add(
+                            egui::TextEdit::singleline(&mut self.rename_project_buffer)
+                                .desired_width(140.0)
+                                .font(egui::FontId::proportional(14.0)),
+                        );
+                        if response.lost_focus() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            let name = self.rename_project_buffer.trim().to_string();
+                            if !name.is_empty() {
+                                actions.push(TodoAction::RenameProject {
+                                    id: project.id,
+                                    name,
+                                });
+                            }
+                            self.renaming_project_id = None;
+                        }
+                    } else {
+                        let name_resp = ui.add(
+                            egui::Label::new(
+                                RichText::new(&project.name)
+                                    .size(14.0)
+                                    .color(theme.text_primary)
+                                    .strong(),
+                            )
+                            .sense(Sense::click()),
+                        );
+                        if name_resp.clicked() {
+                            actions.push(TodoAction::ToggleProjectCollapse { id: project.id });
+                        }
+                    }
+
+                    // Active count badge
+                    if active_count > 0 {
+                        let badge_text = format!("{}", active_count);
+                        let badge_bg = if theme.is_light {
+                            egui::Color32::from_rgba_unmultiplied(0, 0, 0, 25)
+                        } else {
+                            egui::Color32::from_rgba_unmultiplied(255, 255, 255, 25)
+                        };
+                        egui::Frame::none()
+                            .inner_margin(egui::Margin::symmetric(6.0, 2.0))
+                            .rounding(theme.rounding_full)
+                            .fill(badge_bg)
+                            .show(ui, |ui| {
+                                ui.label(
+                                    RichText::new(badge_text)
+                                        .size(11.0)
+                                        .color(theme.text_secondary),
+                                );
+                            });
+                    }
+
+                    // Push dots menu to the right (popup rendered outside frame)
+                    ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                        let (dots_rect, dots_resp) =
+                            ui.allocate_exact_size(Vec2::new(18.0, 20.0), Sense::click());
+                        let dots_icon_rect =
+                            egui::Rect::from_center_size(dots_rect.center(), Vec2::splat(13.0));
+                        let dots_color = if dots_resp.hovered() {
+                            theme.text_primary
+                        } else {
+                            theme.text_muted
+                        };
+                        draw_icon(ui, Icon::MoreVertical, dots_icon_rect, dots_color);
+                        if dots_resp.clicked() {
+                            if self.popup_todo_id == Some(-project.id) {
+                                self.popup_todo_id = None;
+                                self.popup_dots_rect = None;
+                            } else {
+                                self.popup_todo_id = Some(-project.id);
+                                self.popup_dots_rect = Some(dots_rect);
+                            }
+                        }
+                    });
                 });
+                resp
             });
-            resp
-        });
 
         // Hover bg on project header
         let header_rect = header_response.response.rect;
         if ui.rect_contains_pointer(header_rect) {
-            ui.painter().rect_filled(header_rect, theme.rounding_sm, hover_bg(theme));
+            ui.painter()
+                .rect_filled(header_rect, theme.rounding_sm, hover_bg(theme));
         }
 
         // Project dots popup (rendered outside header frame to avoid blocking clicks)
@@ -165,9 +175,15 @@ impl TodoView {
                                     self.rename_project_buffer = project.name.clone();
                                     self.popup_todo_id = None;
                                 }
-                                let total_in_project = todos.iter().filter(|t| t.project_id == Some(project.id)).count();
+                                let total_in_project = todos
+                                    .iter()
+                                    .filter(|t| t.project_id == Some(project.id))
+                                    .count();
                                 let delete_label = if total_in_project > 0 {
-                                    crate::i18n::tr().todo.delete_project_n.replace("{}", &total_in_project.to_string())
+                                    crate::i18n::tr()
+                                        .todo
+                                        .delete_project_n
+                                        .replace("{}", &total_in_project.to_string())
                                 } else {
                                     crate::i18n::tr().todo.delete_project.to_string()
                                 };
@@ -204,11 +220,20 @@ impl TodoView {
             };
 
             let body_resp = egui::Frame::none()
-                .inner_margin(egui::Margin { left: 12.0, top: 2.0, bottom: 2.0, right: 0.0 })
+                .inner_margin(egui::Margin {
+                    left: 12.0,
+                    top: 2.0,
+                    bottom: 2.0,
+                    right: 0.0,
+                })
                 .show(ui, |ui| {
                     if !project_todos.is_empty() {
                         actions.extend(self.render_dnd_todo_list(
-                            ui, theme, &project_todos, all_projects, Some(project.id),
+                            ui,
+                            theme,
+                            &project_todos,
+                            all_projects,
+                            Some(project.id),
                         ));
                     } else {
                         ui.add_space(2.0);
@@ -225,8 +250,10 @@ impl TodoView {
                     ui.add_space(2.0);
                     let title_buf = self.project_task_titles.entry(project.id).or_default();
                     ui.horizontal(|ui| {
-                        let (icon_rect, _) = ui.allocate_exact_size(Vec2::new(14.0, 20.0), Sense::hover());
-                        let ir = egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(11.0));
+                        let (icon_rect, _) =
+                            ui.allocate_exact_size(Vec2::new(14.0, 20.0), Sense::hover());
+                        let ir =
+                            egui::Rect::from_center_size(icon_rect.center(), Vec2::splat(11.0));
                         draw_icon(ui, Icon::Plus, ir, theme.text_muted.linear_multiply(0.6));
 
                         let response = ui.add(
@@ -237,8 +264,8 @@ impl TodoView {
                                 .frame(false),
                         );
 
-                        let submitted = response.lost_focus()
-                            && ui.input(|i| i.key_pressed(egui::Key::Enter));
+                        let submitted =
+                            response.lost_focus() && ui.input(|i| i.key_pressed(egui::Key::Enter));
                         if submitted {
                             let title = title_buf.trim().to_string();
                             if !title.is_empty() {
@@ -297,21 +324,34 @@ impl TodoView {
                 .inner_margin(egui::Margin::symmetric(4.0, 3.0))
                 .rounding(theme.rounding_sm)
                 .show(ui, |ui| {
-                    let row_resp = ui.horizontal(|ui| {
+                    ui.horizontal(|ui| {
                         // Drag handle
                         handle.ui(ui, |ui| {
                             let (grip_rect, _) =
                                 ui.allocate_exact_size(Vec2::new(12.0, 20.0), Sense::hover());
-                            let grip_icon_rect = egui::Rect::from_center_size(grip_rect.center(), Vec2::splat(10.0));
-                            draw_icon(ui, Icon::GripVertical, grip_icon_rect, theme.text_muted.linear_multiply(0.4));
+                            let grip_icon_rect =
+                                egui::Rect::from_center_size(grip_rect.center(), Vec2::splat(10.0));
+                            draw_icon(
+                                ui,
+                                Icon::GripVertical,
+                                grip_icon_rect,
+                                theme.text_muted.linear_multiply(0.4),
+                            );
                         });
 
                         // Collapse arrow (if has body)
                         if todo.body.is_some() {
-                            let icon = if todo.collapsed { Icon::ChevronRight } else { Icon::ChevronDown };
+                            let icon = if todo.collapsed {
+                                Icon::ChevronRight
+                            } else {
+                                Icon::ChevronDown
+                            };
                             let (arrow_rect, arrow_resp) =
                                 ui.allocate_exact_size(Vec2::new(14.0, 20.0), Sense::click());
-                            let icon_rect = egui::Rect::from_center_size(arrow_rect.center(), Vec2::splat(10.0));
+                            let icon_rect = egui::Rect::from_center_size(
+                                arrow_rect.center(),
+                                Vec2::splat(10.0),
+                            );
                             draw_icon(ui, icon, icon_rect, theme.text_muted);
                             if arrow_resp.clicked() {
                                 actions.push(TodoAction::ToggleCollapse { id: todo.id });
@@ -319,11 +359,20 @@ impl TodoView {
                         }
 
                         // Checkbox
-                        let checkbox_icon = if todo.completed { Icon::CheckSquare } else { Icon::Square };
-                        let checkbox_color = if todo.completed { theme.success } else { theme.text_secondary };
+                        let checkbox_icon = if todo.completed {
+                            Icon::CheckSquare
+                        } else {
+                            Icon::Square
+                        };
+                        let checkbox_color = if todo.completed {
+                            theme.success
+                        } else {
+                            theme.text_secondary
+                        };
                         let (cb_rect, cb_resp) =
                             ui.allocate_exact_size(Vec2::new(20.0, 20.0), Sense::click());
-                        let cb_icon_rect = egui::Rect::from_center_size(cb_rect.center(), Vec2::splat(15.0));
+                        let cb_icon_rect =
+                            egui::Rect::from_center_size(cb_rect.center(), Vec2::splat(15.0));
                         draw_icon(ui, checkbox_icon, cb_icon_rect, checkbox_color);
                         if cb_resp.clicked() {
                             actions.push(TodoAction::ToggleComplete { id: todo.id });
@@ -332,10 +381,13 @@ impl TodoView {
                         ui.add_space(2.0);
 
                         // Title — takes all remaining space
-                        let title_color = if todo.completed { theme.text_muted } else { theme.text_primary };
-                        let mut title_text = RichText::new(&todo.title)
-                            .size(13.5)
-                            .color(title_color);
+                        let title_color = if todo.completed {
+                            theme.text_muted
+                        } else {
+                            theme.text_primary
+                        };
+                        let mut title_text =
+                            RichText::new(&todo.title).size(13.5).color(title_color);
                         if todo.completed {
                             title_text = title_text.strikethrough();
                         }
@@ -354,9 +406,14 @@ impl TodoView {
                             // Three-dot menu (popup rendered outside DnD)
                             let (dots_rect, dots_resp) =
                                 ui.allocate_exact_size(Vec2::new(16.0, 20.0), Sense::click());
-                            let dots_icon_rect = egui::Rect::from_center_size(dots_rect.center(), Vec2::splat(12.0));
+                            let dots_icon_rect =
+                                egui::Rect::from_center_size(dots_rect.center(), Vec2::splat(12.0));
                             let is_popup_open = self.popup_todo_id == Some(todo.id);
-                            let dots_color = if dots_resp.hovered() || is_popup_open { theme.text_primary } else { theme.text_muted.linear_multiply(0.6) };
+                            let dots_color = if dots_resp.hovered() || is_popup_open {
+                                theme.text_primary
+                            } else {
+                                theme.text_muted.linear_multiply(0.6)
+                            };
                             draw_icon(ui, Icon::MoreVertical, dots_icon_rect, dots_color);
                             if dots_resp.clicked() {
                                 if is_popup_open {
@@ -369,14 +426,14 @@ impl TodoView {
                             }
                         });
                     });
-                    row_resp
                 });
 
             let item_rect = frame_resp.response.rect;
 
             // Hover bg
             if ui.rect_contains_pointer(item_rect) {
-                ui.painter().rect_filled(item_rect, theme.rounding_sm, hover_bg(theme));
+                ui.painter()
+                    .rect_filled(item_rect, theme.rounding_sm, hover_bg(theme));
             }
 
             // Priority accent stripe on the left
@@ -394,7 +451,12 @@ impl TodoView {
             if !todo.collapsed {
                 if let Some(body) = &todo.body {
                     egui::Frame::none()
-                        .inner_margin(egui::Margin { left: 52.0, top: 0.0, bottom: 4.0, right: 8.0 })
+                        .inner_margin(egui::Margin {
+                            left: 52.0,
+                            top: 0.0,
+                            bottom: 4.0,
+                            right: 8.0,
+                        })
                         .show(ui, |ui| {
                             render_markdown_simple(ui, theme, body);
                         });
@@ -440,14 +502,14 @@ impl TodoView {
                             self.editing_focus_title = true;
                             self.popup_todo_id = None;
                         }
-                        if !todo.completed {
-                            if ui.button(crate::i18n::tr().todo.add_to_queue).clicked() {
-                                actions.push(TodoAction::AddToQueue {
-                                    todo_id: todo.id,
-                                    planned_pomodoros: 1,
-                                });
-                                self.popup_todo_id = None;
-                            }
+                        if !todo.completed
+                            && ui.button(crate::i18n::tr().todo.add_to_queue).clicked()
+                        {
+                            actions.push(TodoAction::AddToQueue {
+                                todo_id: todo.id,
+                                planned_pomodoros: 1,
+                            });
+                            self.popup_todo_id = None;
                         }
                         if Self::render_move_menu(ui, todo, projects, actions) {
                             self.popup_todo_id = None;
@@ -491,7 +553,10 @@ impl TodoView {
             ui.menu_button(crate::i18n::tr().todo.move_to, |ui| {
                 if todo.project_id.is_some() {
                     if ui.button(crate::i18n::tr().todo.no_project).clicked() {
-                        actions.push(TodoAction::MoveTodo { id: todo.id, project_id: None });
+                        actions.push(TodoAction::MoveTodo {
+                            id: todo.id,
+                            project_id: None,
+                        });
                         acted = true;
                         ui.close_menu();
                     }
@@ -500,12 +565,13 @@ impl TodoView {
                     }
                 }
                 for p in projects {
-                    if Some(p.id) != todo.project_id {
-                        if ui.button(&p.name).clicked() {
-                            actions.push(TodoAction::MoveTodo { id: todo.id, project_id: Some(p.id) });
-                            acted = true;
-                            ui.close_menu();
-                        }
+                    if Some(p.id) != todo.project_id && ui.button(&p.name).clicked() {
+                        actions.push(TodoAction::MoveTodo {
+                            id: todo.id,
+                            project_id: Some(p.id),
+                        });
+                        acted = true;
+                        ui.close_menu();
                     }
                 }
             });
@@ -530,7 +596,10 @@ impl TodoView {
                         crate::i18n::tr().priority_label(*p).to_string()
                     };
                     if ui.button(&label).clicked() {
-                        actions.push(TodoAction::SetPriority { id: todo.id, priority: *p });
+                        actions.push(TodoAction::SetPriority {
+                            id: todo.id,
+                            priority: *p,
+                        });
                         acted = true;
                         ui.close_menu();
                     }
@@ -551,7 +620,10 @@ impl TodoView {
         egui::Frame::none()
             .inner_margin(egui::Margin::symmetric(10.0, 8.0))
             .rounding(theme.rounding_md)
-            .stroke(egui::Stroke::new(1.0, theme.accent.solid().linear_multiply(0.5)))
+            .stroke(egui::Stroke::new(
+                1.0,
+                theme.accent.solid().linear_multiply(0.5),
+            ))
             .fill(if theme.is_light {
                 egui::Color32::from_rgba_unmultiplied(0, 0, 0, 5)
             } else {

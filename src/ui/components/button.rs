@@ -180,7 +180,12 @@ impl IconButton {
         let press_t = self.state.press_t();
 
         let apply_opacity = |c: Color32| -> Color32 {
-            Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (c.a() as f32 * self.opacity) as u8)
+            Color32::from_rgba_unmultiplied(
+                c.r(),
+                c.g(),
+                c.b(),
+                (c.a() as f32 * self.opacity) as u8,
+            )
         };
 
         if response.hovered() {
@@ -195,11 +200,19 @@ impl IconButton {
         // Background and icon color
         let icon_color = if self.is_light_mode {
             // Light mode: theme-based background, visible border, dark icon
-            let bg_color = apply_opacity(Theme::lerp_color(theme.bg_secondary, theme.bg_tertiary, hover_t));
+            let bg_color = apply_opacity(Theme::lerp_color(
+                theme.bg_secondary,
+                theme.bg_tertiary,
+                hover_t,
+            ));
             ui.painter()
                 .rect_filled(scaled_rect, scaled_size / 2.0, bg_color);
 
-            let border_color = apply_opacity(Theme::lerp_color(theme.border_default, theme.border_strong, hover_t));
+            let border_color = apply_opacity(Theme::lerp_color(
+                theme.border_default,
+                theme.border_strong,
+                hover_t,
+            ));
             ui.painter().rect_stroke(
                 scaled_rect,
                 scaled_size / 2.0,
@@ -223,12 +236,17 @@ impl IconButton {
             apply_opacity(Theme::contrasting_text(start))
         } else if let Some((start, _end)) = self.custom_gradient {
             // Outline style with accent color - subtle bg, colored border and icon
-            let bg_color = apply_opacity(Theme::lerp_color(theme.bg_tertiary, theme.bg_hover, hover_t));
+            let bg_color = apply_opacity(Theme::lerp_color(
+                theme.bg_tertiary,
+                theme.bg_hover,
+                hover_t,
+            ));
             ui.painter()
                 .rect_filled(scaled_rect, scaled_size / 2.0, bg_color);
 
             // Colored border (muted)
-            let border_color = apply_opacity(Theme::with_alpha(start, (120.0 + hover_t * 60.0) as u8));
+            let border_color =
+                apply_opacity(Theme::with_alpha(start, (120.0 + hover_t * 60.0) as u8));
             ui.painter().rect_stroke(
                 scaled_rect,
                 scaled_size / 2.0,
@@ -240,20 +258,31 @@ impl IconButton {
             apply_opacity(Theme::with_alpha(start, alpha))
         } else {
             // Default style - gray
-            let bg_color = apply_opacity(Theme::lerp_color(theme.bg_tertiary, theme.bg_hover, hover_t));
+            let bg_color = apply_opacity(Theme::lerp_color(
+                theme.bg_tertiary,
+                theme.bg_hover,
+                hover_t,
+            ));
             ui.painter()
                 .rect_filled(scaled_rect, scaled_size / 2.0, bg_color);
 
             // Border
-            let border_color =
-                apply_opacity(Theme::lerp_color(theme.border_subtle, theme.border_default, hover_t));
+            let border_color = apply_opacity(Theme::lerp_color(
+                theme.border_subtle,
+                theme.border_default,
+                hover_t,
+            ));
             ui.painter().rect_stroke(
                 scaled_rect,
                 scaled_size / 2.0,
                 Stroke::new(1.0, border_color),
             );
 
-            apply_opacity(Theme::lerp_color(theme.text_secondary, theme.text_primary, hover_t))
+            apply_opacity(Theme::lerp_color(
+                theme.text_secondary,
+                theme.text_primary,
+                hover_t,
+            ))
         };
 
         // Draw vector icon

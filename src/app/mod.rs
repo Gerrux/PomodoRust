@@ -98,7 +98,11 @@ const TOAST_DURATION: std::time::Duration = std::time::Duration::from_secs(2);
 
 impl PomodoRustApp {
     /// Create a new application instance with the given config and optional tray
-    pub fn with_config(cc: &eframe::CreationContext<'_>, config: Config, system_tray: Option<SystemTray>) -> Self {
+    pub fn with_config(
+        cc: &eframe::CreationContext<'_>,
+        config: Config,
+        system_tray: Option<SystemTray>,
+    ) -> Self {
         Self::init(cc, config, system_tray)
     }
 
@@ -109,7 +113,11 @@ impl PomodoRustApp {
     }
 
     /// Internal initialization with a config
-    fn init(cc: &eframe::CreationContext<'_>, config: Config, system_tray: Option<SystemTray>) -> Self {
+    fn init(
+        cc: &eframe::CreationContext<'_>,
+        config: Config,
+        system_tray: Option<SystemTray>,
+    ) -> Self {
         // Setup fonts with emoji fallback
         Self::setup_fonts(&cc.egui_ctx);
 
@@ -227,14 +235,16 @@ impl PomodoRustApp {
 
     /// Show a success toast notification
     fn show_status(&mut self, message: impl Into<String>) {
-        self.toasts.success(message.into())
+        self.toasts
+            .success(message.into())
             .duration(Some(TOAST_DURATION))
             .closable(true);
     }
 
     /// Show an error toast notification
     fn show_error(&mut self, message: impl Into<String>) {
-        self.toasts.error(message.into())
+        self.toasts
+            .error(message.into())
             .duration(Some(TOAST_DURATION))
             .closable(true);
     }
@@ -290,7 +300,10 @@ impl eframe::App for PomodoRustApp {
         }
 
         // Intercept native close (Alt+F4, taskbar close) when tray is available
-        if ctx.input(|i| i.viewport().close_requested()) && self.system_tray.is_some() && !self.force_quit {
+        if ctx.input(|i| i.viewport().close_requested())
+            && self.system_tray.is_some()
+            && !self.force_quit
+        {
             ctx.send_viewport_cmd(egui::ViewportCommand::CancelClose);
             self.show_close_dialog = true;
         }

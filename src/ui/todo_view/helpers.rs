@@ -1,9 +1,9 @@
 use egui::{self, Color32, RichText};
 
+use super::{TodoAction, TodoView};
 use crate::data::todo::Priority;
 use crate::ui::components::{draw_icon, Icon};
 use crate::ui::theme::Theme;
-use super::{TodoAction, TodoView};
 
 impl TodoView {
     pub(super) fn handle_clipboard_paste(
@@ -29,7 +29,11 @@ impl TodoView {
                 return actions;
             }
 
-            let lines: Vec<&str> = text.lines().map(|l| l.trim()).filter(|l| !l.is_empty()).collect();
+            let lines: Vec<&str> = text
+                .lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty())
+                .collect();
 
             if lines.len() == 1 {
                 actions.push(TodoAction::CreateTodo {
@@ -38,9 +42,10 @@ impl TodoView {
                     title: lines[0].to_string(),
                 });
             } else {
-                let looks_like_list = lines.iter().skip(1).all(|l| {
-                    l.starts_with("- ") || l.starts_with("* ") || l.starts_with("- [ ]")
-                });
+                let looks_like_list = lines
+                    .iter()
+                    .skip(1)
+                    .all(|l| l.starts_with("- ") || l.starts_with("* ") || l.starts_with("- [ ]"));
 
                 if looks_like_list {
                     actions.push(TodoAction::CreateTodoWithBody {
@@ -74,54 +79,56 @@ impl TodoView {
 /// Simple markdown renderer (fallback without egui_commonmark)
 pub(super) fn render_markdown_simple(ui: &mut egui::Ui, theme: &Theme, text: &str) {
     for line in text.lines() {
-        if line.starts_with("# ") {
+        if let Some(rest) = line.strip_prefix("# ") {
             ui.label(
-                RichText::new(&line[2..])
+                RichText::new(rest)
                     .size(18.0)
                     .strong()
                     .color(theme.text_primary),
             );
-        } else if line.starts_with("## ") {
+        } else if let Some(rest) = line.strip_prefix("## ") {
             ui.label(
-                RichText::new(&line[3..])
+                RichText::new(rest)
                     .size(16.0)
                     .strong()
                     .color(theme.text_primary),
             );
-        } else if line.starts_with("### ") {
+        } else if let Some(rest) = line.strip_prefix("### ") {
             ui.label(
-                RichText::new(&line[4..])
+                RichText::new(rest)
                     .size(14.0)
                     .strong()
                     .color(theme.text_primary),
             );
-        } else if line.starts_with("- [x] ") || line.starts_with("- [X] ") {
+        } else if let Some(rest) = line
+            .strip_prefix("- [x] ")
+            .or_else(|| line.strip_prefix("- [X] "))
+        {
             ui.horizontal(|ui| {
                 let (cb_rect, _) =
                     ui.allocate_exact_size(egui::Vec2::new(14.0, 14.0), egui::Sense::hover());
                 let ir = egui::Rect::from_center_size(cb_rect.center(), egui::Vec2::splat(12.0));
                 draw_icon(ui, Icon::CheckSquare, ir, theme.success);
-                ui.label(
-                    RichText::new(&line[6..])
-                        .strikethrough()
-                        .color(theme.text_muted),
-                );
+                ui.label(RichText::new(rest).strikethrough().color(theme.text_muted));
             });
-        } else if line.starts_with("- [ ] ") {
+        } else if let Some(rest) = line.strip_prefix("- [ ] ") {
             ui.horizontal(|ui| {
                 let (cb_rect, _) =
                     ui.allocate_exact_size(egui::Vec2::new(14.0, 14.0), egui::Sense::hover());
                 let ir = egui::Rect::from_center_size(cb_rect.center(), egui::Vec2::splat(12.0));
                 draw_icon(ui, Icon::Square, ir, theme.text_secondary);
-                ui.label(RichText::new(&line[6..]).color(theme.text_primary));
+                ui.label(RichText::new(rest).color(theme.text_primary));
             });
-        } else if line.starts_with("- ") || line.starts_with("* ") {
+        } else if let Some(rest) = line.strip_prefix("- ").or_else(|| line.strip_prefix("* ")) {
             ui.horizontal(|ui| {
-                let dot_center = ui.allocate_exact_size(egui::Vec2::new(14.0, 14.0), egui::Sense::hover()).0;
-                ui.painter().circle_filled(dot_center.center(), 2.5, theme.text_muted);
-                ui.label(RichText::new(&line[2..]).color(theme.text_primary));
+                let dot_center = ui
+                    .allocate_exact_size(egui::Vec2::new(14.0, 14.0), egui::Sense::hover())
+                    .0;
+                ui.painter()
+                    .circle_filled(dot_center.center(), 2.5, theme.text_muted);
+                ui.label(RichText::new(rest).color(theme.text_primary));
             });
-        } else if line.starts_with("> ") {
+        } else if let Some(rest) = line.strip_prefix("> ") {
             egui::Frame::none()
                 .inner_margin(egui::Margin {
                     left: 8.0,
@@ -129,11 +136,7 @@ pub(super) fn render_markdown_simple(ui: &mut egui::Ui, theme: &Theme, text: &st
                 })
                 .stroke(egui::Stroke::new(2.0, theme.border_default))
                 .show(ui, |ui| {
-                    ui.label(
-                        RichText::new(&line[2..])
-                            .color(theme.text_secondary)
-                            .italics(),
-                    );
+                    ui.label(RichText::new(rest).color(theme.text_secondary).italics());
                 });
         } else if line.is_empty() {
             ui.add_space(4.0);

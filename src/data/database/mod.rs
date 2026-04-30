@@ -5,8 +5,8 @@
 //! - Daily aggregated statistics
 //! - Streak tracking
 
-mod todo_ops;
 mod queue_ops;
+mod todo_ops;
 
 pub use queue_ops::TaskTimeStats;
 
@@ -186,15 +186,16 @@ impl Database {
         )?;
 
         // Create default workspace if none exist
-        let count: i64 = self.conn.query_row(
-            "SELECT COUNT(*) FROM workspaces",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: i64 = self
+            .conn
+            .query_row("SELECT COUNT(*) FROM workspaces", [], |row| row.get(0))?;
         if count == 0 {
             self.conn.execute(
                 "INSERT INTO workspaces (name, icon, position) VALUES (?1, ?2, 0)",
-                params![crate::i18n::tr().todo.tasks_default_workspace, Option::<String>::None],
+                params![
+                    crate::i18n::tr().todo.tasks_default_workspace,
+                    Option::<String>::None
+                ],
             )?;
         }
 
@@ -274,6 +275,7 @@ impl Database {
     }
 
     /// Insert a session record into the sessions table
+    #[allow(clippy::too_many_arguments)]
     fn insert_session_record(
         &self,
         session_type: SessionType,
@@ -472,11 +474,9 @@ impl Database {
     /// Get the earliest date with recorded stats (for navigation bounds)
     pub fn get_earliest_stats_date(&self) -> SqliteResult<Option<NaiveDate>> {
         self.conn
-            .query_row(
-                "SELECT MIN(date) FROM daily_stats",
-                [],
-                |row| row.get::<_, Option<String>>(0),
-            )
+            .query_row("SELECT MIN(date) FROM daily_stats", [], |row| {
+                row.get::<_, Option<String>>(0)
+            })
             .map(|opt| opt.and_then(|s| NaiveDate::parse_from_str(&s, DATE_FORMAT).ok()))
     }
 

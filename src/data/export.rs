@@ -190,10 +190,7 @@ impl Exporter {
             "ID,Type,Duration (s),Planned Duration (s),Completed,Started At,Ended At,Todo ID\n",
         );
         for session in &data.sessions {
-            let todo_id_str = session
-                .todo_id
-                .map(|id| id.to_string())
-                .unwrap_or_default();
+            let todo_id_str = session.todo_id.map(|id| id.to_string()).unwrap_or_default();
             content.push_str(&format!(
                 "{},{},{},{},{},{},{},{}\n",
                 session.id,

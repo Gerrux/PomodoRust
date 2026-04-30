@@ -23,7 +23,9 @@ impl StatsView {
                 // Previous week button
                 let prev_btn = ui.add(
                     egui::Button::new(
-                        egui::RichText::new("<").size(14.0).color(theme.text_secondary),
+                        egui::RichText::new("<")
+                            .size(14.0)
+                            .color(theme.text_secondary),
                     )
                     .fill(egui::Color32::TRANSPARENT)
                     .min_size(vec2(24.0, 24.0)),
@@ -45,7 +47,9 @@ impl StatsView {
                 if self.week_offset < 0 {
                     let next_btn = ui.add(
                         egui::Button::new(
-                            egui::RichText::new(">").size(14.0).color(theme.text_secondary),
+                            egui::RichText::new(">")
+                                .size(14.0)
+                                .color(theme.text_secondary),
                         )
                         .fill(egui::Color32::TRANSPARENT)
                         .min_size(vec2(24.0, 24.0)),
@@ -141,7 +145,13 @@ impl StatsView {
         });
     }
 
-    pub(crate) fn draw_week_chart(&self, ui: &mut Ui, stats: &Statistics, theme: &Theme, width: f32) {
+    pub(crate) fn draw_week_chart(
+        &self,
+        ui: &mut Ui,
+        stats: &Statistics,
+        theme: &Theme,
+        width: f32,
+    ) {
         let days = crate::i18n::tr().days_of_week();
         let values = self.displayed_week_hours(stats);
         let max_value = values.iter().cloned().fold(1.0_f32, f32::max);
@@ -201,7 +211,12 @@ impl StatsView {
     }
 
     /// Show the export button with dropdown menu
-    pub(crate) fn show_export_button(&mut self, ui: &mut Ui, theme: &Theme, action: &mut Option<StatsAction>) {
+    pub(crate) fn show_export_button(
+        &mut self,
+        ui: &mut Ui,
+        theme: &Theme,
+        action: &mut Option<StatsAction>,
+    ) {
         let button_id = ui.make_persistent_id("export_dropdown");
 
         // Export button

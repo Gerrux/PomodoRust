@@ -44,12 +44,11 @@ pub struct TimerView {
 
 impl TimerView {
     pub fn new() -> Self {
-        Self {
-            time_offset: 0.0,
-        }
+        Self { time_offset: 0.0 }
     }
 
     /// Show the timer view and return any action triggered
+    #[allow(clippy::too_many_arguments)]
     pub fn show(
         &mut self,
         ui: &mut Ui,
@@ -61,17 +60,27 @@ impl TimerView {
         queue: &[QueuedTask],
     ) -> Option<TimerAction> {
         // Update animation time (wrap to avoid float precision loss)
-        self.time_offset = (self.time_offset + ui.ctx().input(|i| i.unstable_dt)) % TIME_OFFSET_WRAP;
+        self.time_offset =
+            (self.time_offset + ui.ctx().input(|i| i.unstable_dt)) % TIME_OFFSET_WRAP;
 
         // Check if we should use TUI/retro style
         if theme.accent.is_retro() {
             self.show_tui_style(ui, session, theme, pulse, current_task, queue)
         } else {
-            self.show_modern_style(ui, session, theme, pulse, window_opacity, current_task, queue)
+            self.show_modern_style(
+                ui,
+                session,
+                theme,
+                pulse,
+                window_opacity,
+                current_task,
+                queue,
+            )
         }
     }
 
     /// Modern style with circular progress
+    #[allow(clippy::too_many_arguments)]
     fn show_modern_style(
         &mut self,
         ui: &mut Ui,
@@ -98,284 +107,320 @@ impl TimerView {
         // Responsive font sizes - larger timer text
         let timer_font_size = (timer_radius * TIMER_FONT_RATIO).clamp(24.0, 46.0);
         let label_font_size = (timer_radius * LABEL_FONT_RATIO).clamp(11.0, 18.0);
-        let modern_font = |size: f32| egui::FontId::new(size, egui::FontFamily::Name("Modern".into()));
+        let modern_font =
+            |size: f32| egui::FontId::new(size, egui::FontFamily::Name("Modern".into()));
 
         // Scrollable centered layout — nothing gets clipped at any window size
         egui::ScrollArea::vertical()
             .auto_shrink([false, true])
             .show(ui, |ui| {
-        ui.with_layout(Layout::top_down(Align::Center), |ui| {
-            ui.add_space(spacing);
+                ui.with_layout(Layout::top_down(Align::Center), |ui| {
+                    ui.add_space(spacing);
 
-            // Circular progress with timer
-            let (start_color, end_color) = theme.session_gradient(session.session_type());
-            let progress = session.timer().progress();
+                    // Circular progress with timer
+                    let (start_color, end_color) = theme.session_gradient(session.session_type());
+                    let progress = session.timer().progress();
 
-            // Adjust colors for light mode visibility at lower window opacity.
-            // Maps opacity 100% -> 0.0 (normal) down to 30% -> 1.0 (fully darkened).
-            let opacity_factor = ((100 - window_opacity.min(100)) as f32 / 70.0).min(1.0);
+                    // Adjust colors for light mode visibility at lower window opacity.
+                    // Maps opacity 100% -> 0.0 (normal) down to 30% -> 1.0 (fully darkened).
+                    let opacity_factor = ((100 - window_opacity.min(100)) as f32 / 70.0).min(1.0);
 
-            let ring_bg_color = if theme.is_light {
-                // Darken to black as opacity decreases
-                let black = egui::Color32::from_rgb(20, 20, 20);
-                Theme::lerp_color(theme.bg_tertiary, black, opacity_factor)
-            } else {
-                theme.bg_tertiary
-            };
+                    let ring_bg_color = if theme.is_light {
+                        // Darken to black as opacity decreases
+                        let black = egui::Color32::from_rgb(20, 20, 20);
+                        Theme::lerp_color(theme.bg_tertiary, black, opacity_factor)
+                    } else {
+                        theme.bg_tertiary
+                    };
 
-            CircularProgress::new(progress)
-                .with_radius(timer_radius)
-                .with_thickness(timer_thickness)
-                .with_colors(start_color, end_color)
-                .with_bg_color(ring_bg_color)
-                .with_pulse(if session.timer().is_running() && !theme.reduced_motion {
-                    pulse
-                } else {
-                    0.0
-                })
-                .show(ui, |ui| {
-                    ui.vertical_centered(|ui| {
-                        // Push content down within the circle
-                        ui.add_space(timer_radius * 0.18);
-
-                        // Session type label (above timer) - darken to black as opacity decreases (light mode)
-                        let base_label_color = Theme::lerp_color(start_color, end_color, 0.5);
-                        let label_color = if theme.is_light {
-                            let black = egui::Color32::from_rgb(10, 10, 10);
-                            Theme::lerp_color(base_label_color, black, opacity_factor)
+                    CircularProgress::new(progress)
+                        .with_radius(timer_radius)
+                        .with_thickness(timer_thickness)
+                        .with_colors(start_color, end_color)
+                        .with_bg_color(ring_bg_color)
+                        .with_pulse(if session.timer().is_running() && !theme.reduced_motion {
+                            pulse
                         } else {
-                            base_label_color
-                        };
-                        ui.label(
-                            egui::RichText::new(t.session_label(session.session_type()))
-                                .font(modern_font(label_font_size))
-                                .color(label_color),
-                        );
+                            0.0
+                        })
+                        .show(ui, |ui| {
+                            ui.vertical_centered(|ui| {
+                                // Push content down within the circle
+                                ui.add_space(timer_radius * 0.18);
 
-                        ui.add_space(2.0);
+                                // Session type label (above timer) - darken to black as opacity decreases (light mode)
+                                let base_label_color =
+                                    Theme::lerp_color(start_color, end_color, 0.5);
+                                let label_color = if theme.is_light {
+                                    let black = egui::Color32::from_rgb(10, 10, 10);
+                                    Theme::lerp_color(base_label_color, black, opacity_factor)
+                                } else {
+                                    base_label_color
+                                };
+                                ui.label(
+                                    egui::RichText::new(t.session_label(session.session_type()))
+                                        .font(modern_font(label_font_size))
+                                        .color(label_color),
+                                );
 
-                        // Timer display (Unbounded Black)
-                        ui.label(
-                            egui::RichText::new(session.timer().remaining_formatted())
-                                .font(egui::FontId::new(timer_font_size, egui::FontFamily::Name("Timer".into())))
-                                .color(theme.text_primary),
-                        );
+                                ui.add_space(2.0);
+
+                                // Timer display (Unbounded Black)
+                                ui.label(
+                                    egui::RichText::new(session.timer().remaining_formatted())
+                                        .font(egui::FontId::new(
+                                            timer_font_size,
+                                            egui::FontFamily::Name("Timer".into()),
+                                        ))
+                                        .color(theme.text_primary),
+                                );
+                            });
+                        });
+
+                    ui.add_space(spacing * 0.5);
+
+                    // Hover detection for control + nav buttons
+                    let is_hovered = ui.ctx().input(|i| {
+                        i.pointer
+                            .hover_pos()
+                            .map(|pos| ui.max_rect().contains(pos))
+                            .unwrap_or(false)
                     });
-                });
-
-            ui.add_space(spacing * 0.5);
-
-            // Hover detection for control + nav buttons
-            let is_hovered = ui.ctx().input(|i| {
-                i.pointer.hover_pos()
-                    .map(|pos| ui.max_rect().contains(pos))
-                    .unwrap_or(false)
-            });
-            let hover_alpha = ui.ctx().animate_bool_with_time(
-                ui.id().with("modern_hover_fade"),
-                is_hovered,
-                0.25,
-            );
-
-            // Control buttons - always rendered, fade with hover
-            {
-                let btn_spacing = spacing * 0.75;
-                let half_width = ui.available_width() / 2.0;
-                let btn_gap = btn_spacing / 2.0;
-
-                ui.horizontal(|ui| {
-                    // Left half - play/pause aligned to right
-                    ui.allocate_ui_with_layout(
-                        vec2(half_width - btn_gap, control_btn_size),
-                        Layout::right_to_left(Align::Center),
-                        |ui| {
-                            let is_running = session.timer().is_running();
-                            let play_icon = if is_running { Icon::Pause } else { Icon::Play };
-
-                            if IconButton::new(play_icon)
-                                .with_size(control_btn_size)
-                                .with_icon_scale(0.45)
-                                .filled(false)
-                                .with_gradient(start_color, end_color)
-                                .with_opacity(hover_alpha)
-                                .light_mode(theme.is_light)
-                                .show(ui, theme)
-                                .clicked()
-                            {
-                                action = Some(TimerAction::Toggle);
-                            }
-                        },
+                    let hover_alpha = ui.ctx().animate_bool_with_time(
+                        ui.id().with("modern_hover_fade"),
+                        is_hovered,
+                        0.25,
                     );
 
-                    // Right half - skip aligned to left
-                    ui.allocate_ui_with_layout(
-                        vec2(half_width - btn_gap, control_btn_size),
-                        Layout::left_to_right(Align::Center),
-                        |ui| {
-                            if IconButton::new(Icon::SkipForward)
-                                .with_size(control_btn_size)
-                                .with_icon_scale(0.45)
-                                .filled(false)
-                                .with_gradient(start_color, end_color)
-                                .with_opacity(hover_alpha)
-                                .light_mode(theme.is_light)
-                                .show(ui, theme)
-                                .clicked()
-                            {
-                                action = Some(TimerAction::Skip);
-                            }
-                        },
-                    );
-                });
+                    // Control buttons - always rendered, fade with hover
+                    {
+                        let btn_spacing = spacing * 0.75;
+                        let half_width = ui.available_width() / 2.0;
+                        let btn_gap = btn_spacing / 2.0;
 
-                if hover_alpha > 0.0 && hover_alpha < 1.0 {
-                    ui.ctx().request_repaint();
-                }
-            }
+                        ui.horizontal(|ui| {
+                            // Left half - play/pause aligned to right
+                            ui.allocate_ui_with_layout(
+                                vec2(half_width - btn_gap, control_btn_size),
+                                Layout::right_to_left(Align::Center),
+                                |ui| {
+                                    let is_running = session.timer().is_running();
+                                    let play_icon =
+                                        if is_running { Icon::Pause } else { Icon::Play };
 
-            ui.add_space(spacing * 1.5);
+                                    if IconButton::new(play_icon)
+                                        .with_size(control_btn_size)
+                                        .with_icon_scale(0.45)
+                                        .filled(false)
+                                        .with_gradient(start_color, end_color)
+                                        .with_opacity(hover_alpha)
+                                        .light_mode(theme.is_light)
+                                        .show(ui, theme)
+                                        .clicked()
+                                    {
+                                        action = Some(TimerAction::Toggle);
+                                    }
+                                },
+                            );
 
-            // Session progress dots
-            self.show_session_dots(ui, session, theme, min_dim, opacity_factor);
+                            // Right half - skip aligned to left
+                            ui.allocate_ui_with_layout(
+                                vec2(half_width - btn_gap, control_btn_size),
+                                Layout::left_to_right(Align::Center),
+                                |ui| {
+                                    if IconButton::new(Icon::SkipForward)
+                                        .with_size(control_btn_size)
+                                        .with_icon_scale(0.45)
+                                        .filled(false)
+                                        .with_gradient(start_color, end_color)
+                                        .with_opacity(hover_alpha)
+                                        .light_mode(theme.is_light)
+                                        .show(ui, theme)
+                                        .clicked()
+                                    {
+                                        action = Some(TimerAction::Skip);
+                                    }
+                                },
+                            );
+                        });
 
-            ui.add_space(spacing * 0.5);
+                        if hover_alpha > 0.0 && hover_alpha < 1.0 {
+                            ui.ctx().request_repaint();
+                        }
+                    }
 
-            // Current task display (if pinned)
-            if let Some(task) = current_task {
-                let max_chars = ((available.x * 0.7) / 7.0) as usize;
-                let title = crate::ui::todo_view::truncate_text(&task.title, max_chars.max(10));
-                let counter = format!("{}/{}", task.completed_pomodoros, task.planned_pomodoros);
+                    ui.add_space(spacing * 1.5);
 
-                let mut job = egui::text::LayoutJob::default();
-                job.halign = Align::Center;
-                job.append("> ", 0.0, egui::TextFormat {
-                    font_id: modern_font(11.0),
-                    color: theme.accent.solid(),
-                    ..Default::default()
-                });
-                job.append(&title, 0.0, egui::TextFormat {
-                    font_id: modern_font(12.0),
-                    color: theme.text_secondary,
-                    ..Default::default()
-                });
-                job.append(&format!(" {}", counter), 0.0, egui::TextFormat {
-                    font_id: modern_font(11.0),
-                    color: theme.text_muted,
-                    ..Default::default()
-                });
-                ui.label(job);
-            }
+                    // Session progress dots
+                    self.show_session_dots(ui, session, theme, min_dim, opacity_factor);
 
-            // Navigation buttons - reuse hover fade
-            if hover_alpha > 0.0 {
-                let fade = |c: egui::Color32| -> egui::Color32 {
-                    egui::Color32::from_rgba_unmultiplied(c.r(), c.g(), c.b(), (c.a() as f32 * hover_alpha) as u8)
-                };
+                    ui.add_space(spacing * 0.5);
 
-                ui.add_space(spacing * 0.25);
+                    // Current task display (if pinned)
+                    if let Some(task) = current_task {
+                        let max_chars = ((available.x * 0.7) / 7.0) as usize;
+                        let title =
+                            crate::ui::todo_view::truncate_text(&task.title, max_chars.max(10));
+                        let counter =
+                            format!("{}/{}", task.completed_pomodoros, task.planned_pomodoros);
 
-                let nav_gap = spacing * 0.25;
-                let nav_half_width = ui.available_width() / 2.0;
-                let nav_btn_width = (available.x * NAV_BTN_WIDTH_FACTOR).clamp(80.0, 140.0);
-                let nav_btn_height = (min_dim * NAV_BTN_HEIGHT_FACTOR).clamp(28.0, 38.0);
-                let nav_btn_fill = fade(if theme.is_light {
-                    egui::Color32::WHITE
-                } else {
-                    theme.bg_tertiary
-                });
+                        let mut job = egui::text::LayoutJob {
+                            halign: Align::Center,
+                            ..Default::default()
+                        };
+                        job.append(
+                            "> ",
+                            0.0,
+                            egui::TextFormat {
+                                font_id: modern_font(11.0),
+                                color: theme.accent.solid(),
+                                ..Default::default()
+                            },
+                        );
+                        job.append(
+                            &title,
+                            0.0,
+                            egui::TextFormat {
+                                font_id: modern_font(12.0),
+                                color: theme.text_secondary,
+                                ..Default::default()
+                            },
+                        );
+                        job.append(
+                            &format!(" {}", counter),
+                            0.0,
+                            egui::TextFormat {
+                                font_id: modern_font(11.0),
+                                color: theme.text_muted,
+                                ..Default::default()
+                            },
+                        );
+                        ui.label(job);
+                    }
 
-                ui.horizontal(|ui| {
-                    // Left half - Stats aligned to right
-                    ui.allocate_ui_with_layout(
-                        vec2(nav_half_width - nav_gap, nav_btn_height),
-                        Layout::right_to_left(Align::Center),
-                        |ui| {
-                            let btn = egui::Button::new(
-                                RichText::new(t.nav.statistics).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
+                    // Navigation buttons - reuse hover fade
+                    if hover_alpha > 0.0 {
+                        let fade = |c: egui::Color32| -> egui::Color32 {
+                            egui::Color32::from_rgba_unmultiplied(
+                                c.r(),
+                                c.g(),
+                                c.b(),
+                                (c.a() as f32 * hover_alpha) as u8,
                             )
-                            .fill(nav_btn_fill)
-                            .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
-                            .rounding(theme.rounding_md)
-                            .min_size(vec2(nav_btn_width, nav_btn_height));
-                            if ui.add(btn).clicked() {
-                                action = Some(TimerAction::OpenStats);
-                            }
-                        },
-                    );
+                        };
 
-                    // Right half - Settings aligned to left
-                    ui.allocate_ui_with_layout(
-                        vec2(nav_half_width - nav_gap, nav_btn_height),
-                        Layout::left_to_right(Align::Center),
-                        |ui| {
-                            let btn = egui::Button::new(
-                                RichText::new(t.nav.settings).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
-                            )
-                            .fill(nav_btn_fill)
-                            .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
-                            .rounding(theme.rounding_md)
-                            .min_size(vec2(nav_btn_width, nav_btn_height));
-                            if ui.add(btn).clicked() {
-                                action = Some(TimerAction::OpenSettings);
-                            }
-                        },
-                    );
+                        ui.add_space(spacing * 0.25);
+
+                        let nav_gap = spacing * 0.25;
+                        let nav_half_width = ui.available_width() / 2.0;
+                        let nav_btn_width = (available.x * NAV_BTN_WIDTH_FACTOR).clamp(80.0, 140.0);
+                        let nav_btn_height = (min_dim * NAV_BTN_HEIGHT_FACTOR).clamp(28.0, 38.0);
+                        let nav_btn_fill = fade(if theme.is_light {
+                            egui::Color32::WHITE
+                        } else {
+                            theme.bg_tertiary
+                        });
+
+                        ui.horizontal(|ui| {
+                            // Left half - Stats aligned to right
+                            ui.allocate_ui_with_layout(
+                                vec2(nav_half_width - nav_gap, nav_btn_height),
+                                Layout::right_to_left(Align::Center),
+                                |ui| {
+                                    let btn = egui::Button::new(
+                                        RichText::new(t.nav.statistics)
+                                            .font(modern_font(label_font_size * 0.85))
+                                            .color(fade(theme.text_primary)),
+                                    )
+                                    .fill(nav_btn_fill)
+                                    .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
+                                    .rounding(theme.rounding_md)
+                                    .min_size(vec2(nav_btn_width, nav_btn_height));
+                                    if ui.add(btn).clicked() {
+                                        action = Some(TimerAction::OpenStats);
+                                    }
+                                },
+                            );
+
+                            // Right half - Settings aligned to left
+                            ui.allocate_ui_with_layout(
+                                vec2(nav_half_width - nav_gap, nav_btn_height),
+                                Layout::left_to_right(Align::Center),
+                                |ui| {
+                                    let btn = egui::Button::new(
+                                        RichText::new(t.nav.settings)
+                                            .font(modern_font(label_font_size * 0.85))
+                                            .color(fade(theme.text_primary)),
+                                    )
+                                    .fill(nav_btn_fill)
+                                    .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
+                                    .rounding(theme.rounding_md)
+                                    .min_size(vec2(nav_btn_width, nav_btn_height));
+                                    if ui.add(btn).clicked() {
+                                        action = Some(TimerAction::OpenSettings);
+                                    }
+                                },
+                            );
+                        });
+
+                        ui.add_space(spacing * 0.15);
+
+                        ui.horizontal(|ui| {
+                            // Left half - Todo aligned to right
+                            ui.allocate_ui_with_layout(
+                                vec2(nav_half_width - nav_gap, nav_btn_height),
+                                Layout::right_to_left(Align::Center),
+                                |ui| {
+                                    let btn = egui::Button::new(
+                                        RichText::new(t.nav.tasks)
+                                            .font(modern_font(label_font_size * 0.85))
+                                            .color(fade(theme.text_primary)),
+                                    )
+                                    .fill(nav_btn_fill)
+                                    .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
+                                    .rounding(theme.rounding_md)
+                                    .min_size(vec2(nav_btn_width, nav_btn_height));
+                                    if ui.add(btn).clicked() {
+                                        action = Some(TimerAction::OpenTodo);
+                                    }
+                                },
+                            );
+
+                            // Right half - Queue aligned to left
+                            ui.allocate_ui_with_layout(
+                                vec2(nav_half_width - nav_gap, nav_btn_height),
+                                Layout::left_to_right(Align::Center),
+                                |ui| {
+                                    let queue_text = if queue.is_empty() {
+                                        t.nav.queue.to_string()
+                                    } else {
+                                        format!("{} ({})", t.nav.queue, queue.len())
+                                    };
+                                    let btn = egui::Button::new(
+                                        RichText::new(&queue_text)
+                                            .font(modern_font(label_font_size * 0.85))
+                                            .color(fade(theme.text_primary)),
+                                    )
+                                    .fill(nav_btn_fill)
+                                    .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
+                                    .rounding(theme.rounding_md)
+                                    .min_size(vec2(nav_btn_width, nav_btn_height));
+                                    if ui.add(btn).clicked() {
+                                        action = Some(TimerAction::OpenQueue);
+                                    }
+                                },
+                            );
+                        });
+
+                        ui.add_space(spacing * 0.25);
+
+                        // Request repaint during animation
+                        if hover_alpha < 1.0 {
+                            ui.ctx().request_repaint();
+                        }
+                    }
                 });
-
-                ui.add_space(spacing * 0.15);
-
-                ui.horizontal(|ui| {
-                    // Left half - Todo aligned to right
-                    ui.allocate_ui_with_layout(
-                        vec2(nav_half_width - nav_gap, nav_btn_height),
-                        Layout::right_to_left(Align::Center),
-                        |ui| {
-                            let btn = egui::Button::new(
-                                RichText::new(t.nav.tasks).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
-                            )
-                            .fill(nav_btn_fill)
-                            .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
-                            .rounding(theme.rounding_md)
-                            .min_size(vec2(nav_btn_width, nav_btn_height));
-                            if ui.add(btn).clicked() {
-                                action = Some(TimerAction::OpenTodo);
-                            }
-                        },
-                    );
-
-                    // Right half - Queue aligned to left
-                    ui.allocate_ui_with_layout(
-                        vec2(nav_half_width - nav_gap, nav_btn_height),
-                        Layout::left_to_right(Align::Center),
-                        |ui| {
-                            let queue_text = if queue.is_empty() {
-                                t.nav.queue.to_string()
-                            } else {
-                                format!("{} ({})", t.nav.queue, queue.len())
-                            };
-                            let btn = egui::Button::new(
-                                RichText::new(&queue_text).font(modern_font(label_font_size * 0.85)).color(fade(theme.text_primary)),
-                            )
-                            .fill(nav_btn_fill)
-                            .stroke(egui::Stroke::new(1.0, fade(theme.border_default)))
-                            .rounding(theme.rounding_md)
-                            .min_size(vec2(nav_btn_width, nav_btn_height));
-                            if ui.add(btn).clicked() {
-                                action = Some(TimerAction::OpenQueue);
-                            }
-                        },
-                    );
-                });
-
-                ui.add_space(spacing * 0.25);
-
-                // Request repaint during animation
-                if hover_alpha < 1.0 {
-                    ui.ctx().request_repaint();
-                }
-            }
-        });
-        }); // ScrollArea
+            }); // ScrollArea
 
         action
     }
@@ -455,7 +500,8 @@ impl TimerView {
         };
 
         let t = crate::i18n::tr();
-        let modern_font = |size: f32| egui::FontId::new(size, egui::FontFamily::Name("Modern".into()));
+        let modern_font =
+            |size: f32| egui::FontId::new(size, egui::FontFamily::Name("Modern".into()));
         ui.label(
             egui::RichText::new(format!(
                 "{} {}/{}",

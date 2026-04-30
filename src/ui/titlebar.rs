@@ -207,7 +207,11 @@ impl TitleBar {
             TitleBarButton::Maximize => "btn_maximize",
             TitleBarButton::Close => "btn_close",
         };
-        let response = ui.interact(rect, egui::Id::new(self.id_prefix).with(button_id), Sense::click());
+        let response = ui.interact(
+            rect,
+            egui::Id::new(self.id_prefix).with(button_id),
+            Sense::click(),
+        );
 
         // Get the state for this button type
         let state = match button_type {
@@ -294,7 +298,11 @@ impl TitleBar {
         is_pinned: bool,
         bar_hover_t: f32,
     ) -> Option<TitleBarButton> {
-        let response = ui.interact(rect, egui::Id::new(self.id_prefix).with("pin_button"), Sense::click());
+        let response = ui.interact(
+            rect,
+            egui::Id::new(self.id_prefix).with("pin_button"),
+            Sense::click(),
+        );
 
         self.pin_state
             .update(response.hovered(), response.is_pointer_button_down_on());

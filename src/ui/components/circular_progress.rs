@@ -74,13 +74,45 @@ impl CircularProgress {
         let inner_radius = self.radius - self.thickness;
 
         // Draw background ring (full circle mesh) with anti-aliasing
-        self.draw_ring_mesh(ui, center, outer_radius, inner_radius, 1.0, self.bg_color, self.bg_color);
-        self.draw_ring_aa(ui, center, outer_radius, inner_radius, 1.0, self.bg_color, self.bg_color);
+        self.draw_ring_mesh(
+            ui,
+            center,
+            outer_radius,
+            inner_radius,
+            1.0,
+            self.bg_color,
+            self.bg_color,
+        );
+        self.draw_ring_aa(
+            ui,
+            center,
+            outer_radius,
+            inner_radius,
+            1.0,
+            self.bg_color,
+            self.bg_color,
+        );
 
         // Draw progress ring with gradient and anti-aliasing
         if self.progress > 0.0 {
-            self.draw_ring_mesh(ui, center, outer_radius, inner_radius, self.progress, self.start_color, self.end_color);
-            self.draw_ring_aa(ui, center, outer_radius, inner_radius, self.progress, self.start_color, self.end_color);
+            self.draw_ring_mesh(
+                ui,
+                center,
+                outer_radius,
+                inner_radius,
+                self.progress,
+                self.start_color,
+                self.end_color,
+            );
+            self.draw_ring_aa(
+                ui,
+                center,
+                outer_radius,
+                inner_radius,
+                self.progress,
+                self.start_color,
+                self.end_color,
+            );
             self.draw_progress_caps(ui, center, outer_radius, inner_radius);
         }
 
@@ -134,7 +166,11 @@ impl CircularProgress {
         mesh.indices.reserve(filled_segments * 6);
 
         for i in 0..filled_segments {
-            let t = if progress >= 1.0 { 0.0 } else { i as f32 / filled_segments.max(1) as f32 };
+            let t = if progress >= 1.0 {
+                0.0
+            } else {
+                i as f32 / filled_segments.max(1) as f32
+            };
             let angle1 = start_angle + angle_per_segment * i as f32;
             let angle2 = start_angle + angle_per_segment * (i + 1) as f32;
 
@@ -218,12 +254,14 @@ impl CircularProgress {
             // Outer edge
             let outer1 = Pos2::new(center.x + outer_r * cos1, center.y + outer_r * sin1);
             let outer2 = Pos2::new(center.x + outer_r * cos2, center.y + outer_r * sin2);
-            ui.painter().line_segment([outer1, outer2], Stroke::new(1.0, aa_color));
+            ui.painter()
+                .line_segment([outer1, outer2], Stroke::new(1.0, aa_color));
 
             // Inner edge
             let inner1 = Pos2::new(center.x + inner_r * cos1, center.y + inner_r * sin1);
             let inner2 = Pos2::new(center.x + inner_r * cos2, center.y + inner_r * sin2);
-            ui.painter().line_segment([inner1, inner2], Stroke::new(1.0, aa_color));
+            ui.painter()
+                .line_segment([inner1, inner2], Stroke::new(1.0, aa_color));
         }
     }
 

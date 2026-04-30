@@ -21,6 +21,7 @@ pub use state::SettingsState;
 
 /// Actions from settings
 #[derive(Debug, Clone, PartialEq)]
+#[allow(clippy::large_enum_variant)]
 pub enum SettingsAction {
     Back,
     UpdateConfig(Config),

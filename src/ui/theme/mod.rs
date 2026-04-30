@@ -418,13 +418,27 @@ impl Theme {
     }
 
     /// Create a theme from a Catppuccin flavor
-    fn from_catppuccin(flavor: catppuccin_egui::Theme, accent: AccentColor, is_light: bool) -> Self {
+    fn from_catppuccin(
+        flavor: catppuccin_egui::Theme,
+        accent: AccentColor,
+        is_light: bool,
+    ) -> Self {
         // For light flavors (Latte): layers go darker from base
         // For dark flavors: layers go lighter from base
         let (bg_tertiary, bg_hover, bg_active, bg_elevated) = if is_light {
-            (flavor.surface0, flavor.surface1, flavor.surface2, flavor.base)
+            (
+                flavor.surface0,
+                flavor.surface1,
+                flavor.surface2,
+                flavor.base,
+            )
         } else {
-            (flavor.surface0, flavor.surface1, flavor.surface2, flavor.surface1)
+            (
+                flavor.surface0,
+                flavor.surface1,
+                flavor.surface2,
+                flavor.surface1,
+            )
         };
 
         Self {
@@ -438,8 +452,8 @@ impl Theme {
             bg_active,
 
             // Borders
-            border_subtle: if is_light { flavor.surface1 } else { flavor.surface1 },
-            border_default: if is_light { flavor.surface2 } else { flavor.surface2 },
+            border_subtle: flavor.surface1,
+            border_default: flavor.surface2,
             border_strong: flavor.overlay0,
 
             // Text
@@ -454,15 +468,35 @@ impl Theme {
             // Semantic
             success: flavor.green,
             success_muted: if is_light {
-                Color32::from_rgba_unmultiplied(flavor.green.r(), flavor.green.g(), flavor.green.b(), 40)
+                Color32::from_rgba_unmultiplied(
+                    flavor.green.r(),
+                    flavor.green.g(),
+                    flavor.green.b(),
+                    40,
+                )
             } else {
-                Color32::from_rgba_unmultiplied(flavor.green.r(), flavor.green.g(), flavor.green.b(), 30)
+                Color32::from_rgba_unmultiplied(
+                    flavor.green.r(),
+                    flavor.green.g(),
+                    flavor.green.b(),
+                    30,
+                )
             },
             warning: flavor.yellow,
             warning_muted: if is_light {
-                Color32::from_rgba_unmultiplied(flavor.yellow.r(), flavor.yellow.g(), flavor.yellow.b(), 40)
+                Color32::from_rgba_unmultiplied(
+                    flavor.yellow.r(),
+                    flavor.yellow.g(),
+                    flavor.yellow.b(),
+                    40,
+                )
             } else {
-                Color32::from_rgba_unmultiplied(flavor.yellow.r(), flavor.yellow.g(), flavor.yellow.b(), 30)
+                Color32::from_rgba_unmultiplied(
+                    flavor.yellow.r(),
+                    flavor.yellow.g(),
+                    flavor.yellow.b(),
+                    30,
+                )
             },
             error: flavor.red,
             error_muted: if is_light {

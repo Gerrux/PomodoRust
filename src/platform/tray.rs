@@ -198,6 +198,7 @@ impl SystemTray {
                 return Some(TrayAction::Quit);
             }
         }
+        #[allow(clippy::collapsible_match)]
         if let Ok(event) = tray_icon::TrayIconEvent::receiver().try_recv() {
             match event {
                 tray_icon::TrayIconEvent::Click {

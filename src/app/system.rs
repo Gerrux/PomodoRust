@@ -38,43 +38,53 @@ impl PomodoRustApp {
         // Fallback fonts: symbols (box-drawing, math, etc.) + emoji
         let fallbacks: &[(&str, &[&str])] = &[
             #[cfg(windows)]
-            ("symbols", &[
-                "C:\\Windows\\Fonts\\seguisym.ttf",  // Segoe UI Symbol (box-drawing, math, misc)
-                "C:\\Windows\\Fonts\\segoeui.ttf",   // Segoe UI (broad Unicode coverage)
-            ]),
+            (
+                "symbols",
+                &[
+                    "C:\\Windows\\Fonts\\seguisym.ttf", // Segoe UI Symbol (box-drawing, math, misc)
+                    "C:\\Windows\\Fonts\\segoeui.ttf",  // Segoe UI (broad Unicode coverage)
+                ],
+            ),
             #[cfg(windows)]
-            ("emoji", &[
-                "C:\\Windows\\Fonts\\seguiemj.ttf",  // Segoe UI Emoji
-            ]),
+            (
+                "emoji",
+                &[
+                    "C:\\Windows\\Fonts\\seguiemj.ttf", // Segoe UI Emoji
+                ],
+            ),
             #[cfg(target_os = "linux")]
-            ("symbols", &[
-                "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-                "/usr/share/fonts/TTF/DejaVuSans.ttf",
-            ]),
+            (
+                "symbols",
+                &[
+                    "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                    "/usr/share/fonts/TTF/DejaVuSans.ttf",
+                ],
+            ),
             #[cfg(target_os = "linux")]
-            ("emoji", &[
-                "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
-                "/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf",
-                "/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf",
-            ]),
+            (
+                "emoji",
+                &[
+                    "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf",
+                    "/usr/share/fonts/noto-emoji/NotoColorEmoji.ttf",
+                    "/usr/share/fonts/google-noto-emoji/NotoColorEmoji.ttf",
+                ],
+            ),
             #[cfg(target_os = "macos")]
-            ("symbols", &[
-                "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-            ]),
+            (
+                "symbols",
+                &["/System/Library/Fonts/Supplemental/Arial Unicode.ttf"],
+            ),
             #[cfg(target_os = "macos")]
-            ("emoji", &[
-                "/System/Library/Fonts/Apple Color Emoji.ttc",
-            ]),
+            ("emoji", &["/System/Library/Fonts/Apple Color Emoji.ttc"]),
         ];
 
         for (name, paths) in fallbacks {
             for path in *paths {
                 let p = std::path::Path::new(path);
                 if let Ok(data) = std::fs::read(p) {
-                    fonts.font_data.insert(
-                        name.to_string(),
-                        egui::FontData::from_owned(data),
-                    );
+                    fonts
+                        .font_data
+                        .insert(name.to_string(), egui::FontData::from_owned(data));
                     if let Some(family) = fonts.families.get_mut(&egui::FontFamily::Proportional) {
                         if !family.contains(&name.to_string()) {
                             family.push(name.to_string());
@@ -335,11 +345,7 @@ impl PomodoRustApp {
 
         let timer = self.session.timer();
         let tooltip = if timer.is_running() {
-            format!(
-                "{} \u{2014} {}",
-                session_label,
-                timer.remaining_formatted()
-            )
+            format!("{} \u{2014} {}", session_label, timer.remaining_formatted())
         } else if timer.is_paused() {
             format!(
                 "{} \u{2014} {} {}",
@@ -405,14 +411,10 @@ impl PomodoRustApp {
             .show(ctx, |ui| {
                 let screen = ui.ctx().screen_rect();
                 // Semi-transparent overlay
-                ui.painter().rect_filled(
-                    screen,
-                    0.0,
-                    egui::Color32::from_black_alpha(120),
-                );
+                ui.painter()
+                    .rect_filled(screen, 0.0, egui::Color32::from_black_alpha(120));
                 // Consume clicks on overlay to close dialog
-                let overlay_response =
-                    ui.allocate_rect(screen, egui::Sense::click());
+                let overlay_response = ui.allocate_rect(screen, egui::Sense::click());
                 if overlay_response.clicked() {
                     open = false;
                 }

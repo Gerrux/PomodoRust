@@ -45,7 +45,9 @@ impl PomodoRustApp {
     /// Handle todo action from the todo viewport.
     /// Returns `true` if a full refresh is needed (deferred for batching).
     pub(super) fn handle_todo_action(&mut self, action: TodoAction) -> bool {
-        let Some(db) = &self.database else { return false };
+        let Some(db) = &self.database else {
+            return false;
+        };
 
         // Collect DB errors to show as toasts after releasing borrows
         let mut db_errors: Vec<String> = Vec::new();
@@ -75,7 +77,6 @@ impl PomodoRustApp {
 
         let result = match action {
             // ── Fast-path: no refresh needed ──────────────────────────
-
             TodoAction::ToggleShowCompleted => {
                 if let Ok(mut state) = self.shared_todo.data.write() {
                     state.show_completed = !state.show_completed;
@@ -185,17 +186,32 @@ impl PomodoRustApp {
                 false
             }
             // Reorder: needs full refresh to get correct sort order from DB
-            TodoAction::ReorderTodo { id, project_id, new_position } => {
-                db_op!(db.reorder_todo_to(id, project_id, new_position), "reorder_todo");
+            TodoAction::ReorderTodo {
+                id,
+                project_id,
+                new_position,
+            } => {
+                db_op!(
+                    db.reorder_todo_to(id, project_id, new_position),
+                    "reorder_todo"
+                );
                 true
             }
 
             // ── Fast-path: create todo with cache insert ─────────────
-
-            TodoAction::CreateTodo { workspace_id, project_id, title } => {
-                if let Some(new_id) = db_try!(db.create_todo(workspace_id, project_id, &title), "create_todo") {
+            TodoAction::CreateTodo {
+                workspace_id,
+                project_id,
+                title,
+            } => {
+                if let Some(new_id) = db_try!(
+                    db.create_todo(workspace_id, project_id, &title),
+                    "create_todo"
+                ) {
                     if let Ok(mut state) = self.shared_todo.data.write() {
-                        let max_pos = state.todos.iter()
+                        let max_pos = state
+                            .todos
+                            .iter()
                             .filter(|t| t.workspace_id == workspace_id)
                             .map(|t| t.position)
                             .max()
@@ -218,10 +234,20 @@ impl PomodoRustApp {
                 }
                 false
             }
-            TodoAction::CreateTodoWithBody { workspace_id, project_id, title, body } => {
-                if let Some(new_id) = db_try!(db.create_todo_with_body(workspace_id, project_id, &title, &body), "create_todo_with_body") {
+            TodoAction::CreateTodoWithBody {
+                workspace_id,
+                project_id,
+                title,
+                body,
+            } => {
+                if let Some(new_id) = db_try!(
+                    db.create_todo_with_body(workspace_id, project_id, &title, &body),
+                    "create_todo_with_body"
+                ) {
                     if let Ok(mut state) = self.shared_todo.data.write() {
-                        let max_pos = state.todos.iter()
+                        let max_pos = state
+                            .todos
+                            .iter()
                             .filter(|t| t.workspace_id == workspace_id)
                             .map(|t| t.position)
                             .max()
@@ -246,7 +272,6 @@ impl PomodoRustApp {
             }
 
             // ── Fast-path: delete todo with cache removal ────────────
-
             TodoAction::DeleteTodo { id } => {
                 db_op!(db.delete_todo(id), "delete_todo");
                 if let Ok(mut state) = self.shared_todo.data.write() {
@@ -258,19 +283,23 @@ impl PomodoRustApp {
             }
 
             // ── Fast-path: queue operations with cache update ────────
-
-            TodoAction::AddToQueue { todo_id, planned_pomodoros } => {
-                if let Some(new_id) = db_try!(db.add_to_queue(todo_id, planned_pomodoros), "add_to_queue") {
+            TodoAction::AddToQueue {
+                todo_id,
+                planned_pomodoros,
+            } => {
+                if let Some(new_id) =
+                    db_try!(db.add_to_queue(todo_id, planned_pomodoros), "add_to_queue")
+                {
                     if new_id > 0 {
                         if let Ok(mut state) = self.shared_todo.data.write() {
-                            let title = state.todos.iter()
+                            let title = state
+                                .todos
+                                .iter()
                                 .find(|t| t.id == todo_id)
                                 .map(|t| t.title.clone())
                                 .unwrap_or_default();
-                            let max_pos = state.queue.iter()
-                                .map(|q| q.position)
-                                .max()
-                                .unwrap_or(-1);
+                            let max_pos =
+                                state.queue.iter().map(|q| q.position).max().unwrap_or(-1);
                             state.queue.push(QueuedTask {
                                 id: new_id,
                                 todo_id,
@@ -303,11 +332,15 @@ impl PomodoRustApp {
             }
 
             // ── Fast-path: create project with cache insert ──────────
-
             TodoAction::CreateProject { workspace_id, name } => {
-                if let Some(new_id) = db_try!(db.create_project(workspace_id, &name, None), "create_project") {
+                if let Some(new_id) = db_try!(
+                    db.create_project(workspace_id, &name, None),
+                    "create_project"
+                ) {
                     if let Ok(mut state) = self.shared_todo.data.write() {
-                        let max_pos = state.projects.iter()
+                        let max_pos = state
+                            .projects
+                            .iter()
                             .filter(|p| p.workspace_id == workspace_id)
                             .map(|p| p.position)
                             .max()
@@ -341,7 +374,6 @@ impl PomodoRustApp {
             }
 
             // ── Slow-path: structural changes needing full refresh ───
-
             TodoAction::CreateWorkspace { name } => {
                 db_op!(db.create_workspace(&name, None, None), "create_workspace");
                 true // need refresh to get all workspaces
@@ -475,12 +507,8 @@ impl PomodoRustApp {
         if let (Some(x), Some(y)) = (todo_config.window_x, todo_config.window_y) {
             todo_vp = todo_vp.with_position([x, y]);
         }
-        ctx.show_viewport_deferred(
-            self.todo_window.viewport_id,
-            todo_vp,
-            move |ctx, _class| {
-                render_todo_viewport(ctx, &shared);
-            },
-        );
+        ctx.show_viewport_deferred(self.todo_window.viewport_id, todo_vp, move |ctx, _class| {
+            render_todo_viewport(ctx, &shared);
+        });
     }
 }

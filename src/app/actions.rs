@@ -4,11 +4,11 @@ use chrono::Utc;
 
 use crate::core::{Preset, SessionType, TimerEvent};
 use crate::data::{Config, ExportFormat, Exporter, Statistics};
+use crate::platform::SystemTray;
 use crate::ui::settings::{SettingsAction, SettingsView};
 use crate::ui::stats::StatsAction;
 use crate::ui::theme::Theme;
 use crate::ui::timer_view::TimerAction;
-use crate::platform::SystemTray;
 
 use super::PomodoRustApp;
 use super::View;
@@ -34,7 +34,9 @@ impl PomodoRustApp {
             } else {
                 None
             };
-            if let Err(e) = db.record_session(session_type, duration, duration, true, start_time, todo_id) {
+            if let Err(e) =
+                db.record_session(session_type, duration, duration, true, start_time, todo_id)
+            {
                 tracing::error!("Failed to record session: {e}");
             }
 
@@ -59,22 +61,28 @@ impl PomodoRustApp {
         // Show notification
         if self.config.system.notifications_enabled {
             let t = crate::i18n::tr();
-            let (title, body): (&str, String) = if goal_just_reached
-                && self.config.goals.notify_on_goal
-            {
-                (
-                    t.notif.daily_goal_reached,
-                    format!("{} {}", self.config.goals.daily_target, t.settings.pomodoros),
-                )
-            } else {
-                match session_type {
-                    SessionType::Work => (t.notif.focus_complete, t.notif.time_for_break.to_string()),
-                    SessionType::ShortBreak => (t.notif.break_over, t.notif.ready_to_focus.to_string()),
-                    SessionType::LongBreak => {
-                        (t.notif.long_break_over, t.notif.back_to_work.to_string())
+            let (title, body): (&str, String) =
+                if goal_just_reached && self.config.goals.notify_on_goal {
+                    (
+                        t.notif.daily_goal_reached,
+                        format!(
+                            "{} {}",
+                            self.config.goals.daily_target, t.settings.pomodoros
+                        ),
+                    )
+                } else {
+                    match session_type {
+                        SessionType::Work => {
+                            (t.notif.focus_complete, t.notif.time_for_break.to_string())
+                        }
+                        SessionType::ShortBreak => {
+                            (t.notif.break_over, t.notif.ready_to_focus.to_string())
+                        }
+                        SessionType::LongBreak => {
+                            (t.notif.long_break_over, t.notif.back_to_work.to_string())
+                        }
                     }
-                }
-            };
+                };
             crate::platform::show_notification(title, &body);
         }
 
@@ -179,8 +187,7 @@ impl PomodoRustApp {
                 } else if let Some(db) = &self.database {
                     use chrono::Local;
                     let today = Local::now().date_naive();
-                    let reference =
-                        today + chrono::Duration::weeks(offset as i64);
+                    let reference = today + chrono::Duration::weeks(offset as i64);
                     self.stats_view.selected_week_hours =
                         db.get_week_stats_for_date(reference).ok();
                 }
@@ -269,7 +276,10 @@ impl PomodoRustApp {
                 }
                 Err(e) => {
                     tracing::error!("Failed to export statistics: {}", e);
-                    crate::platform::show_notification(crate::i18n::tr().notif.export_failed, &format!("Error: {}", e));
+                    crate::platform::show_notification(
+                        crate::i18n::tr().notif.export_failed,
+                        &format!("Error: {}", e),
+                    );
                 }
             }
         }
@@ -288,7 +298,11 @@ impl PomodoRustApp {
             SettingsAction::SelectPreset(index) => {
                 let presets = [Preset::classic(), Preset::short(), Preset::long()];
                 let t = crate::i18n::tr();
-                let preset_names = [t.settings.preset_classic, t.settings.preset_short, t.settings.preset_long];
+                let preset_names = [
+                    t.settings.preset_classic,
+                    t.settings.preset_short,
+                    t.settings.preset_long,
+                ];
                 if let Some(preset) = presets.get(index) {
                     self.config.apply_preset(preset);
                     self.session.set_preset(preset.clone());
@@ -297,7 +311,10 @@ impl PomodoRustApp {
                     if let Some(ref mut sv) = self.settings_view {
                         sv.reset_from_config(&self.config);
                     }
-                    self.show_status(format!("{} {}", preset_names[index], t.settings.preset_applied));
+                    self.show_status(format!(
+                        "{} {}",
+                        preset_names[index], t.settings.preset_applied
+                    ));
                 }
             }
             SettingsAction::ResetDefaults => {

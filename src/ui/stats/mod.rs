@@ -61,8 +61,8 @@ impl StatsView {
         use chrono::{Datelike, Local};
         let today = Local::now().date_naive();
         let reference = today + chrono::Duration::weeks(self.week_offset as i64);
-        let start = reference
-            - chrono::Duration::days(reference.weekday().num_days_from_monday() as i64);
+        let start =
+            reference - chrono::Duration::days(reference.weekday().num_days_from_monday() as i64);
         let end = start + chrono::Duration::days(6);
         if self.week_offset == 0 {
             crate::i18n::tr().stats.this_week.to_string()
@@ -76,7 +76,9 @@ impl StatsView {
         if self.week_offset == 0 {
             &stats.week_daily_hours
         } else {
-            self.selected_week_hours.as_deref().unwrap_or(&stats.week_daily_hours)
+            self.selected_week_hours
+                .as_deref()
+                .unwrap_or(&stats.week_daily_hours)
         }
     }
 

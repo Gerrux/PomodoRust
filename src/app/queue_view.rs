@@ -1,6 +1,6 @@
+use crate::data::todo::QueuedTask;
 use crate::ui::components::{draw_icon, Icon};
 use crate::ui::theme::Theme;
-use crate::data::todo::QueuedTask;
 
 /// Queue view action
 pub(super) enum QueueViewAction {
@@ -106,8 +106,8 @@ pub(super) fn render_queue_view(
         .auto_shrink([false, false])
         .max_height(available_height)
         .show(ui, |ui| {
-            let response = egui_dnd::dnd(ui, "queue_dnd")
-                .show_vec(&mut items, |ui, item, handle, state| {
+            let response =
+                egui_dnd::dnd(ui, "queue_dnd").show_vec(&mut items, |ui, item, handle, state| {
                     let i = state.index;
                     let is_current = i == 0 && !state.dragged;
 
@@ -127,14 +127,20 @@ pub(super) fn render_queue_view(
                                         handle_rect.center(),
                                         egui::vec2(10.0, 10.0),
                                     );
-                                    draw_icon(ui, Icon::GripVertical, ir,
-                                        theme.text_muted.linear_multiply(0.4));
+                                    draw_icon(
+                                        ui,
+                                        Icon::GripVertical,
+                                        ir,
+                                        theme.text_muted.linear_multiply(0.4),
+                                    );
                                 });
 
                                 // Current indicator
                                 if is_current {
-                                    let (icon_rect, _) =
-                                        ui.allocate_exact_size(egui::vec2(12.0, 18.0), egui::Sense::hover());
+                                    let (icon_rect, _) = ui.allocate_exact_size(
+                                        egui::vec2(12.0, 18.0),
+                                        egui::Sense::hover(),
+                                    );
                                     let ir = egui::Rect::from_center_size(
                                         icon_rect.center(),
                                         egui::vec2(9.0, 9.0),
@@ -143,7 +149,11 @@ pub(super) fn render_queue_view(
                                 }
 
                                 // Title
-                                let title_color = if is_current { theme.text_primary } else { theme.text_secondary };
+                                let title_color = if is_current {
+                                    theme.text_primary
+                                } else {
+                                    theme.text_secondary
+                                };
                                 let mut title_text = egui::RichText::new(&item.title)
                                     .size(13.0)
                                     .color(title_color);
@@ -189,7 +199,8 @@ pub(super) fn render_queue_view(
                                                 ui.label(
                                                     egui::RichText::new(format!(
                                                         "{}/{}",
-                                                        item.completed_pomodoros, item.planned_pomodoros
+                                                        item.completed_pomodoros,
+                                                        item.planned_pomodoros
                                                     ))
                                                     .size(11.0)
                                                     .color(theme.text_secondary),
@@ -204,7 +215,8 @@ pub(super) fn render_queue_view(
 
                     // Hover bg
                     if ui.rect_contains_pointer(item_rect) {
-                        ui.painter().rect_filled(item_rect, theme.rounding_sm, hover_bg);
+                        ui.painter()
+                            .rect_filled(item_rect, theme.rounding_sm, hover_bg);
                     }
 
                     // Current item accent stripe

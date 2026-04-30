@@ -2,12 +2,18 @@ use egui::{vec2, Align, Layout, Rect, Ui};
 
 use super::super::components::{draw_icon, Card, CircularProgress, Icon};
 use super::super::theme::Theme;
-use super::{StatsAction, StatsView, stat_row};
+use super::{stat_row, StatsAction, StatsView};
 use crate::core::Session;
 use crate::data::Statistics;
 
 impl StatsView {
-    pub(crate) fn show_compact_timer_card(&self, ui: &mut Ui, session: &Session, theme: &Theme, pulse: f32) {
+    pub(crate) fn show_compact_timer_card(
+        &self,
+        ui: &mut Ui,
+        session: &Session,
+        theme: &Theme,
+        pulse: f32,
+    ) {
         let t = crate::i18n::tr();
         let (start_color, end_color) = theme.session_gradient(session.session_type());
         let badge_color = Theme::lerp_color(start_color, end_color, 0.5);
@@ -153,7 +159,9 @@ impl StatsView {
                 // Previous week
                 let prev_btn = ui.add(
                     egui::Button::new(
-                        egui::RichText::new("<").size(12.0).color(theme.text_secondary),
+                        egui::RichText::new("<")
+                            .size(12.0)
+                            .color(theme.text_secondary),
                     )
                     .fill(egui::Color32::TRANSPARENT)
                     .min_size(vec2(20.0, 20.0)),
@@ -173,7 +181,9 @@ impl StatsView {
                 if self.week_offset < 0 {
                     let next_btn = ui.add(
                         egui::Button::new(
-                            egui::RichText::new(">").size(12.0).color(theme.text_secondary),
+                            egui::RichText::new(">")
+                                .size(12.0)
+                                .color(theme.text_secondary),
                         )
                         .fill(egui::Color32::TRANSPARENT)
                         .min_size(vec2(20.0, 20.0)),
@@ -187,12 +197,9 @@ impl StatsView {
 
                 ui.with_layout(Layout::right_to_left(Align::Center), |ui| {
                     ui.label(
-                        egui::RichText::new(format!(
-                            "{:.1}h",
-                            self.displayed_week_total(stats)
-                        ))
-                        .size(11.0)
-                        .color(theme.text_muted),
+                        egui::RichText::new(format!("{:.1}h", self.displayed_week_total(stats)))
+                            .size(11.0)
+                            .color(theme.text_muted),
                     );
                 });
             });
@@ -468,9 +475,17 @@ impl StatsView {
             // Daily goal progress
             ui.horizontal(|ui| {
                 let goal_text = if goal_reached {
-                    format!("{}/{} {}", stats.today_pomodoros, daily_goal, t.stats.goal_reached)
+                    format!(
+                        "{}/{} {}",
+                        stats.today_pomodoros, daily_goal, t.stats.goal_reached
+                    )
                 } else {
-                    format!("{}/{} {}", stats.today_pomodoros, daily_goal, crate::i18n::tr().settings.pomodoros)
+                    format!(
+                        "{}/{} {}",
+                        stats.today_pomodoros,
+                        daily_goal,
+                        crate::i18n::tr().settings.pomodoros
+                    )
                 };
                 let text_color = if goal_reached {
                     theme.success

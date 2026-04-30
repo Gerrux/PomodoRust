@@ -25,7 +25,9 @@ impl Database {
             |row| row.get(0),
         )?;
         if exists {
-            return Err(rusqlite::Error::InvalidParameterName("duplicate workspace name".into()));
+            return Err(rusqlite::Error::InvalidParameterName(
+                "duplicate workspace name".into(),
+            ));
         }
         let pos: i64 = self.conn.query_row(
             "SELECT COALESCE(MAX(position), -1) + 1 FROM workspaces",
@@ -106,7 +108,9 @@ impl Database {
             |row| row.get(0),
         )?;
         if exists {
-            return Err(rusqlite::Error::InvalidParameterName("duplicate project name".into()));
+            return Err(rusqlite::Error::InvalidParameterName(
+                "duplicate project name".into(),
+            ));
         }
         let pos: i64 = self.conn.query_row(
             "SELECT COALESCE(MAX(position), -1) + 1 FROM projects WHERE workspace_id = ?1",
@@ -215,7 +219,7 @@ impl Database {
             r#"SELECT id, project_id, workspace_id, title, body, completed, collapsed, priority, position, created_at, completed_at
                FROM todo_items WHERE workspace_id = ?1 ORDER BY completed ASC, priority DESC, position ASC"#,
         )?;
-        let rows = stmt.query_map(params![workspace_id], |row| Self::row_to_todo(row))?;
+        let rows = stmt.query_map(params![workspace_id], Self::row_to_todo)?;
         rows.collect()
     }
 
@@ -224,7 +228,7 @@ impl Database {
             r#"SELECT id, project_id, workspace_id, title, body, completed, collapsed, priority, position, created_at, completed_at
                FROM todo_items WHERE project_id = ?1 ORDER BY completed ASC, priority DESC, position ASC"#,
         )?;
-        let rows = stmt.query_map(params![project_id], |row| Self::row_to_todo(row))?;
+        let rows = stmt.query_map(params![project_id], Self::row_to_todo)?;
         rows.collect()
     }
 
@@ -233,7 +237,7 @@ impl Database {
             r#"SELECT id, project_id, workspace_id, title, body, completed, collapsed, priority, position, created_at, completed_at
                FROM todo_items WHERE workspace_id = ?1 AND project_id IS NULL ORDER BY completed ASC, priority DESC, position ASC"#,
         )?;
-        let rows = stmt.query_map(params![workspace_id], |row| Self::row_to_todo(row))?;
+        let rows = stmt.query_map(params![workspace_id], Self::row_to_todo)?;
         rows.collect()
     }
 
@@ -333,7 +337,12 @@ impl Database {
     }
 
     /// Move todo to a project and insert at a specific position, shifting others down
-    pub fn reorder_todo_to(&self, id: i64, project_id: Option<i64>, new_position: i32) -> rusqlite::Result<()> {
+    pub fn reorder_todo_to(
+        &self,
+        id: i64,
+        project_id: Option<i64>,
+        new_position: i32,
+    ) -> rusqlite::Result<()> {
         let tx = self.conn.unchecked_transaction()?;
         // Update the project assignment
         tx.execute(

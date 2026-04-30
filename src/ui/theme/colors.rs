@@ -1,7 +1,7 @@
 use egui::{self, Color32, FontId, Rounding, Stroke};
 
-use crate::core::SessionType;
 use super::{AccentColor, Theme};
+use crate::core::SessionType;
 
 impl Theme {
     /// Get gradient colors for current session type
@@ -37,15 +37,10 @@ impl Theme {
     }
 
     /// Retro session colors for dark mode (bright neon)
-    fn retro_session_gradient_dark(
-        &self,
-        session_type: SessionType,
-    ) -> (Color32, Color32) {
+    fn retro_session_gradient_dark(&self, session_type: SessionType) -> (Color32, Color32) {
         match self.accent {
             AccentColor::Matrix => match session_type {
-                SessionType::Work => {
-                    (Color32::from_rgb(0, 255, 65), Color32::from_rgb(0, 200, 50))
-                }
+                SessionType::Work => (Color32::from_rgb(0, 255, 65), Color32::from_rgb(0, 200, 50)),
                 SessionType::ShortBreak => (
                     Color32::from_rgb(0, 200, 200),
                     Color32::from_rgb(0, 160, 160),
@@ -88,17 +83,12 @@ impl Theme {
     }
 
     /// Retro session colors for light mode - BLACK like printed terminal
-    fn retro_session_gradient_light(
-        &self,
-        session_type: SessionType,
-    ) -> (Color32, Color32) {
+    fn retro_session_gradient_light(&self, session_type: SessionType) -> (Color32, Color32) {
         // All retro themes use black in light mode - the retro feel comes from
         // the ASCII art and monospace font, not from colored text
         match self.accent {
             AccentColor::Matrix => match session_type {
-                SessionType::Work => {
-                    (Color32::from_rgb(0, 0, 0), Color32::from_rgb(20, 20, 20))
-                }
+                SessionType::Work => (Color32::from_rgb(0, 0, 0), Color32::from_rgb(20, 20, 20)),
                 SessionType::ShortBreak => (
                     Color32::from_rgb(20, 30, 20), // Slight green tint
                     Color32::from_rgb(10, 20, 10),

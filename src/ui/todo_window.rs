@@ -25,6 +25,12 @@ pub struct TodoWindow {
     pub viewport_id: egui::ViewportId,
 }
 
+impl Default for TodoWindow {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TodoWindow {
     pub fn new() -> Self {
         Self {
@@ -180,7 +186,7 @@ pub fn render_todo_viewport(ctx: &egui::Context, bridge: &TodoBridge) {
         let gen = data.generation();
         RENDER_CACHE.with(|cache| {
             let mut cache = cache.borrow_mut();
-            if cache.as_ref().map_or(true, |c| c.generation != gen) {
+            if cache.as_ref().is_none_or(|c| c.generation != gen) {
                 *cache = Some(RenderCache {
                     generation: gen,
                     workspaces: Arc::clone(&data.workspaces),
@@ -269,12 +275,9 @@ pub fn render_todo_viewport(ctx: &egui::Context, bridge: &TodoBridge) {
                 });
 
                 // Titlebar
-                let (drag, button) = vui.titlebar.show(
-                    ui,
-                    &snapshot.theme,
-                    is_maximized,
-                    snapshot.is_always_on_top,
-                );
+                let (drag, button) =
+                    vui.titlebar
+                        .show(ui, &snapshot.theme, is_maximized, snapshot.is_always_on_top);
 
                 if drag {
                     ctx.send_viewport_cmd(egui::ViewportCommand::StartDrag);
@@ -288,9 +291,7 @@ pub fn render_todo_viewport(ctx: &egui::Context, bridge: &TodoBridge) {
                             ctx.send_viewport_cmd(egui::ViewportCommand::Minimized(true));
                         }
                         TitleBarButton::Maximize => {
-                            ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(
-                                !is_maximized,
-                            ));
+                            ctx.send_viewport_cmd(egui::ViewportCommand::Maximized(!is_maximized));
                         }
                         TitleBarButton::AlwaysOnTop => {
                             aot_toggled = true;
