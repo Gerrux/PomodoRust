@@ -7,9 +7,11 @@
 //! - UI state (`TodoView`, `TitleBar`) lives in a thread-local, not shared.
 
 use std::sync::{
-    atomic::{AtomicBool, Ordering},
+    atomic::AtomicBool,
     Arc, Mutex, RwLock,
 };
+#[cfg(windows)]
+use std::sync::atomic::Ordering;
 
 use crate::data::todo::{Project, QueuedTask, TodoItem, Workspace};
 use crate::ui::theme::Theme;
